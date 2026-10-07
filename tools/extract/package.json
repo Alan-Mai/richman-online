@@ -1,0 +1,14 @@
+{
+  "name": "@richman/extract",
+  "version": "0.0.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "cli": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}
