@@ -7,7 +7,7 @@
 - [x] TypeScript strict、ESLint、Prettier、Vitest 設定完成
 - [x] 根目錄 `pnpm test` / `pnpm lint` / `pnpm typecheck` 可執行
 - [x] `.gitignore` 排除 `local-assets/`、`.env`，並以副檔名排除原版檔案類型
-- [ ] CI（GitHub Actions）跑 test + lint + typecheck
+- [x] CI（GitHub Actions）跑 test + lint + typecheck（ubuntu-latest + windows-latest）
 
 **完成條件**：空專案所有檢查通過。
 
