@@ -2,6 +2,15 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-08 TypeScript 鎖在 ~6.0
+- **決策**：`typescript` 版本範圍為 `~6.0.x`，不用目前 npm 上 latest 的 7.x。
+- **原因**：typescript-eslint 8.x 的 peer 範圍是 `<6.1.0`；型別感知 lint 規則需要它。
+- **之後**：typescript-eslint 支援 7.x 後再升級。
+
+## 2026-10-08 依賴等用到時才安裝
+- **決策**：Phase 0 只建立 server、client 空殼；Phaser 在 Phase 3、Colyseus 在 Phase 4 才加入。
+- **原因**：避免過早鎖定版本與累積未使用的依賴。
+
 ## 2026-10-08 CI 素材防護：單檔 1 MB 上限
 - **決策**：CI 執行 `pnpm check:assets`（`scripts/check-assets.js`），任何追蹤中的檔案超過 1 MB、使用被禁止的副檔名（`tools/**/fixtures/` 除外）、或位於 `local-assets/` 即失敗。
 - **原因**：`.gitignore` 只擋得住未追蹤的檔案，`git add -f` 或改副檔名仍可能讓原版素材進庫。原版的圖片包、影片、音樂多半是大檔，而目前倉庫只有程式碼與文件，1 MB 足以攔下大部分誤提交且不會誤擋。
