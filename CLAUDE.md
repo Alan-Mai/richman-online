@@ -34,15 +34,19 @@ docs/              架構、路線圖、遊戲規則、素材格式、決策紀�
 
 ```
 pnpm install
-pnpm test                 # 全部測試
+pnpm test                 # 全部測試（Vitest projects）
+pnpm test:coverage        # 含覆蓋率（只統計 packages/shared）
 pnpm -F shared test       # 只測規則引擎
 pnpm -F server dev
 pnpm -F client dev
-pnpm -F extract run <cmd> # 素材工具
-pnpm lint && pnpm typecheck
+pnpm -F extract cli <cmd> # 素材工具（啟動時驗證 RICHMAN4_DIR）
+pnpm -F sim sim           # 終端機模擬器
+pnpm lint                 # ESLint + Prettier 檢查
+pnpm format               # Prettier 自動格式化（不含 *.md）
+pnpm typecheck
 ```
 
-（指令尚未建立時，以 `package.json` 實際內容為準，並更新此段。）
+（指令有變動時，以 `package.json` 實際內容為準，並更新此段。）
 
 ## 開發流程
 

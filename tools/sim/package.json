@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "sim": "tsx src/main.ts",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
   },
   "dependencies": {
     "@richman/shared": "workspace:*"

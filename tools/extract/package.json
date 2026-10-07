@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "cli": "tsx src/main.ts",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
   },
   "devDependencies": {
     "tsx": "^4.23.15"
