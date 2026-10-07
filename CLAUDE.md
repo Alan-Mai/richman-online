@@ -64,3 +64,4 @@ pnpm typecheck
 - 遊戲內玩家可見文字集中在 i18n 檔，預設 `zh-TW`。
 - 狀態物件不可就地修改，回傳新物件。
 - 優先使用可辨識聯合型別（discriminated unions）表示 Action 與 Event。
+- 含反斜線的檔案（Windows 路徑、正則、跳脫字元）一律用 Write/Edit 工具寫，不要用 bash heredoc 或 sed（本機 Git Bash 會吞掉 `\\`）。
