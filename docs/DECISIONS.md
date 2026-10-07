@@ -2,6 +2,16 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-08 CI 素材防護：單檔 1 MB 上限
+- **決策**：CI 執行 `pnpm check:assets`（`scripts/check-assets.js`），任何追蹤中的檔案超過 1 MB、使用被禁止的副檔名（`tools/**/fixtures/` 除外）、或位於 `local-assets/` 即失敗。
+- **原因**：`.gitignore` 只擋得住未追蹤的檔案，`git add -f` 或改副檔名仍可能讓原版素材進庫。原版的圖片包、影片、音樂多半是大檔，而目前倉庫只有程式碼與文件，1 MB 足以攔下大部分誤提交且不會誤擋。
+- **之後**：原創美術或音樂若有單檔超過 1 MB，改調高門檻（或對特定目錄另設門檻），或改用 Git LFS；不要直接移除這項檢查。
+- **替代方案**：只靠 `.gitignore`（無法防止強制加入）；pre-commit hook（可被略過，且需每位開發者安裝）。
+
+## 2026-10-08 CI 同時跑 Ubuntu 與 Windows
+- **決策**：GitHub Actions 以 matrix 在 `ubuntu-latest` 與 `windows-latest` 執行 test、lint、typecheck。
+- **原因**：主要開發環境是 Windows；`resolveGameDir()` 等路徑處理在兩個平台行為不同。單元測試另以注入 `path.win32` / `path.posix` 的方式，在任一平台都測兩種路徑語意。
+
 ## 2026-10-08 專案原創音效使用 .ogg
 - **決策**：倉庫內的原創音效（含測試以外的佔位音效）一律使用 `.ogg`。
 - **原因**：`.gitignore` 以 `*.wav` 做原版素材保險規則；原創音效改用 `.ogg` 就不必開例外。

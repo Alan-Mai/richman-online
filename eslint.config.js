@@ -47,7 +47,7 @@ export default defineConfig(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
-    files: ['apps/server/**', 'tools/**', '*.js', '*.ts'],
+    files: ['apps/server/**', 'tools/**', 'scripts/**', '*.js', '*.ts'],
     languageOptions: { globals: globals.node },
   },
   {
