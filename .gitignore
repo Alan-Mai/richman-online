@@ -1,0 +1,23 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+
+# 原版素材與轉檔結果：絕不入庫
+local-assets/
+*.iso
+
+# 保險規則：原版遊戲常見檔案類型一律忽略（副檔名不分大小寫）
+*.[mM][kK][fF]
+*.[eE][xX][eE]
+*.[dD][lL][lL]
+*.[aA][vV][iI]
+*.[mM][iI][dD]
+*.[wW][aA][vV]
+# 例外：tools/ 底下自行合成的測試假資料（只放在 fixtures/ 目錄）
+!tools/**/fixtures/**
+
+# Claude Code 個人設定
+.claude/settings.local.json
