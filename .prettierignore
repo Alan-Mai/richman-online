@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+LICENSE
+local-assets/
+coverage/
+dist/
+# Docs are hand-formatted (CJK tables); keep Prettier off them.
+*.md
