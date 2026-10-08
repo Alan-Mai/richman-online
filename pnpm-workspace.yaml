@@ -3,5 +3,8 @@ packages:
   - apps/*
   - tools/*
 
+# New dependencies get ~ (patch updates only) instead of ^.
+savePrefix: '~'
+
 onlyBuiltDependencies:
   - esbuild
