@@ -17,6 +17,7 @@
 - `/asset-analyze <檔案>` — 分析一種原版檔案格式
 - `/implement-rule <規則>` — 測試先行實作一條規則
 - `/phase-check` — 驗證目前階段完成度
+- `/wrap-up` — session 收尾：確認變更、更新 ROADMAP 下一步、整理規則、commit
 
 ## 授權
 程式碼以 [GNU General Public License v3.0](LICENSE) 釋出。
