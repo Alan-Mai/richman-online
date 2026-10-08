@@ -14,7 +14,7 @@
 ## Phase 1：素材逆向（風險最高，優先）
 - [x] `tools/extract inventory`：列出 `RICHMAN4_DIR` 全部檔案、大小、副檔名、檔頭 16 bytes，輸出 `local-assets/inventory.json`（另含整檔與 64 KB 區塊熵值）
 - [ ] 依檔頭與大小分類，於 `ASSET_FORMATS.md` 建立每種格式的條目
-- [ ] 調色盤格式解析
+- [ ] 像素格式解析（RGB555/RGB565，以及是否另有調色盤）
 - [ ] 圖片/精靈圖格式解析 → PNG
 - [ ] 地圖資料解析 → JSON（格子座標、類型、地價、連接關係）
 - [ ] 音效/音樂解析或確認可直接使用
@@ -22,12 +22,13 @@
 
 **完成條件**：能把一張原版地圖完整轉出並在簡單 HTML 檢視器中顯示。
 
-**下一步**：Phase 1-2，依 `local-assets/inventory.json` 分組並推測用途，填入 `ASSET_FORMATS.md` 的「檔案清單摘要」，並建議分析順序；預計先用 `/asset-analyze` 驗證 H1（MKF 偏移表），從 `map.mkf`、`Data.mkf` 著手。
+**下一步**：`/asset-analyze help.mkf`，先驗證 `ASSET_FORMATS.md` 中 H2 的四個預測；通過後再以 `jump.mkf` 第一子檔轉 PNG 確認像素格式。分組結果與完整分析順序見 `ASSET_FORMATS.md` 的「檔案清單摘要」。
 
 **未解問題**：
-- 21 個 `*.avi` 都只有約 5 KB，可能不是完整影片（安裝版未附？）；不影響 Phase 1 完成條件，之後再確認光碟版。
-- `Shaders/`（`*.glsl`、`*.pass1`）、`ddraw.dll`、`ddraw.ini`、`*.zip` 應屬 cnc-ddraw 相容層而非原版內容，分類時需確認後排除。
-- 7 個 `*.mkf` 的前 4 bytes 各不相同，與「開頭為偏移表」的假設相容，但尚未驗證。
+- 確認原版光碟的 AVI 是否為真實影片（本機副本的 21 個 `*.avi` 是相同的佔位檔，可能是精簡版）；不影響 Phase 1 完成條件。
+- 7 個 `*.mkf` 的第一個 uint32 都接近檔案大小，與 H1（開頭為偏移表）矛盾；改以 H2（檔尾索引表）驗證。
+- 「像素格式解析」項目的最終範圍（是否另有調色盤），待 `jump.mkf` 轉出 PNG 目視確認後定案。
+- MIDI 播放方式：瀏覽器內以 soundfont 合成，或離線轉檔；若選 soundfont，需確認其授權與 GPL 相容。
 - `GAME_RULES.md` 第 8 節：破產時債權人拿到多少 ❓ 待確認（Phase 2 前需決定）。
 - GitHub 的 `ubuntu-latest` 自 2026-10-19 起改為 Ubuntu 26，留意 CI 結果。
 
