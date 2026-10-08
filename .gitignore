@@ -21,3 +21,6 @@ local-assets/
 
 # Claude Code 個人設定
 .claude/settings.local.json
+
+# /asset-analyze 的驗證腳本（可隨時刪除，不入庫）
+tools/extract/scratch/
