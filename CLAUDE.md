@@ -58,6 +58,9 @@ pnpm typecheck
 6. 重要技術決策寫進 `docs/DECISIONS.md`；完成路線圖項目時，在同一個 commit 內更新 `docs/ROADMAP.md` 的勾選。
 7. `GAME_RULES.md` 標記「待確認」的規則，不要自行猜測；先問我，或做成可設定的參數。
 8. 輸出很長的工作（掃描 git 歷史、等 CI、分析二進位檔、大範圍搜尋）優先交給 subagent，只回報結論。
+9. 推送前執行 `/pre-push`。
+10. 新增有 peer 依賴限制的套件時，確認版本範圍相容（例：typescript-eslint 對 TypeScript）。
+11. 不要在本倉庫用 `git add -f` 測試防護機制，改用暫存目錄的另一個倉庫。
 
 ## 程式風格
 
