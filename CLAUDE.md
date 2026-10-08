@@ -57,6 +57,7 @@ pnpm typecheck
 5. 每次 commit 只做一件事，訊息用 Conventional Commits（`feat(shared): ...`）。
 6. 重要技術決策寫進 `docs/DECISIONS.md`；完成路線圖項目時，在同一個 commit 內更新 `docs/ROADMAP.md` 的勾選。
 7. `GAME_RULES.md` 標記「待確認」的規則，不要自行猜測；先問我，或做成可設定的參數。
+8. 輸出很長的工作（掃描 git 歷史、等 CI、分析二進位檔、大範圍搜尋）優先交給 subagent，只回報結論。
 
 ## 程式風格
 
