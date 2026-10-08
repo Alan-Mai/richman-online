@@ -12,7 +12,7 @@
 **完成條件**：空專案所有檢查通過。
 
 ## Phase 1：素材逆向（風險最高，優先）
-- [ ] `tools/extract inventory`：列出 `RICHMAN4_DIR` 全部檔案、大小、副檔名、檔頭 16 bytes，輸出 `local-assets/inventory.json`
+- [x] `tools/extract inventory`：列出 `RICHMAN4_DIR` 全部檔案、大小、副檔名、檔頭 16 bytes，輸出 `local-assets/inventory.json`（另含整檔與 64 KB 區塊熵值）
 - [ ] 依檔頭與大小分類，於 `ASSET_FORMATS.md` 建立每種格式的條目
 - [ ] 調色盤格式解析
 - [ ] 圖片/精靈圖格式解析 → PNG
