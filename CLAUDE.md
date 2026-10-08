@@ -61,6 +61,8 @@ pnpm typecheck
 9. 推送前執行 `/pre-push`。
 10. 新增有 peer 依賴限制的套件時，確認版本範圍相容（例：typescript-eslint 對 TypeScript）。
 11. 不要在本倉庫用 `git add -f` 測試防護機制，改用暫存目錄的另一個倉庫。
+12. 描述原版素材時，從 `RICHMAN4_DIR` 觀察到的現象一律寫成「本機副本中…」；需要原版佐證的列入 ROADMAP 未解問題。
+13. `/pre-push`、`/wrap-up`、`/asset-analyze` 等專案 skill 只能由使用者輸入；流程走到這些步驟時，停下來提醒我輸入。
 
 ## 程式風格
 
