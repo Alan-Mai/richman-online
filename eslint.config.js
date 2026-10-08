@@ -28,7 +28,13 @@ const NODE_BUILTINS = [
 ];
 
 export default defineConfig(
-  globalIgnores(['**/node_modules/', '**/dist/', '**/coverage/', 'local-assets/']),
+  globalIgnores([
+    '**/node_modules/',
+    '**/dist/',
+    '**/coverage/',
+    'local-assets/',
+    'tools/extract/scratch/',
+  ]),
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
   {

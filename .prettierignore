@@ -5,3 +5,4 @@ coverage/
 dist/
 # Docs are hand-formatted (CJK tables); keep Prettier off them.
 *.md
+tools/extract/scratch/
