@@ -67,6 +67,7 @@ pnpm typecheck
 ## 程式風格
 
 - 識別字、程式碼註解用英文；文件與 commit 說明可用繁體中文。
+- 與使用者對話一律使用繁體中文。
 - 遊戲內玩家可見文字集中在 i18n 檔，預設 `zh-TW`。
 - 狀態物件不可就地修改，回傳新物件。
 - 優先使用可辨識聯合型別（discriminated unions）表示 Action 與 Event。
