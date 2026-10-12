@@ -34,7 +34,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC 已確認，分析順序見 `ASSET_F
 
 **未解問題**：
 - 確認原版光碟的 AVI 是否為真實影片（本機副本的 21 個 `*.avi` 是相同的佔位檔，可能是精簡版）；不影響 Phase 1 完成條件。
-- MKF 子檔頭的 `unknown3`、`unknown4` 在全螢幕圖、`GND`、(0, 0) 類的意義未知（`SMP`、`SPR` 已確認）；`rawSize` > `storedSize` 的子檔（Data、Panel、jump、map）壓縮演算法未知。
+- MKF 子檔頭的 `unknown3`、`unknown4` 在全螢幕圖、(0, 0) 類的意義未知（`SMP`、`SPR`、`GND` 已確認）；`rawSize` > `storedSize` 的子檔（Data、Panel、jump、map）壓縮演算法未知。
 - `SMP`/`SPR` 的透明色與錨點：
   - `SMP` 四角統計沒有一致的透明色（`0x0000` 為候選）。
   - `SPR` 以調色盤索引 0 為透明（已目視確認）；但 `Data.mkf` 有 10 個調色盤的第 0 色不是 `0x0000`（見 `ASSET_FORMATS.md`）。
