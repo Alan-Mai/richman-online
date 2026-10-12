@@ -4,7 +4,7 @@
 
 ## 必守規則（違反即視為錯誤）
 
-- **絕不提交原版素材**：任何從原版遊戲取得的圖片、音效、音樂、地圖資料、文字，或其轉檔結果，都不得寫入版本控制。原版遊戲路徑由環境變數 `RICHMAN4_DIR` 提供，**必須是倉庫外的絕對路徑**（`tools/extract` 啟動時若為相對路徑或路徑不存在，直接報錯結束）；轉檔輸出只能寫到 `local-assets/`（已 gitignore）。測試用素材一律自行產生假資料（純色圖、合成音）。
+- **絕不提交原版素材**：任何從原版遊戲取得的圖片、音效、音樂、地圖資料、文字，或其轉檔結果，都不得寫入版本控制；文件、測試、commit 訊息也只記錄結構，不寫原版內容數值（地價、價格表、名稱等），`GAME_RULES.md` 只寫歸納出的規則、不放原版數值表。原版遊戲路徑由環境變數 `RICHMAN4_DIR` 提供，**必須是倉庫外的絕對路徑**（`tools/extract` 啟動時若為相對路徑或路徑不存在，直接報錯結束）；轉檔輸出只能寫到 `local-assets/`（已 gitignore）。測試用素材一律自行產生假資料（純色圖、合成音、自編的名稱與數值）。
 - **不得修改原版遊戲目錄**：對 `RICHMAN4_DIR` 只能讀取。
 - **原版地圖只限自架房**：公開伺服器只提供原創地圖；原版轉檔地圖只能用於持有正版者自架的房間。
 - **規則引擎必須是決定性的純函式**：`packages/shared` 內禁止 `Math.random()`、`Date.now()`、`new Date()`、I/O、網路、DOM。亂數一律取自 `state.rngState`，新狀態寫回回傳的 state（`applyAction` 不另收 rng 參數）。
@@ -59,7 +59,7 @@ pnpm typecheck
 5. 每次 commit 只做一件事，訊息用 Conventional Commits（`feat(shared): ...`）。
 6. 重要技術決策寫進 `docs/DECISIONS.md`；完成路線圖項目時，在同一個 commit 內更新 `docs/ROADMAP.md` 的勾選。
 7. `GAME_RULES.md` 標記「待確認」的規則，不要自行猜測；先問我，或做成可設定的參數。
-8. 輸出很長的工作（掃描 git 歷史、等 CI、分析二進位檔、大範圍搜尋）優先交給 subagent，只回報結論。
+8. 輸出很長的工作（掃描 git 歷史、等 CI、分析二進位檔、大範圍搜尋）優先交給 subagent，只回報結論；分析原版素材時，要求 subagent 的回報只含結構與統計，不含原版內容數值。
 9. 推送前執行 `/pre-push`。
 10. 新增有 peer 依賴限制的套件時，確認版本範圍相容（例：typescript-eslint 對 TypeScript）。
 11. 不要在本倉庫用 `git add -f` 測試防護機制，改用暫存目錄的另一個倉庫。
@@ -73,4 +73,4 @@ pnpm typecheck
 - 遊戲內玩家可見文字集中在 i18n 檔，預設 `zh-TW`。
 - 狀態物件不可就地修改，回傳新物件。
 - 優先使用可辨識聯合型別（discriminated unions）表示 Action 與 Event。
-- 含反斜線的檔案（Windows 路徑、正則、跳脫字元）一律用 Write/Edit 工具寫，不要用 bash heredoc 或 sed（本機 Git Bash 會吞掉 `\\`）。
+- 含反斜線或單引號的文字（Windows 路徑、正則、跳脫字元、含單引號的字串常值）一律用 Write/Edit 工具寫，不要用 bash heredoc、sed 或 `node -e '…'`（本機 Git Bash 會吞掉 `\\`，單引號會提前結束 bash 字串）。

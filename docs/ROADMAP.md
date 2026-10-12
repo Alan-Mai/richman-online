@@ -24,11 +24,9 @@
 
 Phase 1 其餘項目（壓縮、音效、Data/Panel 圖片）延後；壓縮演算法移到「Phase 3 前置」（見 `DECISIONS.md`）。
 
-**下一步**：進入 Phase 2（規則引擎，使用內建測試地圖，不依賴原版素材）。`GAME_RULES.md` 第 8 節的破產償債已決定（`RuleConfig.bankruptcyPayout`，預設 `'remaining'`）；從 RNG 與內建測試地圖開始，依 Phase 2 清單順序進行。
-
 RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，分析順序見 `ASSET_FORMATS.md`。
 
-**未解問題**：
+**未解問題**（Phase 1，延後處理）：
 - 確認原版光碟的 AVI 是否為真實影片（本機副本的 21 個 `*.avi` 是相同的佔位檔，可能是精簡版）；不影響 Phase 1 完成條件。
 - 地圖資料：玩家前進方向的來源（相鄰格子無方向）、區段 1–4 與 `unknownAt*` 欄位的意義、某張地圖 20 個沒有連結的格子、`GND` 子檔 8 背景沒有道路；需對照原版遊戲畫面確認。
 - MKF 子檔頭的 `unknown3`、`unknown4` 在全螢幕圖、(0, 0) 類的意義未知（`SMP`、`SPR`、`GND` 已確認）；`rawSize` > `storedSize` 的子檔（Data、Panel、jump、map）壓縮演算法未知。
@@ -39,7 +37,6 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，�
   - 最後需對照原版遊戲截圖確認（由使用者提供）。
 - FLC 轉檔方式：`jump.mkf` 的 25 個 FLC 動畫瀏覽器無法直接播放，需決定轉成影片（ffmpeg 可解 FLC）或精靈圖序列，以及轉檔放在 `tools/extract` 還是依賴外部 ffmpeg。
 - MIDI 播放方式：瀏覽器內以 soundfont 合成，或離線轉檔；若選 soundfont，需確認其授權與 GPL 相容。
-- GitHub 的 `ubuntu-latest` 自 2026-10-19 起改為 Ubuntu 26，留意 CI 結果。
 
 ## Phase 2：最小規則引擎
 - [ ] RNG（可序列化、可重現，唯一來源 `state.rngState`）
@@ -51,6 +48,14 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，�
 - [ ] 終端機模擬器（`tools/sim/`）：4 個隨機 AI 跑完 1000 局不崩潰、無非法狀態
 
 **完成條件**：模擬器穩定，測試覆蓋率 shared ≥ 90%。
+
+**下一步**：Phase 2-1：在 Plan 模式設計 `packages/shared` 的型別（`GameState`、`Phase`、`Action`、`GameEvent`、`RuleConfig`）與 Phase 狀態轉移圖，經使用者確認後，再依序做 RNG、內建測試地圖等實作項目（測試先行）。設計時注意：
+- `RuleConfig` 收錄 `GAME_RULES.md` 標 ⚙️ 的欄位（含 `bankruptcyPayout`，預設 `'remaining'`）；標 ❓ 的規則不自行決定。
+- 地圖型別需能表示前進方向（原版相鄰格子無方向，內建測試地圖自行定義）。
+
+**未解問題**：
+- 前進方向：原版地圖資料的相鄰格子沒有方向，日後要讓規則引擎吃原版地圖時需先解決（見 Phase 1 未解問題）；不影響內建測試地圖。
+- GitHub 的 `ubuntu-latest` 自 2026-10-19 起改為 Ubuntu 26，留意 CI 結果。
 
 ## Phase 3：單機畫面
 
