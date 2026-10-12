@@ -1,0 +1,176 @@
+import { describe, expect, it } from 'vitest';
+import type { Action } from './actions';
+import type { RuleConfig } from './config';
+import { applyAction, legalActions } from './engine';
+import type { GameState } from './state';
+import {
+  applyOk,
+  getPlayer,
+  loopBoard,
+  newTestGame,
+  patchPlayer,
+  patchTurn,
+  withFixedDice,
+} from './testing';
+
+const PRICE = 1000;
+/** Tile 1 is an unowned property; tile 2 is blank. */
+const BOARD = loopBoard([null, PRICE, null, null, null, null]);
+
+/** p1 about to roll a 1 onto tile 1 with the given money. */
+function beforeLanding(
+  money: { cash: number; deposit?: number },
+  config: Partial<RuleConfig> = {},
+): GameState {
+  const state = newTestGame({ board: BOARD, config });
+  return withFixedDice(patchPlayer(state, 'p1', { deposit: 0, ...money }), [1]);
+}
+
+function landed(money: { cash: number; deposit?: number }, config: Partial<RuleConfig> = {}) {
+  return applyOk(beforeLanding(money, config), { type: 'rollDice', playerId: 'p1' });
+}
+
+const buy: Action = { type: 'buyProperty', playerId: 'p1' };
+const decline: Action = { type: 'decline', playerId: 'p1' };
+
+describe('landing on an unowned property', () => {
+  it('offers the purchase at the board price', () => {
+    const { state, events } = landed({ cash: PRICE + 1 });
+    expect(state.turn).toEqual({
+      current: 'p1',
+      round: 1,
+      phase: { kind: 'awaitBuyDecision', tile: 1, price: PRICE },
+    });
+    expect(events.map((e) => e.type)).toEqual(['DiceRolled', 'PlayerMoved']);
+  });
+
+  it('offers the purchase when cash is exactly the price', () => {
+    expect(landed({ cash: PRICE }).state.turn.phase.kind).toBe('awaitBuyDecision');
+  });
+
+  it('skips the offer when cash is one short', () => {
+    const { state, events } = landed({ cash: PRICE - 1 });
+    expect(state.turn).toMatchObject({ current: 'p2', phase: { kind: 'awaitRoll' } });
+    expect(events.at(-1)).toEqual({ type: 'TurnStarted', playerId: 'p2', round: 1 });
+  });
+
+  it("does not count the deposit with purchaseFunds 'cash'", () => {
+    expect(landed({ cash: PRICE - 1, deposit: 1e6 }).state.turn.current).toBe('p2');
+  });
+
+  it("counts cash plus deposit with purchaseFunds 'cashAndDeposit'", () => {
+    const funds = { purchaseFunds: 'cashAndDeposit' } as const;
+    expect(landed({ cash: 400, deposit: PRICE - 400 }, funds).state.turn.phase.kind).toBe(
+      'awaitBuyDecision',
+    );
+    expect(landed({ cash: 400, deposit: PRICE - 401 }, funds).state.turn.current).toBe('p2');
+  });
+
+  it('does not offer anything on a blank tile', () => {
+    const start = withFixedDice(newTestGame({ board: BOARD }), [2]);
+    const { state } = applyOk(start, { type: 'rollDice', playerId: 'p1' });
+    expect(state.turn).toMatchObject({ current: 'p2', phase: { kind: 'awaitRoll' } });
+  });
+});
+
+describe('buyProperty', () => {
+  it('pays from cash, takes ownership and ends the turn', () => {
+    const offered = landed({ cash: PRICE + 250, deposit: 70 }).state;
+    const { state, events } = applyOk(offered, buy);
+    expect(getPlayer(state, 'p1')).toMatchObject({ cash: 250, deposit: 70 });
+    expect(state.tiles[1]).toEqual({ owner: 'p1', level: 0 });
+    expect(events).toEqual([
+      { type: 'PropertyBought', playerId: 'p1', tile: 1, price: PRICE },
+      { type: 'TurnStarted', playerId: 'p2', round: 1 },
+    ]);
+    expect(state.turn).toMatchObject({ current: 'p2', phase: { kind: 'awaitRoll' } });
+  });
+
+  it('can spend all cash when it is exactly the price', () => {
+    const { state } = applyOk(landed({ cash: PRICE }).state, buy);
+    expect(getPlayer(state, 'p1').cash).toBe(0);
+    expect(state.tiles[1]?.owner).toBe('p1');
+  });
+
+  it('takes the shortfall from the deposit with cashAndDeposit', () => {
+    const funds = { purchaseFunds: 'cashAndDeposit' } as const;
+    const offered = landed({ cash: 400, deposit: PRICE - 400 }, funds).state;
+    const { state, events } = applyOk(offered, buy);
+    expect(getPlayer(state, 'p1')).toMatchObject({ cash: 0, deposit: 0 });
+    expect(events.slice(0, 2)).toEqual([
+      { type: 'DepositWithdrawn', playerId: 'p1', amount: PRICE - 400 },
+      { type: 'PropertyBought', playerId: 'p1', tile: 1, price: PRICE },
+    ]);
+  });
+
+  it('does not touch the deposit when cash suffices with cashAndDeposit', () => {
+    const funds = { purchaseFunds: 'cashAndDeposit' } as const;
+    const offered = landed({ cash: PRICE, deposit: 500 }, funds).state;
+    const { state, events } = applyOk(offered, buy);
+    expect(getPlayer(state, 'p1')).toMatchObject({ cash: 0, deposit: 500 });
+    expect(events.map((e) => e.type)).not.toContain('DepositWithdrawn');
+  });
+
+  it('rejects the purchase if the money is no longer there', () => {
+    const offered = patchPlayer(landed({ cash: PRICE }).state, 'p1', { cash: PRICE - 1 });
+    const snapshot = JSON.stringify(offered);
+    expect(applyAction(offered, buy)).toEqual({ ok: false, error: { code: 'insufficientFunds' } });
+    expect(JSON.stringify(offered)).toBe(snapshot);
+  });
+});
+
+describe('decline a purchase', () => {
+  it('leaves the tile unowned and the money untouched', () => {
+    const offered = landed({ cash: PRICE + 5 }).state;
+    const { state, events } = applyOk(offered, decline);
+    expect(state.tiles[1]).toEqual({ owner: null, level: 0 });
+    expect(getPlayer(state, 'p1').cash).toBe(PRICE + 5);
+    expect(events).toEqual([{ type: 'TurnStarted', playerId: 'p2', round: 1 }]);
+  });
+});
+
+describe('buy decision validation', () => {
+  it('rejects buyProperty and decline while waiting for a roll', () => {
+    const state = newTestGame({ board: BOARD });
+    for (const action of [buy, decline]) {
+      expect(applyAction(state, action)).toEqual({
+        ok: false,
+        error: { code: 'wrongPhase', phase: 'awaitRoll' },
+      });
+    }
+  });
+
+  it('rejects another player deciding', () => {
+    const offered = landed({ cash: PRICE }).state;
+    expect(applyAction(offered, { type: 'buyProperty', playerId: 'p2' })).toEqual({
+      ok: false,
+      error: { code: 'notYourTurn' },
+    });
+  });
+
+  it('rejects rolling or upgrading during the decision', () => {
+    const offered = landed({ cash: PRICE }).state;
+    for (const type of ['rollDice', 'upgradeProperty'] as const) {
+      expect(applyAction(offered, { type, playerId: 'p1' })).toEqual({
+        ok: false,
+        error: { code: 'wrongPhase', phase: 'awaitBuyDecision' },
+      });
+    }
+  });
+
+  it('offers buyProperty and decline to the current player only', () => {
+    const offered = landed({ cash: PRICE }).state;
+    expect(legalActions(offered, 'p1')).toEqual([buy, decline]);
+    expect(legalActions(offered, 'p2')).toEqual([]);
+  });
+
+  it('rejects buying while an upgrade is pending', () => {
+    const pending = patchTurn(newTestGame({ board: BOARD }), {
+      phase: { kind: 'awaitUpgradeDecision', tile: 1, cost: 1 },
+    });
+    expect(applyAction(pending, buy)).toEqual({
+      ok: false,
+      error: { code: 'wrongPhase', phase: 'awaitUpgradeDecision' },
+    });
+  });
+});

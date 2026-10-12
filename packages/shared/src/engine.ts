@@ -7,8 +7,11 @@ import type { RuleError } from './errors';
 import type { GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
-import type { GameState, PhaseKind, PlayerState } from './state';
-import { at, findPlayer, playerOf, updatePlayer, type Step } from './update';
+import { spend, spendable } from './money';
+import type { GameState, Phase, PhaseKind, PlayerState } from './state';
+import { at, chain, findPlayer, playerOf, updatePlayer, updateTile, type Step } from './update';
+
+type BuyDecision = Extract<Phase, { kind: 'awaitBuyDecision' }>;
 
 export interface PlayerSetup {
   id: PlayerId;
@@ -150,9 +153,11 @@ export function applyAction(state: GameState, rawAction: Action): Result {
     case 'rollDice':
       return phase.kind === 'awaitRoll' ? accept(rollDice(state)) : wrongPhase(phase.kind);
     case 'buyProperty':
+      return phase.kind === 'awaitBuyDecision' ? buyProperty(state, phase) : wrongPhase(phase.kind);
     case 'upgradeProperty':
-    case 'decline':
       return wrongPhase(phase.kind);
+    case 'decline':
+      return phase.kind === 'awaitBuyDecision' ? accept(endTurn(state)) : wrongPhase(phase.kind);
   }
 }
 
@@ -165,10 +170,30 @@ export function legalActions(state: GameState, playerId: PlayerId): Action[] {
     case 'awaitRoll':
       return [{ type: 'rollDice', playerId }];
     case 'awaitBuyDecision':
+      return [
+        { type: 'buyProperty', playerId },
+        { type: 'decline', playerId },
+      ];
     case 'awaitUpgradeDecision':
     case 'gameOver':
       return [];
   }
+}
+
+function buyProperty(state: GameState, phase: BuyDecision): Result {
+  const playerId = state.turn.current;
+  if (spendable(playerOf(state, playerId), state.config) < phase.price) {
+    return reject({ code: 'insufficientFunds' });
+  }
+  const paid = spend(state, playerId, phase.price);
+  const bought: Step = {
+    state: updateTile(paid.state, phase.tile, { owner: playerId, level: 0 }),
+    events: [
+      ...paid.events,
+      { type: 'PropertyBought', playerId, tile: phase.tile, price: phase.price },
+    ],
+  };
+  return accept(chain(bought, endTurn));
 }
 
 function rollDice(state: GameState): Step {
@@ -243,7 +268,23 @@ function resolvePass(state: GameState, playerId: PlayerId, tile: TileIndex): Ste
 
 /** Effect of stopping on the current player's tile. */
 function resolveLanding(state: GameState): Step {
+  const player = playerOf(state, state.turn.current);
+  const tile = at(state.board.tiles, player.position);
+  const owner = at(state.tiles, player.position).owner;
+  if (tile.kind === 'property' && owner === null) {
+    if (spendable(player, state.config) >= tile.price) {
+      return awaitDecision(state, {
+        kind: 'awaitBuyDecision',
+        tile: player.position,
+        price: tile.price,
+      });
+    }
+  }
   return endTurn(state);
+}
+
+function awaitDecision(state: GameState, phase: Phase): Step {
+  return { state: { ...state, turn: { ...state.turn, phase } }, events: [] };
 }
 
 /**

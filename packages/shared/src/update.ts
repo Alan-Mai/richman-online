@@ -9,6 +9,12 @@ export interface Step {
   events: GameEvent[];
 }
 
+/** Runs `next` on the state after `step` and concatenates the events. */
+export function chain(step: Step, next: (state: GameState) => Step): Step {
+  const after = next(step.state);
+  return { state: after.state, events: [...step.events, ...after.events] };
+}
+
 /** Reads an index the engine has already validated; a miss is an engine bug. */
 export function at<T>(items: readonly T[], index: number): T {
   const item = items[index];
