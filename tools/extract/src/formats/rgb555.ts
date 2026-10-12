@@ -1,6 +1,5 @@
 // 16-bit little-endian RGB555 pixels (see docs/ASSET_FORMATS.md, "RGB555 像素"):
 //   bit 15 unused | bits 14-10 red | bits 9-5 green | bits 4-0 blue
-// Bit 15 is ignored rather than rejected; countBit15 lets callers check whether it is ever set.
 
 export class Rgb555FormatError extends Error {
   readonly code = 'size-mismatch';
@@ -11,11 +10,18 @@ export class Rgb555FormatError extends Error {
   }
 }
 
+// Expands 5 bits to 8 by bit replication: 0 -> 0 and 31 -> 255, within 1 of
+// Math.round(v * 255 / 31) using integer ops only. A plain `v << 3` would top out at 248.
 const expand5 = (v: number) => (v << 3) | (v >> 2);
 
 const view = (bytes: Uint8Array) => new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
-/** Converts width * height RGB555 pixels to opaque RGBA8888. */
+/**
+ * Converts width * height RGB555 pixels to opaque RGBA8888.
+ * Bit 15 is ignored rather than rejected: it is never set in the local copy's assets, but it
+ * may act as a flag (e.g. transparency) elsewhere, and rejecting it would block conversion.
+ * Use countBit15 in collection-mode checks to notice if it ever appears.
+ */
 export function rgb555ToRgba(pixels: Uint8Array, width: number, height: number): Uint8Array {
   const count = width * height;
   if (pixels.length !== 2 * count) {
