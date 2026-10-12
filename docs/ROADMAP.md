@@ -41,7 +41,8 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，�
 ## Phase 2：最小規則引擎
 - [ ] RNG（可序列化、可重現，唯一來源 `state.rngState`）
 - [ ] 內建測試地圖（不依賴原版）
-- [ ] 擲骰與移動、經過起點
+- [x] 型別與 `RuleConfig` 定案（`GameState`、`Phase`、`Action`、`GameEvent`、地圖型別）
+- [ ] 擲骰與移動、經過觸發（通用機制；`passStartBonus` 預設 0）
 - [ ] 購地、加蓋、過路費
 - [ ] 破產與勝負判定（現金不足自動扣存款，仍不足即破產；不賣地不拆房，地產收回為無主空地）
 - [ ] `legalActions`（伺服器專用）、`viewFor`
@@ -49,9 +50,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，�
 
 **完成條件**：模擬器穩定，測試覆蓋率 shared ≥ 90%。
 
-**下一步**：Phase 2-1：在 Plan 模式設計 `packages/shared` 的型別（`GameState`、`Phase`、`Action`、`GameEvent`、`RuleConfig`）與 Phase 狀態轉移圖，經使用者確認後，再依序做 RNG、內建測試地圖等實作項目（測試先行）。設計時注意：
-- `RuleConfig` 收錄 `GAME_RULES.md` 標 ⚙️ 的欄位（含 `bankruptcyPayout`，預設 `'remaining'`）；標 ❓ 的規則不自行決定。
-- 地圖型別需能表示前進方向（原版相鄰格子無方向，內建測試地圖自行定義）。
+**下一步**：RNG（mulberry32 + 測試專用 scripted 序列；`parseRngState` 拒絕外部傳入的 scripted），接著內建測試地圖與 `validateBoard(board, config)`。型別與狀態轉移圖見 `ARCHITECTURE.md`。
 
 **未解問題**：
 - 前進方向：原版地圖資料的相鄰格子沒有方向，日後要讓規則引擎吃原版地圖時需先解決（見 Phase 1 未解問題）；不影響內建測試地圖。

@@ -37,19 +37,58 @@ function viewFor(state: GameState, playerId: PlayerId | 'spectator'): PlayerView
 - **RNG**：使用可序列化的 PRNG（例如 mulberry32 / xoshiro）。唯一來源是 `state.rngState`：`applyAction` 從中取亂數，並把新的 RNG 狀態寫回回傳的 state，不另外接受 rng 參數。`rngState` 不進入 `PlayerView`。測試用 helper 把 `rngState` 換成預先排好的骰點序列。
 - **規則參數化**：起始資金、過路費倍率、房屋上限等放在 `RuleConfig`，方便對照原版與開房自訂。
 
-### 主要型別（草稿）
+### 主要型別
+
+完整定義見 `packages/shared/src/`（`config.ts`、`board.ts`、`state.ts`、`actions.ts`、`events.ts`、`rng.ts`）。
 
 ```ts
 interface GameState {
-  config: RuleConfig;
+  config: RuleConfig;        // GAME_RULES.md 標 ⚙️ 的參數
   board: Board;              // 地圖格子定義（來自轉檔資料或內建測試地圖）
-  players: PlayerState[];    // 現金、存款、位置、道具、卡片、狀態效果
-  tiles: TileState[];        // 擁有者、房屋等級
-  market: StockMarket;
+  players: PlayerState[];    // 座位順序；現金、存款、位置、方向、骰子數、是否破產
+  tiles: TileState[];        // 與 board.tiles 平行：擁有者、房屋等級
   turn: { current: PlayerId; round: number; phase: Phase };
   rngState: RngState;        // 伺服器專用
 }
 
+interface Board { tiles: TileDef[]; start: TileIndex; /* id, name */ }
+// TileDef 為依 kind 區分的聯合型別（目前 'property' | 'blank'），每格有有向的 next（前進方向）。
+// 後退時走 next 的反方向；玩家的 direction 決定走哪一邊。
+
+type Phase =
+  | { kind: 'awaitRoll' }
+  | { kind: 'awaitBuyDecision'; tile; price }
+  | { kind: 'awaitUpgradeDecision'; tile; cost }
+  | { kind: 'gameOver'; winners };
+```
+
+股票（`market`）、道具、卡片、狀態效果在 Phase 5 加入。
+
+### 回合狀態轉移（Phase 2）
+
+```
+createGame ──▶ awaitRoll（座位 0）
+                 │ rollDice
+                 ▼
+     擲骰 → 逐格移動：每經過一格（不含停留格）執行該格的「經過觸發」
+              ├ 自動效果（例如 passStartBonus）→ 繼續
+              └ 需玩家決定（日後，例如銀行）→ 暫停於新 phase，決定後走完剩下步數
+     停留格處理：
+       ├ 無主地產且付得起 → awaitBuyDecision ── buyProperty / decline ─┐
+       ├ 自己的地產、可加蓋且付得起 → awaitUpgradeDecision ── upgradeProperty / decline ─┤
+       ├ 他人的地產 → 付過路費（現金 → 存款 → 破產）───────────────┤
+       └ 其他 ─────────────────────────────────────────────┤
+                                                              ▼
+     回合結束：未破產玩家 ≤ 1 → gameOver（lastStanding）
+               下一位未破產玩家；繞回座位 0 時：
+                 ├ richestAtRoundLimit 且 round === maxRounds → gameOver（總資產最高，平手並列）
+                 └ 否則 round + 1
+               → awaitRoll
+```
+
+回合開始的狀態效果與擲骰前使用道具（GAME_RULES 標 ❓）日後在 `awaitRoll` 前插入新的 phase。
+
+```ts
 // 伺服器送給單一玩家的訊息
 interface ServerUpdate {
   events: GameEvent[];
