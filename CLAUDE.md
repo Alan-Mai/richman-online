@@ -58,7 +58,7 @@ pnpm typecheck
 4. 完成後執行 `pnpm test && pnpm lint && pnpm typecheck`，全部通過才算完成。
 5. 每次 commit 只做一件事，訊息用 Conventional Commits（`feat(shared): ...`）。
 6. 重要技術決策寫進 `docs/DECISIONS.md`；完成路線圖項目時，在同一個 commit 內更新 `docs/ROADMAP.md` 的勾選。
-7. `GAME_RULES.md` 標記「待確認」的規則，不要自行猜測；先問我，或做成可設定的參數。
+7. `GAME_RULES.md` 標「待確認」的規則，不要自行猜測。其他大富翁類遊戲的慣例（例如經過起點拿錢）也不能當成原版規則。先問我，或做成可設定的參數；預設值不是原版的話，要標「非原版」。
 8. 輸出很長的工作（掃描 git 歷史、等 CI、分析二進位檔、大範圍搜尋）優先交給 subagent，只回報結論；分析原版素材時，要求 subagent 的回報只含結構與統計，不含原版內容數值。
 9. 推送前執行 `/pre-push`。
 10. 新增有 peer 依賴限制的套件時，確認版本範圍相容（例：typescript-eslint 對 TypeScript）。
