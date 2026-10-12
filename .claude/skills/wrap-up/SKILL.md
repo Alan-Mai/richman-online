@@ -1,6 +1,6 @@
 ---
 name: wrap-up
-description: 結束 session 前的收尾：確認沒有未提交的變更、更新 ROADMAP 的下一步與未解問題、整理該寫進 CLAUDE.md 或 DECISIONS.md 的規則，commit 後給出新 session 的開場 prompt。
+description: 結束 session 前的收尾：確認沒有未提交的變更、更新 ROADMAP 的下一步與未解問題、把學到的規則歸類到 skill、程式碼註解、DECISIONS.md 或 CLAUDE.md，commit 後給出新 session 的開場 prompt。
 disable-model-invocation: true
 ---
 
@@ -19,9 +19,16 @@ disable-model-invocation: true
 
 3. **這次 session 學到的規則**
    - 回顧這次 session：我給過的指示、修正過的做法、踩到的坑、做出的技術決策。
-   - 分成兩類列給我看，**先問我，不要自己寫入**：
-     - 以後每次都要遵守的工作規則 → 建議寫進 `CLAUDE.md`（附上建議的段落與文字）。
-     - 有原因、有替代方案的技術決策 → 建議寫進 `docs/DECISIONS.md`（依該檔格式）。
+   - 先自行把每一條依下列原則歸類，再整理成提案：
+     | 性質 | 寫到哪裡 |
+     |---|---|
+     | 只在特定工作用到的規則 | 對應的 skill（例：素材分析 → `.claude/skills/asset-analyze/SKILL.md`） |
+     | 單一函式或檔案的實作細節 | 該處的程式碼註解 |
+     | 影響架構、有替代方案可比較的決定 | `docs/DECISIONS.md`（依該檔格式） |
+     | 任何工作都要遵守的規則 | `CLAUDE.md`（先檢查能否併入現有條目，能併就改寫該條，不新增） |
+     | 顯而易見的慣例 | 不寫 |
+   - 提案時每一條都附上：歸類結果、目標檔案與段落、建議的文字（併入現有條目時，附上改寫後的整條）。我只需要回覆同意或修改。
+   - **我確認前不要寫入。**
    - 已經寫進文件的、只跟這次 session 有關的，不要列。
 
 4. **Commit 與回報**
