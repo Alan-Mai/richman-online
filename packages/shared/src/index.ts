@@ -21,6 +21,13 @@ export {
   type RuleConfigErrorReason,
   type WinCondition,
 } from './config';
+export {
+  createGame,
+  type CreateGameError,
+  type CreateGameResult,
+  type GameSetup,
+  type PlayerSetup,
+} from './engine';
 export type { RuleError } from './errors';
 export type { GameEvent, GameEventType } from './events';
 export type { PlayerId, TileIndex } from './ids';
