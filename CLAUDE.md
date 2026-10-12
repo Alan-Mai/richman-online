@@ -54,11 +54,11 @@ pnpm typecheck
 
 1. 動手前先讀相關文件：架構看 `docs/ARCHITECTURE.md`，目前進度看 `docs/ROADMAP.md`，規則細節看 `docs/GAME_RULES.md`，檔案格式看 `docs/ASSET_FORMATS.md`。
 2. 非小改動先提出計畫，等我確認再寫。
-3. 規則引擎採測試先行：先寫失敗的測試，再實作。
+3. 規則引擎採測試先行：先寫測試並實際跑一次，確認它因為功能未實作而失敗，再寫實作。若實作已先寫好，就暫時把實作改壞，確認測試會失敗後再改回。
 4. 完成後執行 `pnpm test && pnpm lint && pnpm typecheck`，全部通過才算完成。
 5. 每次 commit 只做一件事，訊息用 Conventional Commits（`feat(shared): ...`）。
 6. 重要技術決策寫進 `docs/DECISIONS.md`；完成路線圖項目時，在同一個 commit 內更新 `docs/ROADMAP.md` 的勾選。
-7. `GAME_RULES.md` 標「待確認」的規則，不要自行猜測。其他大富翁類遊戲的慣例（例如經過起點拿錢）也不能當成原版規則。先問我，或做成可設定的參數；預設值不是原版的話，要標「非原版」。
+7. `GAME_RULES.md` 標「待確認」的規則不要自行猜測，其他大富翁類遊戲的慣例也不能當成原版規則；先問我，或做成參數並標「非原版」。實作時自行補的規則細節，完成後列給我確認，再寫回 `GAME_RULES.md`（我確認的標 ✅），不要只寫在 `DECISIONS.md`。
 8. 輸出很長的工作（掃描 git 歷史、等 CI、分析二進位檔、大範圍搜尋）優先交給 subagent，只回報結論；分析原版素材時，要求 subagent 的回報只含結構與統計，不含原版內容數值。
 9. 推送前執行 `/pre-push`。
 10. 新增有 peer 依賴限制的套件時，確認版本範圍相容（例：typescript-eslint 對 TypeScript）。
@@ -72,5 +72,5 @@ pnpm typecheck
 - 與使用者對話一律使用繁體中文。
 - 遊戲內玩家可見文字集中在 i18n 檔，預設 `zh-TW`。
 - 狀態物件不可就地修改，回傳新物件。
-- 優先使用可辨識聯合型別（discriminated unions）表示 Action 與 Event。
+- 優先使用可辨識聯合型別（discriminated unions）表示 Action、Event，以及任何「id 或特殊值」的參數（例：`Viewer = { kind: 'player'; id } | { kind: 'spectator' }`）。不要把特殊值和字串 id 混在同一個型別（`PlayerId | 'spectator'`），也不要用 `eslint-disable` 掩蓋型別問題。
 - 含反斜線或單引號的文字（Windows 路徑、正則、跳脫字元、含單引號的字串常值）一律用 Write/Edit 工具寫，不要用 bash heredoc、sed 或 `node -e '…'`（本機 Git Bash 會吞掉 `\\`，單引號會提前結束 bash 字串）。
