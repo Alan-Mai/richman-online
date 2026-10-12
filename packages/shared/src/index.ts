@@ -32,6 +32,7 @@ export {
   type PlayerSetup,
 } from './engine';
 export type { RuleError } from './errors';
+export { checkInvariants } from './invariants';
 export type { BankruptcyCause, GameEvent, GameEventType } from './events';
 export { rentFor, totalAssets, upgradeCost } from './money';
 export type { PlayerId, TileIndex } from './ids';
