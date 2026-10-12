@@ -1,11 +1,14 @@
 // State transitions of the rule engine. Pure and deterministic: randomness only comes from
 // state.rngState (see CLAUDE.md and .claude/rules/shared-engine.md).
-import { validateBoard, type Board, type BoardError } from './board';
+import type { Action, ActionType } from './actions';
+import { prevOf, validateBoard, type Board, type BoardError } from './board';
 import { validateRuleConfig, type RuleConfig, type RuleConfigError } from './config';
+import type { RuleError } from './errors';
 import type { GameEvent } from './events';
-import type { PlayerId } from './ids';
-import { createRng, isUint32 } from './rng';
-import type { GameState, PlayerState } from './state';
+import type { PlayerId, TileIndex } from './ids';
+import { createRng, isUint32, nextInt, type RngState } from './rng';
+import type { GameState, PhaseKind, PlayerState } from './state';
+import { at, findPlayer, playerOf, updatePlayer, type Step } from './update';
 
 export interface PlayerSetup {
   id: PlayerId;
@@ -87,4 +90,181 @@ export function createGame(setup: GameSetup): CreateGameResult {
     rngState: createRng(setup.seed),
   };
   return { ok: true, state, events: [{ type: 'TurnStarted', playerId: first.id, round: 1 }] };
+}
+
+export type Result =
+  { ok: true; state: GameState; events: GameEvent[] } | { ok: false; error: RuleError };
+
+const ACTION_TYPES: ReadonlySet<string> = new Set<ActionType>([
+  'rollDice',
+  'buyProperty',
+  'upgradeProperty',
+  'decline',
+]);
+
+/** Actions arrive from the network; rebuild a clean Action or reject the shape. */
+function parseAction(raw: unknown): Action | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return null;
+  }
+  const { type, playerId } = raw as Record<string, unknown>;
+  if (typeof type !== 'string' || !ACTION_TYPES.has(type) || typeof playerId !== 'string') {
+    return null;
+  }
+  return { type: type as ActionType, playerId };
+}
+
+function reject(error: RuleError): Result {
+  return { ok: false, error };
+}
+
+function wrongPhase(phase: PhaseKind): Result {
+  return reject({ code: 'wrongPhase', phase });
+}
+
+function accept({ state, events }: Step): Result {
+  return { ok: true, state, events };
+}
+
+/**
+ * Applies one player intent. Malformed or illegal actions are rejected without changing anything;
+ * the input state is never mutated.
+ */
+export function applyAction(state: GameState, rawAction: Action): Result {
+  const action = parseAction(rawAction);
+  if (action === null) {
+    return reject({ code: 'invalidAction' });
+  }
+  const { phase } = state.turn;
+  if (phase.kind === 'gameOver') {
+    return reject({ code: 'gameOver' });
+  }
+  if (findPlayer(state, action.playerId) === undefined) {
+    return reject({ code: 'unknownPlayer' });
+  }
+  if (action.playerId !== state.turn.current) {
+    return reject({ code: 'notYourTurn' });
+  }
+
+  switch (action.type) {
+    case 'rollDice':
+      return phase.kind === 'awaitRoll' ? accept(rollDice(state)) : wrongPhase(phase.kind);
+    case 'buyProperty':
+    case 'upgradeProperty':
+    case 'decline':
+      return wrongPhase(phase.kind);
+  }
+}
+
+/** Server-only: the actions playerId may send now. Empty unless it is their turn. */
+export function legalActions(state: GameState, playerId: PlayerId): Action[] {
+  if (playerId !== state.turn.current) {
+    return [];
+  }
+  switch (state.turn.phase.kind) {
+    case 'awaitRoll':
+      return [{ type: 'rollDice', playerId }];
+    case 'awaitBuyDecision':
+    case 'awaitUpgradeDecision':
+    case 'gameOver':
+      return [];
+  }
+}
+
+function rollDice(state: GameState): Step {
+  const player = playerOf(state, state.turn.current);
+  let rng: RngState = state.rngState;
+  const dice: number[] = [];
+  for (let i = 0; i < player.diceCount; i++) {
+    const [value, next] = nextInt(rng, state.config.diceFaces);
+    dice.push(value + 1);
+    rng = next;
+  }
+  const total = dice.reduce((sum, face) => sum + face, 0);
+
+  const moved = advance({ ...state, rngState: rng }, player.id, total);
+  const landed = resolveLanding(moved.state);
+  return {
+    state: landed.state,
+    events: [
+      { type: 'DiceRolled', playerId: player.id, dice, total },
+      ...moved.events,
+      ...landed.events,
+    ],
+  };
+}
+
+/**
+ * Walks `steps` tiles in the player's direction. Every tile passed (not the landing tile) gets its
+ * pass trigger; when a trigger does something, the PlayerMoved path is split there so the client
+ * can play the effect at the right spot.
+ */
+function advance(state: GameState, playerId: PlayerId, steps: number): Step {
+  const { board } = state;
+  const player = playerOf(state, playerId);
+  const prev = player.direction === 'backward' ? prevOf(board) : null;
+  const stepFrom = (tile: TileIndex): TileIndex =>
+    at(prev === null ? at(board.tiles, tile).next : at(prev, tile), 0);
+
+  let current = state;
+  const events: GameEvent[] = [];
+  let segment: TileIndex[] = [];
+  let position = player.position;
+  for (let step = 1; step <= steps; step++) {
+    position = stepFrom(position);
+    segment.push(position);
+    if (step === steps) {
+      break;
+    }
+    const passed = resolvePass(current, playerId, position);
+    if (passed.events.length > 0) {
+      events.push({ type: 'PlayerMoved', playerId, path: segment }, ...passed.events);
+      segment = [];
+      current = passed.state;
+    }
+  }
+  if (segment.length > 0) {
+    events.push({ type: 'PlayerMoved', playerId, path: segment });
+  }
+  return { state: updatePlayer(current, playerId, () => ({ position })), events };
+}
+
+/** Effect of walking over a tile without stopping. Phase 2: only the optional start bonus. */
+function resolvePass(state: GameState, playerId: PlayerId, tile: TileIndex): Step {
+  const amount = state.config.passStartBonus;
+  if (tile !== state.board.start || amount === 0) {
+    return { state, events: [] };
+  }
+  return {
+    state: updatePlayer(state, playerId, (p) => ({ cash: p.cash + amount })),
+    events: [{ type: 'PassBonusReceived', playerId, tile, amount }],
+  };
+}
+
+/** Effect of stopping on the current player's tile. */
+function resolveLanding(state: GameState): Step {
+  return endTurn(state);
+}
+
+/**
+ * Hands the turn to the next player who is not bankrupt; wrapping past the last seat starts a new
+ * round.
+ */
+function endTurn(state: GameState): Step {
+  const { players } = state;
+  const seat = players.findIndex((p) => p.id === state.turn.current);
+  let nextSeat = seat;
+  for (let offset = 1; offset <= players.length; offset++) {
+    const candidate = (seat + offset) % players.length;
+    if (!at(players, candidate).bankrupt) {
+      nextSeat = candidate;
+      break;
+    }
+  }
+  const round = nextSeat <= seat ? state.turn.round + 1 : state.turn.round;
+  const next = at(players, nextSeat).id;
+  return {
+    state: { ...state, turn: { current: next, round, phase: { kind: 'awaitRoll' } } },
+    events: [{ type: 'TurnStarted', playerId: next, round }],
+  };
 }

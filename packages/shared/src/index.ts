@@ -22,7 +22,10 @@ export {
   type WinCondition,
 } from './config';
 export {
+  applyAction,
   createGame,
+  legalActions,
+  type Result,
   type CreateGameError,
   type CreateGameResult,
   type GameSetup,

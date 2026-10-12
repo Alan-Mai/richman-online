@@ -2,6 +2,14 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-12 移動事件在經過觸發處切段；applyAction 自行驗證動作格式
+- **決策**：
+  - 移動途中某格的經過觸發有效果時，`PlayerMoved` 在該格切段：`PlayerMoved(走到觸發格)` → 效果事件（例如 `PassBonusReceived`）→ `PlayerMoved(剩下的路)`；沒有觸發時只有一個 `PlayerMoved`。`path` 不含出發格；從起點出發或剛好停在起點都不算經過。
+  - `applyAction` 先把輸入重建成乾淨的 `Action`：非物件、未知 `type`、`playerId` 不是字串都回傳 `invalidAction`，不 throw；多餘欄位忽略。錯誤優先順序 `invalidAction` > `gameOver` > `unknownPlayer` > `notYourTurn` > `wrongPhase`。
+  - `createGame` 成功時也回傳第一個 `TurnStarted`，每一回合都有這個事件。
+- **原因**：日後銀行等「暫停等玩家決定」的經過效果需要在觸發格中斷移動，切段模型可以直接沿用；動作日後來自網路，伺服器不該因為格式錯誤的訊息崩潰；客戶端與重播不必特別處理第一回合。
+- **替代方案**：單一 `PlayerMoved` 加上帶 `tile` 的效果事件（日後要暫停移動時得改事件模型）；由伺服器負責驗證格式（規則引擎的契約變得依賴呼叫端）。
+
 ## 2026-10-12 RNG 採 mulberry32，scripted 序列只供測試
 - **決策**：`RngState` 為 `{ kind: 'mulberry32'; state: uint32 }` 或測試用的 `{ kind: 'scripted'; values }`。所有亂數經 `nextInt(rng, n)`，以拒絕取樣避免取模偏差。scripted 只能由 `testing.ts`（不從 `index.ts` 匯出）建立；外部輸入的 RNG 狀態一律經 `parseRngState` 驗證並拒絕 scripted，`createGame` 只收 uint32 種子。
 - **原因**：狀態只有一個整數，JSON 直接序列化、存檔與重播簡單；scripted 讓測試指定骰點而不用找種子；若外部能傳入 scripted，就能事先決定骰點作弊。
