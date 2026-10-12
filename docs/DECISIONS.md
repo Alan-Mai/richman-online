@@ -2,6 +2,11 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-12 素材解析器以 ByteSource 按需讀取
+- **決策**：`tools/extract` 的解析器透過 `ByteSource`（`size` + `read(offset, length)`）讀取資料；正式執行用 `openFileByteSource`（唯讀 fd、`readSync`），測試用 `bufferByteSource` 包合成資料。解析器只讀索引與檔頭，內容按需讀取。
+- **原因**：`map.mkf` 約 76 MB、`Speaking.mkf` 約 57 MB，整檔載入浪費記憶體；同一介面讓解析器可直接以記憶體中的假資料測試，不需要暫存檔。
+- **替代方案**：整檔讀成 Buffer（實作最簡單，但大檔吃記憶體）；串流讀取（不適合依索引隨機存取）。
+
 ## 2026-10-08 新增依賴預設使用 ~ 版本範圍
 - **決策**：`pnpm-workspace.yaml` 設定 `savePrefix: '~'`，`pnpm add` 新增的依賴只允許 patch 更新。
 - **原因**：pnpm 預設寫成 `^`，曾把手動指定的 `~6.0` 改寫為 `^6.0.3`，讓 TypeScript 可能升到 typescript-eslint 不支援的 6.1。
