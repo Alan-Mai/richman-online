@@ -75,6 +75,28 @@ describe('runCommand run', () => {
     expect(text()).toContain('reproduced: yes');
   });
 
+  it('exits with 1 when a replay reproduces an engine error', () => {
+    const { io, text } = fakeIO();
+    const throwing: Engine = {
+      ...ENGINE,
+      applyAction: (state, action) => {
+        if (state.turn.round >= 2) throw new Error('kaboom');
+        return ENGINE.applyAction(state, action);
+      },
+    };
+    runCommand({ kind: 'run', options: { ...OPTIONS, games: 1, seed: 9 } }, io, throwing);
+    expect(runCommand({ kind: 'replay', file: 'out/failure-9.json' }, io, throwing)).toBe(1);
+    expect(text()).toContain('exception: kaboom');
+    expect(text()).toContain('reproduced: yes');
+  });
+
+  it('exits with 0 when a replay reproduces a step-limit failure', () => {
+    const { io, text } = fakeIO();
+    runCommand({ kind: 'run', options: { ...OPTIONS, games: 1, seed: 9, maxSteps: 5 } }, io);
+    expect(runCommand({ kind: 'replay', file: 'out/failure-9.json' }, io)).toBe(0);
+    expect(text()).toContain('reproduced: yes');
+  });
+
   it('reports a replay that no longer fails', () => {
     const { io, text } = fakeIO();
     runCommand({ kind: 'run', options: { ...OPTIONS, games: 1, seed: 9 } }, io, BROKEN);
