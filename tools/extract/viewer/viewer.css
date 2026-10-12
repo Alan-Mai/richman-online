@@ -1,0 +1,167 @@
+:root {
+  --bg: #f4f4f2;
+  --panel: #ffffff;
+  --text: #1d1d1b;
+  --muted: #6b6b66;
+  --border: #d6d6d0;
+  --square: #e8412c;
+  --link: #ffd23f;
+  --sec1: #2ec4d6;
+  --sec2: #c24bd6;
+  --sec3: #f0e14a;
+  --sec4: #ffffff;
+  --ref: #ffffff;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1b1a;
+    --panel: #262624;
+    --text: #ecece8;
+    --muted: #a3a39c;
+    --border: #3c3c38;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  grid-template-columns: 1fr 320px;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    14px/1.5 system-ui,
+    sans-serif;
+}
+
+header {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+#status {
+  color: var(--muted);
+}
+
+#viewport {
+  overflow: auto;
+  cursor: grab;
+}
+
+#viewport.dragging {
+  cursor: grabbing;
+}
+
+#stage {
+  position: relative;
+  transform-origin: 0 0;
+}
+
+#background,
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+#overlay .hit {
+  cursor: pointer;
+  stroke: #000;
+  stroke-width: 2;
+}
+
+#overlay .hit:hover,
+#overlay .hit.selected {
+  stroke: #fff;
+  stroke-width: 5;
+}
+
+#overlay .square {
+  fill: var(--square);
+}
+
+#overlay .sec1 {
+  fill: var(--sec1);
+}
+
+#overlay .sec2 {
+  fill: var(--sec2);
+}
+
+#overlay .sec3 {
+  fill: var(--sec3);
+}
+
+#overlay .sec4 {
+  fill: var(--sec4);
+}
+
+#overlay .link {
+  stroke: var(--link);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+#overlay .ref {
+  stroke: var(--ref);
+  stroke-width: 3;
+  stroke-dasharray: 8 6;
+}
+
+#overlay .label {
+  fill: #fff;
+  stroke: #000;
+  stroke-width: 4;
+  paint-order: stroke;
+  font-size: 22px;
+}
+
+#overlay .hidden {
+  display: none;
+}
+
+aside {
+  overflow: auto;
+  padding: 12px 16px;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  white-space: pre-wrap;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr 35vh;
+  }
+
+  aside {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+}

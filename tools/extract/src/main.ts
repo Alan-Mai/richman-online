@@ -3,12 +3,14 @@ import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { inventory, type CommandContext } from './commands/inventory';
 import { map } from './commands/map';
+import { view } from './commands/view';
 import { GameDirError, resolveGameDir } from './game-dir';
 import { MapExportError } from './map-export';
 
 const COMMANDS: Record<string, (ctx: CommandContext) => Promise<void>> = {
   inventory,
   map,
+  view,
 };
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');

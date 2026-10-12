@@ -57,7 +57,7 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
   },
   {
-    files: ['apps/client/**'],
+    files: ['apps/client/**', 'tools/extract/viewer/**'],
     languageOptions: { globals: globals.browser },
   },
   {

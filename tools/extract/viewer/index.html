@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>地圖檢視器</title>
+    <link rel="stylesheet" href="viewer.css" />
+  </head>
+  <body>
+    <header>
+      <label
+        >地圖
+        <select id="map-select"></select
+      ></label>
+      <label
+        >縮放
+        <select id="zoom">
+          <option value="0.25">25%</option>
+          <option value="0.5" selected>50%</option>
+          <option value="1">100%</option>
+        </select>
+      </label>
+      <fieldset id="layers">
+        <label><input type="checkbox" data-layer="links" checked /> 連線</label>
+        <label><input type="checkbox" data-layer="squares" checked /> 格子</label>
+        <label><input type="checkbox" data-layer="sec1" checked /> 區段 1</label>
+        <label><input type="checkbox" data-layer="sec2" checked /> 區段 2</label>
+        <label><input type="checkbox" data-layer="sec3" checked /> 區段 3</label>
+        <label><input type="checkbox" data-layer="sec4" checked /> 區段 4</label>
+        <label><input type="checkbox" data-layer="refs" /> 參照線</label>
+        <label><input type="checkbox" data-layer="names" /> 格子名稱</label>
+      </fieldset>
+      <span id="status"></span>
+    </header>
+    <main id="viewport">
+      <div id="stage">
+        <img id="background" alt="" />
+        <svg id="overlay" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </main>
+    <aside id="details">將滑鼠移到點上查看欄位；點一下可固定。</aside>
+    <script type="module" src="viewer.js"></script>
+  </body>
+</html>
