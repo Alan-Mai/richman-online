@@ -7,11 +7,12 @@ import type { RuleError } from './errors';
 import type { GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
-import { spend, spendable } from './money';
+import { spend, spendable, upgradeCost } from './money';
 import type { GameState, Phase, PhaseKind, PlayerState } from './state';
 import { at, chain, findPlayer, playerOf, updatePlayer, updateTile, type Step } from './update';
 
 type BuyDecision = Extract<Phase, { kind: 'awaitBuyDecision' }>;
+type UpgradeDecision = Extract<Phase, { kind: 'awaitUpgradeDecision' }>;
 
 export interface PlayerSetup {
   id: PlayerId;
@@ -155,9 +156,13 @@ export function applyAction(state: GameState, rawAction: Action): Result {
     case 'buyProperty':
       return phase.kind === 'awaitBuyDecision' ? buyProperty(state, phase) : wrongPhase(phase.kind);
     case 'upgradeProperty':
-      return wrongPhase(phase.kind);
+      return phase.kind === 'awaitUpgradeDecision'
+        ? upgradeProperty(state, phase)
+        : wrongPhase(phase.kind);
     case 'decline':
-      return phase.kind === 'awaitBuyDecision' ? accept(endTurn(state)) : wrongPhase(phase.kind);
+      return phase.kind === 'awaitBuyDecision' || phase.kind === 'awaitUpgradeDecision'
+        ? accept(endTurn(state))
+        : wrongPhase(phase.kind);
   }
 }
 
@@ -175,6 +180,10 @@ export function legalActions(state: GameState, playerId: PlayerId): Action[] {
         { type: 'decline', playerId },
       ];
     case 'awaitUpgradeDecision':
+      return [
+        { type: 'upgradeProperty', playerId },
+        { type: 'decline', playerId },
+      ];
     case 'gameOver':
       return [];
   }
@@ -194,6 +203,23 @@ function buyProperty(state: GameState, phase: BuyDecision): Result {
     ],
   };
   return accept(chain(bought, endTurn));
+}
+
+function upgradeProperty(state: GameState, phase: UpgradeDecision): Result {
+  const playerId = state.turn.current;
+  if (spendable(playerOf(state, playerId), state.config) < phase.cost) {
+    return reject({ code: 'insufficientFunds' });
+  }
+  const paid = spend(state, playerId, phase.cost);
+  const level = at(paid.state.tiles, phase.tile).level + 1;
+  const upgraded: Step = {
+    state: updateTile(paid.state, phase.tile, { level }),
+    events: [
+      ...paid.events,
+      { type: 'PropertyUpgraded', playerId, tile: phase.tile, level, cost: phase.cost },
+    ],
+  };
+  return accept(chain(upgraded, endTurn));
 }
 
 function rollDice(state: GameState): Step {
@@ -268,16 +294,24 @@ function resolvePass(state: GameState, playerId: PlayerId, tile: TileIndex): Ste
 
 /** Effect of stopping on the current player's tile. */
 function resolveLanding(state: GameState): Step {
+  const { config } = state;
   const player = playerOf(state, state.turn.current);
-  const tile = at(state.board.tiles, player.position);
-  const owner = at(state.tiles, player.position).owner;
-  if (tile.kind === 'property' && owner === null) {
-    if (spendable(player, state.config) >= tile.price) {
-      return awaitDecision(state, {
-        kind: 'awaitBuyDecision',
-        tile: player.position,
-        price: tile.price,
-      });
+  const index = player.position;
+  const tile = at(state.board.tiles, index);
+  if (tile.kind !== 'property') {
+    return endTurn(state);
+  }
+
+  const { owner, level } = at(state.tiles, index);
+  const funds = spendable(player, config);
+  if (owner === null) {
+    if (funds >= tile.price) {
+      return awaitDecision(state, { kind: 'awaitBuyDecision', tile: index, price: tile.price });
+    }
+  } else if (owner === player.id) {
+    const cost = upgradeCost(tile.price, config);
+    if (config.upgradeOnOwnTile && level < config.maxLevel && funds >= cost) {
+      return awaitDecision(state, { kind: 'awaitUpgradeDecision', tile: index, cost });
     }
   }
   return endTurn(state);

@@ -5,6 +5,11 @@ import type { PlayerId } from './ids';
 import type { GameState, PlayerState } from './state';
 import { playerOf, updatePlayer, type Step } from './update';
 
+/** Cost of one upgrade level; the same for every level. */
+export function upgradeCost(price: number, config: RuleConfig): number {
+  return Math.floor((price * config.upgradeCostPercent) / 100);
+}
+
 /** Money the player may spend voluntarily under RuleConfig.purchaseFunds. */
 export function spendable(player: PlayerState, config: RuleConfig): number {
   return config.purchaseFunds === 'cashAndDeposit' ? player.cash + player.deposit : player.cash;
