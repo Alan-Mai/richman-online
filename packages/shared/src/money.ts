@@ -1,9 +1,19 @@
 // Money movement: voluntary spending (buy, upgrade) and forced payments (rent, system debts).
+import type { PropertyTileDef } from './board';
 import type { RuleConfig } from './config';
 import type { BankruptcyCause, GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import type { GameState, PlayerState } from './state';
 import { playerOf, updatePlayer, type Step } from './update';
+
+/** Rent at `level`: the tile's own rentTable when present, otherwise a percentage of the price. */
+export function rentFor(tile: PropertyTileDef, level: number, config: RuleConfig): number {
+  const fromTable = tile.rentTable?.[level];
+  if (fromTable !== undefined) {
+    return fromTable;
+  }
+  return Math.floor((tile.price * (config.rentPercentByLevel[level] ?? 0)) / 100);
+}
 
 /** Cost of one upgrade level; the same for every level. */
 export function upgradeCost(price: number, config: RuleConfig): number {

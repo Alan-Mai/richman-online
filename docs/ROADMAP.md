@@ -43,14 +43,14 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，�
 - [x] 內建測試地圖（不依賴原版）與 `validateBoard(board, config)`
 - [x] 型別與 `RuleConfig` 定案（`GameState`、`Phase`、`Action`、`GameEvent`、地圖型別）
 - [x] 擲骰與移動、經過觸發（通用機制；`passStartBonus` 預設 0）
-- [ ] 購地、加蓋、過路費
+- [x] 購地、加蓋、過路費
 - [ ] 破產與勝負判定（現金不足自動扣存款，仍不足即破產；不賣地不拆房，地產收回為無主空地；`lastStanding` 與 `richestAtRoundLimit`）
 - [ ] `legalActions`（伺服器專用）、`viewFor`
 - [ ] 終端機模擬器（`tools/sim/`）：4 個隨機 AI 以 `richestAtRoundLimit` 跑完 1000 局不崩潰、無非法狀態
 
 **完成條件**：模擬器穩定，測試覆蓋率 shared ≥ 90%。
 
-**下一步**：購地（`awaitBuyDecision`、`buyProperty`、`decline`），接著加蓋、`pay()`、過路費、勝負判定、`viewFor`，每項測試先行。`engine.ts` 已有 `createGame`、`applyAction`（含動作格式驗證）、`legalActions` 的 `rollDice` 分支，停留格目前一律直接結束回合。型別與狀態轉移圖見 `ARCHITECTURE.md`。
+**下一步**：勝負判定（`lastStanding`、`richestAtRoundLimit`、`GameEnded`），接著 `viewFor`，每項測試先行。`engine.ts` 已有 `createGame`、`applyAction`（含動作格式驗證）、`legalActions`、購地、加蓋、過路費；`money.ts` 的 `pay()` 處理現金 → 存款 → 破產。破產後目前只跳過破產者，還不會結束遊戲。型別與狀態轉移圖見 `ARCHITECTURE.md`。
 
 **未解問題**：
 - 待使用者確認的規則（`GAME_RULES.md` 標 ❓）：銀行經過時能不能存提款、叉路怎麼選、掉頭效果、原版地圖 7 階價格表的意義。

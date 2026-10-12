@@ -7,7 +7,7 @@ import type { RuleError } from './errors';
 import type { GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
-import { spend, spendable, upgradeCost } from './money';
+import { pay, rentFor, spend, spendable, upgradeCost } from './money';
 import type { GameState, Phase, PhaseKind, PlayerState } from './state';
 import { at, chain, findPlayer, playerOf, updatePlayer, updateTile, type Step } from './update';
 
@@ -313,6 +313,13 @@ function resolveLanding(state: GameState): Step {
     if (config.upgradeOnOwnTile && level < config.maxLevel && funds >= cost) {
       return awaitDecision(state, { kind: 'awaitUpgradeDecision', tile: index, cost });
     }
+  } else {
+    const amount = rentFor(tile, level, config);
+    const paid = pay(state, player.id, { kind: 'rent', tile: index, creditor: owner, amount });
+    const events: GameEvent[] = paid.bankrupt
+      ? paid.events
+      : [...paid.events, { type: 'RentPaid', from: player.id, to: owner, tile: index, amount }];
+    return chain({ state: paid.state, events }, endTurn);
   }
   return endTurn(state);
 }
