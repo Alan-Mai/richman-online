@@ -40,7 +40,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，�
 
 ## Phase 2：最小規則引擎
 - [x] RNG（可序列化、可重現，唯一來源 `state.rngState`）
-- [ ] 內建測試地圖（不依賴原版）
+- [x] 內建測試地圖（不依賴原版）與 `validateBoard(board, config)`
 - [x] 型別與 `RuleConfig` 定案（`GameState`、`Phase`、`Action`、`GameEvent`、地圖型別）
 - [ ] 擲骰與移動、經過觸發（通用機制；`passStartBonus` 預設 0）
 - [ ] 購地、加蓋、過路費
@@ -50,7 +50,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，�
 
 **完成條件**：模擬器穩定，測試覆蓋率 shared ≥ 90%。
 
-**下一步**：內建測試地圖與 `validateBoard(board, config)`。型別與狀態轉移圖見 `ARCHITECTURE.md`。
+**下一步**：擲骰與移動（`createGame`、`advance` 與通用經過觸發；`createGame` 拒絕非 uint32 種子與 scripted 物件）。型別與狀態轉移圖見 `ARCHITECTURE.md`。
 
 **未解問題**：
 - 前進方向：原版地圖資料的相鄰格子沒有方向，日後要讓規則引擎吃原版地圖時需先解決（見 Phase 1 未解問題）；不影響內建測試地圖。

@@ -2,7 +2,17 @@
 export const ENGINE_VERSION = '0.0.0';
 
 export type { Action, ActionType } from './actions';
-export type { BlankTileDef, Board, Point, PropertyTileDef, TileDef } from './board';
+export {
+  prevOf,
+  validateBoard,
+  type BlankTileDef,
+  type Board,
+  type BoardError,
+  type Point,
+  type PropertyTileDef,
+  type TileDef,
+} from './board';
+export { TEST_LOOP_BOARD } from './maps/test-loop';
 export {
   DEFAULT_RULE_CONFIG,
   validateRuleConfig,
