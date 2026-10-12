@@ -35,6 +35,7 @@ export type { RuleError } from './errors';
 export type { BankruptcyCause, GameEvent, GameEventType } from './events';
 export { rentFor, totalAssets, upgradeCost } from './money';
 export type { PlayerId, TileIndex } from './ids';
+export { viewFor, type PlayerView, type Viewer } from './view';
 export {
   createRng,
   nextInt,

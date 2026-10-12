@@ -21,12 +21,19 @@ type Result =
   | { ok: true; state: GameState; events: GameEvent[] }
   | { ok: false; error: RuleError };
 
+function createGame(setup: GameSetup):
+  | { ok: true; state: GameState; events: GameEvent[] }   // events = 第一個 TurnStarted
+  | { ok: false; errors: CreateGameError[] };
 function applyAction(state: GameState, action: Action): Result;
 function legalActions(state: GameState, playerId: PlayerId): Action[];   // 只在伺服器執行
 function viewFor(state: GameState, playerId: PlayerId | 'spectator'): PlayerView;
 ```
 
 `'spectator'` 先保留在型別中，觀戰模式尚未實作。
+
+- `applyAction` 自行驗證動作格式（日後來自網路）：格式錯誤回傳 `invalidAction`，不 throw。錯誤優先順序 `invalidAction` > `gameOver` > `unknownPlayer` > `notYourTurn` > `wrongPhase` > `insufficientFunds`。
+- `PlayerView` = `GameState` 去掉 `rngState`，加上 `viewer`；欄位逐一列出複製，新增的 state 欄位預設不會外洩。
+- 金錢相關邏輯在 `money.ts`：`pay()`（強制付款：現金 → 存款 → 破產）、`spend()`（購地、加蓋，依 `purchaseFunds`）、`rentFor`、`upgradeCost`、`totalAssets`。
 
 原則：
 
