@@ -7,7 +7,7 @@ import type { RuleError } from './errors';
 import type { GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
-import { pay, rentFor, spend, spendable, upgradeCost } from './money';
+import { pay, rentFor, spend, spendable, totalAssets, upgradeCost } from './money';
 import type { GameState, Phase, PhaseKind, PlayerState } from './state';
 import { at, chain, findPlayer, playerOf, updatePlayer, updateTile, type Step } from './update';
 
@@ -329,11 +329,21 @@ function awaitDecision(state: GameState, phase: Phase): Step {
 }
 
 /**
- * Hands the turn to the next player who is not bankrupt; wrapping past the last seat starts a new
- * round.
+ * Ends the current turn (docs/GAME_RULES.md §1): with at most one player left the game is over;
+ * otherwise the next player who is not bankrupt moves. Wrapping past the last seat closes the round,
+ * which ends a richestAtRoundLimit game at maxRounds or starts the next round.
  */
 function endTurn(state: GameState): Step {
-  const { players } = state;
+  const { players, config } = state;
+  const standing = players.filter((p) => !p.bankrupt);
+  if (standing.length <= 1) {
+    return endGame(
+      state,
+      'lastStanding',
+      standing.map((p) => p.id),
+    );
+  }
+
   const seat = players.findIndex((p) => p.id === state.turn.current);
   let nextSeat = seat;
   for (let offset = 1; offset <= players.length; offset++) {
@@ -343,10 +353,37 @@ function endTurn(state: GameState): Step {
       break;
     }
   }
-  const round = nextSeat <= seat ? state.turn.round + 1 : state.turn.round;
+  const wrapped = nextSeat <= seat;
+  if (
+    wrapped &&
+    config.winCondition === 'richestAtRoundLimit' &&
+    state.turn.round === config.maxRounds
+  ) {
+    const assets = standing.map((p) => totalAssets(state, p.id));
+    const best = Math.max(...assets);
+    return endGame(
+      state,
+      'roundLimit',
+      standing.filter((_, i) => assets[i] === best).map((p) => p.id),
+    );
+  }
+
+  const round = wrapped ? state.turn.round + 1 : state.turn.round;
   const next = at(players, nextSeat).id;
   return {
     state: { ...state, turn: { current: next, round, phase: { kind: 'awaitRoll' } } },
     events: [{ type: 'TurnStarted', playerId: next, round }],
+  };
+}
+
+function endGame(
+  state: GameState,
+  reason: 'lastStanding' | 'roundLimit',
+  winners: PlayerId[],
+): Step {
+  const assets = Object.fromEntries(state.players.map((p) => [p.id, totalAssets(state, p.id)]));
+  return {
+    state: { ...state, turn: { ...state.turn, phase: { kind: 'gameOver', winners } } },
+    events: [{ type: 'GameEnded', reason, winners, totalAssets: assets }],
   };
 }

@@ -2,6 +2,14 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-12 勝負判定的細節；總金額不守恆
+- **決策**：
+  - 回合結束時先檢查未破產人數，≤ 1 即以 `lastStanding` 結束（0 人時 winners 為空陣列），優先於回合上限；結束時不發 `TurnStarted`，round 不變。
+  - `richestAtRoundLimit` 在第 `maxRounds` 輪「最後一位未破產玩家」的回合結束時判定（下一位的座位 ≤ 目前座位即繞回）；有待決定的購地或加蓋時，決定之後才結束。winners 只從未破產玩家中選，依座位順序；`GameEnded.totalAssets` 包含所有玩家。
+  - 模擬器的不變量不檢查「全場金額守恆」：`bankruptcyPayout: 'full'` 由系統補錢，`passStartBonus` 也會產生錢。
+- **原因**：日後卡片或事件效果可能讓多人同時破產，判定要能處理 0 人；破產者總資產為 0，若參與比較，在全員總資產為 0 時會被列為並列勝者。
+- **替代方案**：在每次破產當下就結束遊戲（日後多人同時破產時順序難定）；把破產者也列入平手比較（不合理）。
+
 ## 2026-10-12 強制付款 pay()：破產只發 PlayerBankrupt，附 cause
 - **決策**：`pay(state, debtor, debt)` 處理所有強制付款，`debt` 為 `{ kind: 'rent'; tile; creditor; amount }` 或 `{ kind: 'system'; amount }`。付得起時先扣現金、再扣存款（扣到存款時發 `DepositWithdrawn`），錢交給債權人；付不起時只發一個 `PlayerBankrupt`，不另發 `RentPaid`、`DepositWithdrawn`。`PlayerBankrupt.cause` 記錄破產原因與原本應付的金額（`{ kind: 'rent'; tile; amountDue }` 或 `{ kind: 'system'; amountDue }`），實際付給債權人的金額在 `paidToCreditor`。破產者的現金與存款一律歸零（系統債務時剩下的錢也不保留）。
 - **原因**：避免畫面把同一筆錢播放兩次；畫面需要知道是付哪一格的過路費、原本應付多少；稅金、罰款等系統債務日後可沿用同一個欄位。

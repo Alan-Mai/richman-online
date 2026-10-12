@@ -20,6 +20,22 @@ export function upgradeCost(price: number, config: RuleConfig): number {
   return Math.floor((price * config.upgradeCostPercent) / 100);
 }
 
+/**
+ * Cash + deposit + what the player invested in their properties (price plus each built level at
+ * upgradeCost), as used by richestAtRoundLimit (docs/GAME_RULES.md §1).
+ */
+export function totalAssets(state: GameState, playerId: PlayerId): number {
+  const player = playerOf(state, playerId);
+  let total = player.cash + player.deposit;
+  state.tiles.forEach((tile, i) => {
+    const def = state.board.tiles[i];
+    if (tile.owner === playerId && def?.kind === 'property') {
+      total += def.price + tile.level * upgradeCost(def.price, state.config);
+    }
+  });
+  return total;
+}
+
 /** Money the player may spend voluntarily under RuleConfig.purchaseFunds. */
 export function spendable(player: PlayerState, config: RuleConfig): number {
   return config.purchaseFunds === 'cashAndDeposit' ? player.cash + player.deposit : player.cash;
