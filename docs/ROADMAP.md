@@ -22,13 +22,17 @@
 
 **完成條件**：能把一張原版地圖完整轉出並在簡單 HTML 檢視器中顯示。
 
-**下一步**：壓縮演算法。從 `jump.mkf` 子檔 9–44 的已知明文下手（`ASSET_FORMATS.md` H3：解壓後前 12 bytes 可由 MKF `unknown3` 推得）。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。** RGB555、`SMP`、FLC 已確認，分析順序見 `ASSET_FORMATS.md`。
+**下一步**：`/asset-analyze` 未壓縮的 `SPR` 子檔（各 `.mkf` 中 magic 為 `SPR\0` 的 557 個），確認檔頭表、512 bytes 調色盤格式與 8-bit 像素編排，轉 PNG 寫到 `local-assets/preview/` 給我目視。先做 `SPR` 的原因：完整結構能把 H3 的已知明文從 12 bytes 擴大到檔頭加調色盤，比對壓縮演算法容易得多；`map.mkf` 也有 `SPR`/`GND`。
+
+**再下一步**：壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**
+
+RGB555、`SMP`、FLC 已確認，分析順序見 `ASSET_FORMATS.md`。
 
 **未解問題**：
 - 確認原版光碟的 AVI 是否為真實影片（本機副本的 21 個 `*.avi` 是相同的佔位檔，可能是精簡版）；不影響 Phase 1 完成條件。
 - MKF 子檔頭的 `unknown3`、`unknown4` 在全螢幕圖、`SPR`、`GND`、(0, 0) 類的意義未知（`SMP` 已確認）；`rawSize` > `storedSize` 的子檔（Data、Panel、jump、map）壓縮演算法未知。
 - 「像素格式解析」項目：16-bit 已確認為 RGB555；8-bit 調色盤（推測在 `SPR`，512 bytes）待 `SPR` 分析後定案，再勾選。
-- `SMP` 透明色：四角統計沒有一致的透明色（`0x0000` 為候選），需對照遊戲畫面。
+- `SMP`/`SPR` 的透明色與錨點：`SMP` 四角統計沒有一致的透明色（`0x0000` 為候選），張數表的 `unknown3`/`unknown4` 疑似錨點；最後需對照原版遊戲截圖確認（由使用者提供）。
 - FLC 轉檔方式：`jump.mkf` 的 25 個 FLC 動畫瀏覽器無法直接播放，需決定轉成影片（ffmpeg 可解 FLC）或精靈圖序列，以及轉檔放在 `tools/extract` 還是依賴外部 ffmpeg。
 - MIDI 播放方式：瀏覽器內以 soundfont 合成，或離線轉檔；若選 soundfont，需確認其授權與 GPL 相容。
 - `GAME_RULES.md` 第 8 節：破產時債權人拿到多少 ❓ 待確認（Phase 2 前需決定）。

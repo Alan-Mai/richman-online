@@ -71,11 +71,12 @@
 ### 建議分析順序
 1. ~~MKF 容器~~（完成）。
 2. ~~像素格式：`jump.mkf` 全螢幕圖~~（完成，RGB555）。
-3. 壓縮演算法：從 `jump.mkf` 子檔 9–44 的已知明文下手（見 H3）；先對照 SDLPAL 文件的 YJ1 與常見 LZSS 變體，都不符合就改用 Ghidra 找 `rich4.exe` 的解壓函式。
-4. `SPR`（未壓縮的 557 個可先分析，含推測的 512 bytes 調色盤）與 `map.mkf` 的 `GND`（完成條件所需）。
-5. 其餘精靈圖：`Data`、`Panel`、`Effect`。
-6. `Speaking.mkf`、MIDI 播放方式。
-7. 延後：`help.mkf` 內容、`RICH4.CFG`。
+3. 未壓縮的 `SPR`（557 個）：檔頭表、推測的 512 bytes 調色盤、8-bit 像素編排；轉 PNG 目視確認。
+4. 壓縮演算法：以 `SPR` 完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手（見 H3）；先對照 SDLPAL 文件的 YJ1 與常見 LZSS 變體，都不符合就改用 Ghidra 找 `rich4.exe` 的解壓函式。
+5. `map.mkf` 的 `GND` 與地圖資料（完成條件所需）。
+6. 其餘精靈圖：`Data`、`Panel`、`Effect`。
+7. `Speaking.mkf`、MIDI 播放方式。
+8. 延後：`help.mkf` 內容、`RICH4.CFG`。
 
 ## 格式條目範本
 
