@@ -14,7 +14,14 @@ export {
 export type { RuleError } from './errors';
 export type { GameEvent, GameEventType } from './events';
 export type { PlayerId, TileIndex } from './ids';
-export type { RngState } from './rng';
+export {
+  createRng,
+  nextInt,
+  nextUint32,
+  parseRngState,
+  type ParseRngResult,
+  type RngState,
+} from './rng';
 export type {
   Direction,
   GameState,

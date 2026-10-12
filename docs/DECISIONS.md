@@ -2,6 +2,11 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-12 RNG 採 mulberry32，scripted 序列只供測試
+- **決策**：`RngState` 為 `{ kind: 'mulberry32'; state: uint32 }` 或測試用的 `{ kind: 'scripted'; values }`。所有亂數經 `nextInt(rng, n)`，以拒絕取樣避免取模偏差。scripted 只能由 `testing.ts`（不從 `index.ts` 匯出）建立；外部輸入的 RNG 狀態一律經 `parseRngState` 驗證並拒絕 scripted，`createGame` 只收 uint32 種子。
+- **原因**：狀態只有一個整數，JSON 直接序列化、存檔與重播簡單；scripted 讓測試指定骰點而不用找種子；若外部能傳入 scripted，就能事先決定骰點作弊。
+- **替代方案**：xoshiro128**（品質較好但狀態 4 個整數，對擲骰用途沒有必要）；測試改用找特定種子（脆弱、難讀）。
+
 ## 2026-10-12 規則引擎型別：有向地圖、整數百分比、勝負條件
 - **決策**：
   - 地圖每格以有向的 `next`（後繼格陣列）表示前進方向，後退走其反方向；玩家帶 `direction`，掉頭效果只改這個欄位。型別允許叉路（多個 `next`），Phase 2 的地圖驗證拒絕叉路。
