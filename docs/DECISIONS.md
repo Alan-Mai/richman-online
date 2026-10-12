@@ -2,6 +2,11 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-12 PNG 編碼器自行以 node:zlib 實作
+- **決策**：`tools/extract/src/png.ts` 只用 Node 內建的 `zlib`（`deflateSync`、`crc32`）寫出 PNG，支援 8-bit RGBA 與 8-bit 調色盤（附 `tRNS`）兩種；每列濾波固定為 None。
+- **原因**：不引入原生編譯套件，Windows 與 Ubuntu 的 CI 都不必處理編譯環境；轉檔只需要寫出，不需要讀取或縮放。調色盤圖直接對應 `GND`、`SPR` 的 8-bit 索引，檔案也較小。
+- **替代方案**：sharp（原生編譯）；pngjs（純 JS，但要新增依賴，且功能多於需要）。
+
 ## 2026-10-12 素材解析器以 ByteSource 按需讀取
 - **決策**：`tools/extract` 的解析器透過 `ByteSource`（`size` + `read(offset, length)`）讀取資料；正式執行用 `openFileByteSource`（唯讀 fd、`readSync`），測試用 `bufferByteSource` 包合成資料。解析器只讀索引與檔頭，內容按需讀取。
 - **原因**：`map.mkf` 約 76 MB、`Speaking.mkf` 約 57 MB，整檔載入浪費記憶體；同一介面讓解析器可直接以記憶體中的假資料測試，不需要暫存檔。
