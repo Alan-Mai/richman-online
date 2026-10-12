@@ -24,7 +24,7 @@
 
 Phase 1 其餘項目（壓縮、音效、Data/Panel 圖片）延後；壓縮演算法移到「Phase 3 前置」（見 `DECISIONS.md`）。
 
-**下一步**：進入 Phase 2（規則引擎，使用內建測試地圖，不依賴原版素材）。開始前需先決定 `GAME_RULES.md` 第 8 節的待確認事項（見下方未解問題）。
+**下一步**：進入 Phase 2（規則引擎，使用內建測試地圖，不依賴原版素材）。`GAME_RULES.md` 第 8 節的破產償債已決定（`RuleConfig.bankruptcyPayout`，預設 `'remaining'`）；從 RNG 與內建測試地圖開始，依 Phase 2 清單順序進行。
 
 RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，分析順序見 `ASSET_FORMATS.md`。
 
@@ -39,7 +39,6 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，�
   - 最後需對照原版遊戲截圖確認（由使用者提供）。
 - FLC 轉檔方式：`jump.mkf` 的 25 個 FLC 動畫瀏覽器無法直接播放，需決定轉成影片（ffmpeg 可解 FLC）或精靈圖序列，以及轉檔放在 `tools/extract` 還是依賴外部 ffmpeg。
 - MIDI 播放方式：瀏覽器內以 soundfont 合成，或離線轉檔；若選 soundfont，需確認其授權與 GPL 相容。
-- `GAME_RULES.md` 第 8 節：破產時債權人拿到多少 ❓ 待確認（Phase 2 前需決定）。
 - GitHub 的 `ubuntu-latest` 自 2026-10-19 起改為 Ubuntu 26，留意 CI 結果。
 
 ## Phase 2：最小規則引擎
