@@ -22,12 +22,14 @@
 
 **完成條件**：能把一張原版地圖完整轉出並在簡單 HTML 檢視器中顯示。
 
-**下一步**：`/asset-analyze jump.mkf`：用 `tools/extract/src/formats/mkf.ts` 取出子檔 0（`rawSize` = 640×480×2、未壓縮），轉 PNG 寫到 `local-assets/preview/` 給我目視，確認 RGB555／RGB565；並檢查 `unknown4` = 512 的子檔是否帶 256 色調色盤。MKF 容器已解析，分組與完整分析順序見 `ASSET_FORMATS.md`。
+**下一步**：壓縮演算法。從 `jump.mkf` 子檔 9–44 的已知明文下手（`ASSET_FORMATS.md` H3：解壓後前 12 bytes 可由 MKF `unknown3` 推得）。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。** RGB555、`SMP`、FLC 已確認，分析順序見 `ASSET_FORMATS.md`。
 
 **未解問題**：
 - 確認原版光碟的 AVI 是否為真實影片（本機副本的 21 個 `*.avi` 是相同的佔位檔，可能是精簡版）；不影響 Phase 1 完成條件。
-- MKF 子檔頭的 `unknown3`、`unknown4` 意義未知；`rawSize` > `storedSize` 的子檔（Data、Panel、jump、map）壓縮演算法未知。
-- 「像素格式解析」項目的最終範圍（是否另有調色盤），待 `jump.mkf` 轉出 PNG 目視確認後定案。
+- MKF 子檔頭的 `unknown3`、`unknown4` 在全螢幕圖、`SPR`、`GND`、(0, 0) 類的意義未知（`SMP` 已確認）；`rawSize` > `storedSize` 的子檔（Data、Panel、jump、map）壓縮演算法未知。
+- 「像素格式解析」項目：16-bit 已確認為 RGB555；8-bit 調色盤（推測在 `SPR`，512 bytes）待 `SPR` 分析後定案，再勾選。
+- `SMP` 透明色：四角統計沒有一致的透明色（`0x0000` 為候選），需對照遊戲畫面。
+- FLC 轉檔方式：`jump.mkf` 的 25 個 FLC 動畫瀏覽器無法直接播放，需決定轉成影片（ffmpeg 可解 FLC）或精靈圖序列，以及轉檔放在 `tools/extract` 還是依賴外部 ffmpeg。
 - MIDI 播放方式：瀏覽器內以 soundfont 合成，或離線轉檔；若選 soundfont，需確認其授權與 GPL 相容。
 - `GAME_RULES.md` 第 8 節：破產時債權人拿到多少 ❓ 待確認（Phase 2 前需決定）。
 - GitHub 的 `ubuntu-latest` 自 2026-10-19 起改為 Ubuntu 26，留意 CI 結果。
