@@ -77,7 +77,7 @@
 2. ~~像素格式：`jump.mkf` 全螢幕圖~~（完成，RGB555）。
 3. ~~未壓縮的 `SPR`（549 個；另有 8 個 `GND`）~~（完成，見「SPR 精靈圖集」）。
 4. ~~盤點 `map.mkf` 的 298 個子檔~~（完成：畫出一張地圖只需未壓縮子檔，先做 6）。
-5. 壓縮演算法：以 `SPR` 完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手（見 H3）；先對照 SDLPAL 文件的 YJ1 與常見 LZSS 變體，都不符合就改用 Ghidra 找 `rich4.exe` 的解壓函式。
+5. 壓縮演算法（延後至 ROADMAP 的「Phase 3 前置」）：以 `SPR` 完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手（見 H3）；先對照 SDLPAL 文件的 YJ1 與常見 LZSS 變體，都不符合就改用 Ghidra 找 `rich4.exe` 的解壓函式。
 6. ~~`map.mkf` 的 `GND` 與地圖資料~~（完成，見「GND 地圖背景」「地圖資料」）；接著是匯出 JSON 與 HTML 檢視器（完成條件所需）。
 7. 其餘精靈圖：`Data`、`Panel`、`Effect`。
 8. `Speaking.mkf`、MIDI 播放方式。
