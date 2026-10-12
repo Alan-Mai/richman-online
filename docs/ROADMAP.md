@@ -46,15 +46,11 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，�
 - [x] 購地、加蓋、過路費
 - [x] 破產與勝負判定（現金不足自動扣存款，仍不足即破產；不賣地不拆房，地產收回為無主空地；`lastStanding` 與 `richestAtRoundLimit`）
 - [x] `legalActions`（伺服器專用）、`viewFor`
-- [ ] 終端機模擬器（`tools/sim/`）：4 個隨機 AI 以 `richestAtRoundLimit` 跑完 1000 局不崩潰、無非法狀態
+- [x] 終端機模擬器（`tools/sim/`）：4 個隨機 AI 以 `richestAtRoundLimit` 跑完 1000 局不崩潰、無非法狀態
 
-**完成條件**：模擬器穩定，測試覆蓋率 shared ≥ 90%。
+- [x] **完成條件**：模擬器穩定，測試覆蓋率 shared ≥ 90%。（已達成：`pnpm -F sim sim -- --games 1000` 以 `richestAtRoundLimit` 與 `lastStanding` 各跑 1000 局，全部結束、無失敗；`shared` 覆蓋率約 98.7%。）
 
-**下一步**：終端機模擬器（`tools/sim/`，目前 `src/main.ts` 只是佔位）。規則引擎核心已完成（`engine.ts`、`money.ts`、`view.ts`），`shared` 覆蓋率約 98%。先提計畫，內容包含：
-- CLI：`pnpm -F sim sim -- --games 1000 --seed <uint32> --max-rounds 100`（`--max-rounds` 預設 100）；每局 4 人、`TEST_LOOP_BOARD`、`winCondition: 'richestAtRoundLimit'`，第 i 局用 `seed + i` 建局。選動作用另一個由 `createRng`/`nextInt` 產生的 RNG，不用 `Math.random`，才能重現。
-- 不變量放在 `packages/shared`，匯出純函式 `checkInvariants(state): string[]`（空陣列表示正常），測試先行並用合成狀態測試。由 `engine.legal.test.ts`（改用它取代內建的檢查）、`tools/sim`、日後伺服器的除錯模式共用。內容：現金存款為非負整數、破產者沒有地、等級在 0..maxLevel、非地產格無主且等級 0、無主地等級 0、未結束時 current 不是破產者。**不檢查全場金額守恆**（見 `DECISIONS.md`）。
-- 模擬器每一步另外檢查：`legalActions` 非空且每個都被接受、非輪到的玩家沒有動作；每局步數有上限（不會無限迴圈）。
-- 失敗時輸出種子、局號與動作序列，可以用來重現；結束時印出統計（平均回合數、結束原因比例、破產次數）。
+**下一步**：Phase 3 前置的壓縮演算法（見 Phase 3）。
 
 **未解問題**：
 - 待使用者確認的規則（`GAME_RULES.md` 標 ❓）：銀行經過時能不能存提款、叉路怎麼選、掉頭效果、原版地圖 7 階價格表的意義。

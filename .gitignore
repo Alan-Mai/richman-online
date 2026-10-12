@@ -24,3 +24,6 @@ local-assets/
 
 # /asset-analyze 的驗證腳本（可隨時刪除，不入庫）
 tools/extract/scratch/
+
+# 模擬器的失敗紀錄檔
+tools/sim/out/

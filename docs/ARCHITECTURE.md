@@ -132,6 +132,10 @@ interface ServerUpdate {
 
 - 以隨機 AI（從 `legalActions` 隨機選）跑大量對局，每一步檢查不變量；失敗時輸出種子與動作序列。
 - 不屬於規則引擎，可使用 `console` 與檔案 I/O。
+- 模組：`args.ts`（參數）、`game.ts`（單局與逐步檢查，engine 可注入以測試失敗偵測）、`replay.ts`（紀錄檔與重播）、`stats.ts`（統計與輸出格式）、`simulate.ts`（流程，I/O 注入）、`main.ts`（接上 console 與檔案）。
+- 不變量由 `packages/shared` 的 `checkInvariants(state): string[]` 提供，模擬器另外檢查：輪到的玩家有合法動作且每個都被接受、清單外的動作類型以 `wrongPhase` 拒絕、其他玩家（遊戲結束後所有人）沒有動作、`gameOver` 時有 `GameEnded` 事件。
+- 每個失敗寫入 `tools/sim/out/failure-<該局種子>.json`（gitignore），內容為 config、玩家、種子、動作序列與模擬器看到的結果；`replay` 只依動作序列重播並判斷是否重現。終端機只印前 `--max-failure-details`（預設 5）筆的完整內容，最後印失敗原因分組統計。
+- 輸出用英文 ASCII，避免 Windows 主控台字碼頁造成亂碼。
 
 ## 法律界線
 
