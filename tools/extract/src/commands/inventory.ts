@@ -7,6 +7,8 @@ export interface CommandContext {
   gameDir: string;
   /** Absolute path of <repo>/local-assets; the only place output may be written. */
   outDir: string;
+  /** Command-line arguments after the command name. */
+  args: string[];
 }
 
 export async function inventory({ gameDir, outDir }: CommandContext): Promise<void> {

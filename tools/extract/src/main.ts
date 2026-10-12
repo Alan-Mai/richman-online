@@ -2,10 +2,13 @@
 import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { inventory, type CommandContext } from './commands/inventory';
+import { map } from './commands/map';
 import { GameDirError, resolveGameDir } from './game-dir';
+import { MapExportError } from './map-export';
 
 const COMMANDS: Record<string, (ctx: CommandContext) => Promise<void>> = {
   inventory,
+  map,
 };
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
@@ -47,7 +50,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  await command({ gameDir, outDir });
+  try {
+    await command({ gameDir, outDir, args: process.argv.slice(3) });
+  } catch (e) {
+    if (e instanceof MapExportError) return fail(e.message);
+    throw e;
+  }
 }
 
 await main();
