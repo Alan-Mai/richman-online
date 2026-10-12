@@ -55,8 +55,8 @@ pnpm typecheck
 
 1. 動手前先讀相關文件：架構看 `docs/ARCHITECTURE.md`，目前進度看 `docs/ROADMAP.md`，規則細節看 `docs/GAME_RULES.md`，檔案格式看 `docs/ASSET_FORMATS.md`。
 2. 非小改動先提出計畫，等我確認再寫。
-3. 規則引擎採測試先行：先寫測試並實際跑一次，確認它因為功能未實作而失敗，再寫實作。若實作已先寫好，就暫時把實作改壞，確認測試會失敗後再改回。
-4. 完成後執行 `pnpm test && pnpm lint && pnpm typecheck`，全部通過才算完成。
+3. 規則引擎採測試先行：先寫測試並實際跑一次，確認它因為功能未實作而**斷言失敗**（空殼回傳空值或預設值，不要 throw；import 錯誤或測試檔載入失敗不算），再寫實作。若實作已先寫好，就暫時把實作改壞，確認測試會失敗後再改回。
+4. **每個 commit 前**執行 `pnpm test && pnpm lint && pnpm typecheck`（先跑 `pnpm format`），全部通過才 commit；任務完成時再整體跑一次。
 5. 每次 commit 只做一件事，訊息用 Conventional Commits（`feat(shared): ...`）。
 6. 重要技術決策寫進 `docs/DECISIONS.md`；完成路線圖項目時，在同一個 commit 內更新 `docs/ROADMAP.md` 的勾選。
 7. `GAME_RULES.md` 標「待確認」的規則不要自行猜測，其他大富翁類遊戲的慣例也不能當成原版規則；先問我，或做成參數並標「非原版」。實作時自行補的規則細節，完成後列給我確認，再寫回 `GAME_RULES.md`（我確認的標 ✅），不要只寫在 `DECISIONS.md`。

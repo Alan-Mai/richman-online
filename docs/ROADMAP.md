@@ -50,18 +50,18 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，�
 
 - [x] **完成條件**：模擬器穩定，測試覆蓋率 shared ≥ 90%。（已達成：`pnpm -F sim sim -- --games 1000` 以 `richestAtRoundLimit` 與 `lastStanding` 各跑 1000 局，全部結束、無失敗；`shared` 覆蓋率約 98.7%。）
 
-**下一步**：Phase 3 前置的壓縮演算法（見 Phase 3）。
+## Phase 3：單機畫面
+
+**Phase 3 前置**（Phase 3 開始前完成）：
+- [ ] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**
+
+**下一步**：Phase 3 前置的壓縮演算法。先讀 `ASSET_FORMATS.md` 的 H3 與「分析順序」第 5 點，提出分析計畫（候選演算法的比對順序、判定「符合」的標準，例如解出的長度等於 `rawSize` 且開頭是合法的 `SPR` 結構、改用 Ghidra 的時限）；確認後由使用者輸入 `/asset-analyze` 開始分析 `jump.mkf` 子檔 9–44。
 
 **未解問題**：
 - 待使用者確認的規則（`GAME_RULES.md` 標 ❓）：銀行經過時能不能存提款、叉路怎麼選、掉頭效果、原版地圖 7 階價格表的意義。
 - 前進方向：原版地圖資料的相鄰格子沒有方向，日後要讓規則引擎吃原版地圖時需先解決（見 Phase 1 未解問題）；不影響內建測試地圖。
 - GitHub 的 `ubuntu-latest` 自 2026-10-19 起改為 Ubuntu 26，留意 CI 結果。
 - 遊戲節奏：暫定數值下破產很少（`richestAtRoundLimit` 每局 0.63 次、`lastStanding` 平均 198 輪），待 `GAME_RULES.md` 填入原版數值後用模擬器重新比較。
-
-## Phase 3：單機畫面
-
-**Phase 3 前置**（Phase 3 開始前完成）：
-- [ ] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**
 
 - [ ] Phaser 場景載入地圖（原版轉檔或佔位圖）
 - [ ] 事件佇列與動畫：擲骰、移動、買地、付款
