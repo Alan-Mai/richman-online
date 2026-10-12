@@ -1,5 +1,9 @@
 import type { PlayerId, TileIndex } from './ids';
 
+/** The debt that could not be paid; amountDue is the full amount, not what was paid. */
+export type BankruptcyCause =
+  { kind: 'rent'; tile: TileIndex; amountDue: number } | { kind: 'system'; amountDue: number };
+
 /** What happened, in order, for the client to animate. */
 export type GameEvent =
   | { type: 'TurnStarted'; playerId: PlayerId; round: number }
@@ -10,7 +14,7 @@ export type GameEvent =
   | { type: 'PropertyBought'; playerId: PlayerId; tile: TileIndex; price: number }
   | { type: 'PropertyUpgraded'; playerId: PlayerId; tile: TileIndex; level: number; cost: number }
   | { type: 'RentPaid'; from: PlayerId; to: PlayerId; tile: TileIndex; amount: number }
-  /** Cash fell short of a debt and the rest came out of the deposit. */
+  /** Cash fell short of a payment and the rest came out of the deposit. */
   | { type: 'DepositWithdrawn'; playerId: PlayerId; amount: number }
   | {
       type: 'PlayerBankrupt';
@@ -19,6 +23,7 @@ export type GameEvent =
       creditor: PlayerId | null;
       paidToCreditor: number;
       releasedTiles: readonly TileIndex[];
+      cause: BankruptcyCause;
     }
   | {
       type: 'GameEnded';

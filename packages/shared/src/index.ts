@@ -32,7 +32,7 @@ export {
   type PlayerSetup,
 } from './engine';
 export type { RuleError } from './errors';
-export type { GameEvent, GameEventType } from './events';
+export type { BankruptcyCause, GameEvent, GameEventType } from './events';
 export type { PlayerId, TileIndex } from './ids';
 export {
   createRng,

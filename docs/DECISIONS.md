@@ -2,6 +2,11 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-12 強制付款 pay()：破產只發 PlayerBankrupt，附 cause
+- **決策**：`pay(state, debtor, debt)` 處理所有強制付款，`debt` 為 `{ kind: 'rent'; tile; creditor; amount }` 或 `{ kind: 'system'; amount }`。付得起時先扣現金、再扣存款（扣到存款時發 `DepositWithdrawn`），錢交給債權人；付不起時只發一個 `PlayerBankrupt`，不另發 `RentPaid`、`DepositWithdrawn`。`PlayerBankrupt.cause` 記錄破產原因與原本應付的金額（`{ kind: 'rent'; tile; amountDue }` 或 `{ kind: 'system'; amountDue }`），實際付給債權人的金額在 `paidToCreditor`。破產者的現金與存款一律歸零（系統債務時剩下的錢也不保留）。
+- **原因**：避免畫面把同一筆錢播放兩次；畫面需要知道是付哪一格的過路費、原本應付多少；稅金、罰款等系統債務日後可沿用同一個欄位。
+- **替代方案**：`RentPaid`（實付金額）+ `PlayerBankrupt`（畫面要自己判斷兩個事件是同一筆）；不附原因（畫面無法說明為何破產）。
+
 ## 2026-10-12 移動事件在經過觸發處切段；applyAction 自行驗證動作格式
 - **決策**：
   - 移動途中某格的經過觸發有效果時，`PlayerMoved` 在該格切段：`PlayerMoved(走到觸發格)` → 效果事件（例如 `PassBonusReceived`）→ `PlayerMoved(剩下的路)`；沒有觸發時只有一個 `PlayerMoved`。`path` 不含出發格；從起點出發或剛好停在起點都不算經過。
