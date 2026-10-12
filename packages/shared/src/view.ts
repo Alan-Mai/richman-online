@@ -5,9 +5,8 @@ import type { RuleConfig } from './config';
 import type { PlayerId } from './ids';
 import type { GameState, PlayerState, TileState, TurnState } from './state';
 
-/** PlayerId is a plain string, so 'spectator' is documentation only (see ARCHITECTURE.md). */
-// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
-export type Viewer = PlayerId | 'spectator';
+/** Who the view is for. A tagged union so no player id can be mistaken for a spectator. */
+export type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 
 export interface PlayerView {
   viewer: Viewer;
@@ -24,7 +23,7 @@ export interface PlayerView {
  */
 export function viewFor(state: GameState, viewer: Viewer): PlayerView {
   return {
-    viewer,
+    viewer: { ...viewer },
     config: state.config,
     board: state.board,
     players: state.players.map((p) => ({ ...p })),

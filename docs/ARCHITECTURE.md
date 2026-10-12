@@ -26,10 +26,12 @@ function createGame(setup: GameSetup):
   | { ok: false; errors: CreateGameError[] };
 function applyAction(state: GameState, action: Action): Result;
 function legalActions(state: GameState, playerId: PlayerId): Action[];   // 只在伺服器執行
-function viewFor(state: GameState, playerId: PlayerId | 'spectator'): PlayerView;
+function viewFor(state: GameState, viewer: Viewer): PlayerView;
+
+type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 ```
 
-`'spectator'` 先保留在型別中，觀戰模式尚未實作。
+觀戰者（`{ kind: 'spectator' }`）先保留在型別中，觀戰模式尚未實作。用可辨識聯合型別而不是 `PlayerId | 'spectator'`，是因為 `PlayerId` 是字串，id 剛好叫 `'spectator'` 的玩家會和觀戰者混淆。
 
 - `applyAction` 自行驗證動作格式（日後來自網路）：格式錯誤回傳 `invalidAction`，不 throw。錯誤優先順序 `invalidAction` > `gameOver` > `unknownPlayer` > `notYourTurn` > `wrongPhase` > `insufficientFunds`。
 - `PlayerView` = `GameState` 去掉 `rngState`，加上 `viewer`；欄位逐一列出複製，新增的 state 欄位預設不會外洩。
@@ -99,7 +101,7 @@ createGame ──▶ awaitRoll（座位 0）
 // 伺服器送給單一玩家的訊息
 interface ServerUpdate {
   events: GameEvent[];
-  view: PlayerView;          // viewFor(state, playerId)
+  view: PlayerView;          // viewFor(state, { kind: 'player', id: playerId })
   legalActions: Action[];    // legalActions(state, playerId)，非輪到該玩家時為空陣列
 }
 ```
