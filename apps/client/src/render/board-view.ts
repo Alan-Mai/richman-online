@@ -3,11 +3,8 @@ import Phaser from 'phaser';
 import type { Board, Point, TileIndex } from '@richman/shared';
 import { formatMoney } from '../i18n';
 import type { DisplayModel } from '../model/display';
-import { BOARD_COLORS, FONT_FAMILY, cssColor, playerColor } from '../theme';
+import { BOARD_COLORS, FONT_FAMILY, TEXT_RESOLUTION, cssColor, playerColor } from '../theme';
 import { layoutBoard, type BoardLayout, type Rect } from './layout';
-
-/** Text is rasterised at device resolution so it stays sharp on high-DPI screens. */
-const TEXT_RESOLUTION = window.devicePixelRatio || 1;
 
 /** Where each seat's token sits inside a tile, as a fraction of the tile size. */
 const SEAT_OFFSETS: readonly Point[] = [
@@ -25,6 +22,8 @@ export class BoardView {
   private readonly tokens = new Map<string, Phaser.GameObjects.Container>();
   private seats = new Map<string, number>();
   private model: DisplayModel | null = null;
+  /** Tile size when the tokens were drawn; tokens are scaled relative to it. */
+  private tokenBaseSize = 1;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -35,6 +34,7 @@ export class BoardView {
     this.ownerLayer = scene.add.container().setDepth(1);
     this.tokenLayer = scene.add.container().setDepth(2);
     this.layout = layoutBoard(this.positions(), area);
+    this.tokenBaseSize = this.tileSize;
     this.drawTiles();
   }
 
@@ -47,11 +47,9 @@ export class BoardView {
     this.layout = layoutBoard(this.positions(), area);
     this.tileLayer.removeAll(true);
     this.drawTiles();
-    if (this.model) {
-      this.tokens.forEach((t) => t.destroy());
-      this.tokens.clear();
-      this.show(this.model);
-    }
+    // Tokens are rescaled rather than recreated so running tweens keep their targets.
+    this.tokens.forEach((token) => token.setScale(this.tileSize / this.tokenBaseSize));
+    if (this.model) this.show(this.model);
   }
 
   /** Screen centre of a tile. */
@@ -149,7 +147,7 @@ export class BoardView {
 
   private createToken(playerId: string): Phaser.GameObjects.Container {
     const seat = this.seats.get(playerId) ?? 0;
-    const radius = this.tileSize * 0.15;
+    const radius = this.tokenBaseSize * 0.15;
     const circle = this.scene.add
       .circle(0, 0, radius, playerColor(seat))
       .setStrokeStyle(Math.max(1, radius * 0.15), 0xffffff);
@@ -162,7 +160,9 @@ export class BoardView {
         fontStyle: 'bold',
       })
       .setOrigin(0.5);
-    const token = this.scene.add.container(0, 0, [circle, label]);
+    const token = this.scene.add
+      .container(0, 0, [circle, label])
+      .setScale(this.tileSize / this.tokenBaseSize);
     this.tokenLayer.add(token);
     this.tokens.set(playerId, token);
     return token;

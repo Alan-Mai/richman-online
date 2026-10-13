@@ -22,3 +22,6 @@ export const BOARD_COLORS = {
 
 export const FONT_FAMILY =
   'system-ui, "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif';
+
+/** Text is rasterised at device resolution so it stays sharp on high-DPI screens. */
+export const TEXT_RESOLUTION = window.devicePixelRatio || 1;
