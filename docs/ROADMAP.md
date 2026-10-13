@@ -24,7 +24,7 @@
 
 Phase 1 其餘項目（壓縮、音效、Data/Panel 圖片）延後；壓縮演算法移到「Phase 3 前置」（見 `DECISIONS.md`）。
 
-RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，分析順序見 `ASSET_FORMATS.md`。
+RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮已確認，分析順序見 `ASSET_FORMATS.md`。
 
 **未解問題**（Phase 1，延後處理）：
 - 確認原版光碟的 AVI 是否為真實影片（本機副本的 21 個 `*.avi` 是相同的佔位檔，可能是精簡版）；不影響 Phase 1 完成條件。
