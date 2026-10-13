@@ -11,12 +11,11 @@ beforeEach(() => {
   root = document.createElement('div');
   document.body.replaceChildren(root);
   started = [];
-  renderSetupScreen(
-    root,
-    defaultSetupForm(),
-    (s, f) => started.push([s, f]),
-    () => 99,
-  );
+  renderSetupScreen(root, {
+    initial: defaultSetupForm(),
+    onStart: (s, f) => started.push([s, f]),
+    makeSeed: () => 99,
+  });
 });
 
 function field<T extends HTMLElement>(name: string): T {
@@ -78,6 +77,21 @@ describe('setup screen', () => {
     expect(errors).toEqual(['玩家名稱不可重複：玩家 1', '種子必須是 0 到 4294967295 的整數']);
   });
 
+  it('offers the original map preview only when asked to', () => {
+    const label = '原版地圖預覽（唯讀）';
+    const find = () => [...root.querySelectorAll('button')].find((b) => b.textContent === label);
+    expect(find()).toBeUndefined();
+    let opened = 0;
+    renderSetupScreen(root, {
+      initial: defaultSetupForm(),
+      onStart: () => {},
+      onPreview: () => opened++,
+    });
+    find()!.click();
+    expect(opened).toBe(1);
+    expect(started).toEqual([]);
+  });
+
   it('prefills from the given form', () => {
     const form = {
       ...defaultSetupForm(),
@@ -85,7 +99,7 @@ describe('setup screen', () => {
       seed: '7',
       names: ['甲', '乙', '丙', '丁'],
     };
-    renderSetupScreen(root, form, (s, f) => started.push([s, f]));
+    renderSetupScreen(root, { initial: form, onStart: (s, f) => started.push([s, f]) });
     expect(field<HTMLSelectElement>('playerCount').value).toBe('3');
     expect(field<HTMLInputElement>('name2').value).toBe('丙');
     expect(field<HTMLInputElement>('seed').value).toBe('7');

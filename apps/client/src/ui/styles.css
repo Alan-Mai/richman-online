@@ -358,3 +358,58 @@ body {
 .game-over-ranking li.is-winner {
   outline: 2px solid var(--accent);
 }
+
+.setup .secondary,
+.preview-chooser button,
+#hud > button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--panel-border);
+  color: var(--text);
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.preview-chooser {
+  display: grid;
+  gap: 12px;
+  width: min(520px, 100%);
+  padding: 20px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.preview-chooser h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.preview-chooser h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.preview-chooser p {
+  margin: 0;
+}
+
+.preview-note,
+.preview-hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.preview-error,
+.preview-message {
+  color: var(--danger);
+}
+
+.preview-maps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

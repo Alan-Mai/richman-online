@@ -2,6 +2,15 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-13 原版地圖唯讀預覽、資料夾匯入、最近鄰取樣
+- **決策**：
+  - 設定畫面提供「原版地圖預覽（唯讀）」：dev 模式自動讀 `local-assets/maps/`；任何模式都可用 `<input webkitdirectory>` 匯入自己轉出的資料夾（選 `local-assets/` 或 `local-assets/maps/` 皆可，以最淺的 `index.json` 為根）。檔案只在瀏覽器內讀取，圖片用 object URL，不上傳；匯入的資料夾在本次瀏覽期間保留，換資料夾時釋放舊的 object URL。
+  - `map.json` 只檢查預覽用到的欄位（`version === 1`、`map`、`background` 的檔名與尺寸、`squares` 的座標、名稱、`links`），其餘欄位忽略；背景檔名只接受同資料夾的 `.png`，不能指到別處。
+  - 原版素材的材質一律經 `render/original-texture.ts` 載入並設為最近鄰取樣（`FilterMode.NEAREST`），攝影機 `roundPixels`；日後原版精靈圖沿用同一個 helper。佔位圖與文字不受影響。
+  - 預覽不接規則引擎：前進方向、岔路、地價都還沒解析，只畫背景、格子點與相鄰連線；滾輪縮放、拖曳移動、點格子看名稱與相鄰格子。
+- **原因**：依使用者確認的範圍，Phase 3 只做原版地圖的唯讀預覽；最近鄰取樣避免像素圖縮放時模糊。
+- **替代方案**：File System Access API（只有 Chromium）；把匯入的素材存進 IndexedDB（之後再做）；全域 `pixelArt: true`（會讓佔位圖與文字也變成鋸齒）。
+
 ## 2026-10-13 開發時以 Vite middleware 讀 local-assets，只回應本機
 - **決策**：
   - `apps/client/vite/local-assets.ts` 是 `apply: 'serve'` 的 Vite plugin，在 dev server 上以 `/local-assets/maps/` 提供 `local-assets/maps/` 的 `.json`、`.png`；不使用 `publicDir`、客戶端程式也不 `import` 任何素材，所以 `vite build` 的產物不含轉檔素材。

@@ -31,16 +31,18 @@ const WIN_LABELS = {
   richestAtRoundLimit: 'setup.win.richestAtRoundLimit',
 } as const satisfies Record<WinCondition, MessageKey>;
 
-/**
- * Renders the form into `root`. `onStart` receives a valid setup together with the form values
- * (to prefill the next game). `makeSeed` is injectable for tests.
- */
-export function renderSetupScreen(
-  root: HTMLElement,
-  initial: SetupForm,
-  onStart: (setup: GameSetup, form: SetupForm) => void,
-  makeSeed: () => number = randomSeed,
-): void {
+export interface SetupScreenOptions {
+  initial: SetupForm;
+  /** Receives a valid setup together with the form values (to prefill the next game). */
+  onStart: (setup: GameSetup, form: SetupForm) => void;
+  /** Opens the read-only preview of converted original maps. */
+  onPreview?: () => void;
+  /** Injectable for tests. */
+  makeSeed?: () => number;
+}
+
+export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions): void {
+  const { initial, onStart, onPreview, makeSeed = randomSeed } = options;
   const form = document.createElement('form');
   form.className = 'setup';
   form.noValidate = true;
@@ -152,5 +154,13 @@ export function renderSetupScreen(
     errors,
     start,
   );
+  if (onPreview) {
+    const preview = document.createElement('button');
+    preview.type = 'button';
+    preview.className = 'secondary';
+    preview.textContent = t('setup.preview');
+    preview.addEventListener('click', () => onPreview());
+    form.append(preview);
+  }
   root.replaceChildren(form);
 }
