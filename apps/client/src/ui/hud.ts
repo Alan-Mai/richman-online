@@ -1,0 +1,188 @@
+// DOM overlay: player panels, round, action buttons, event log and tile info. Buttons come only
+// from the legal actions of the latest fully played update.
+import {
+  rentFor,
+  upgradeCost,
+  type ActionType,
+  type Board,
+  type GameEvent,
+  type RuleConfig,
+  type ServerUpdate,
+  type TileIndex,
+} from '@richman/shared';
+import type { ControllerSink } from '../game-controller';
+import { formatMoney, t } from '../i18n';
+import type { DisplayModel } from '../model/display';
+import { cssColor, playerColor } from '../theme';
+import { describeEvent } from './event-text';
+
+const LOG_LIMIT = 50;
+
+export interface HudOptions {
+  board: Board;
+  onAct(type: ActionType): void;
+}
+
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className?: string,
+  text?: string,
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+/** Button text for an offered action, with the price or cost of the pending offer. */
+export function actionLabel(type: ActionType, update: ServerUpdate): string {
+  const { phase } = update.view.turn;
+  switch (type) {
+    case 'rollDice':
+      return t('action.rollDice');
+    case 'buyProperty':
+      return t('action.buyProperty', {
+        price: formatMoney(phase.kind === 'awaitBuyDecision' ? phase.price : 0),
+      });
+    case 'upgradeProperty':
+      return t('action.upgradeProperty', {
+        cost: formatMoney(phase.kind === 'awaitUpgradeDecision' ? phase.cost : 0),
+      });
+    case 'decline':
+      return t('action.decline');
+  }
+}
+
+export class Hud implements ControllerSink {
+  private readonly round = el('div', 'hud-round');
+  private readonly players = el('ol', 'hud-players');
+  private readonly prompt = el('div', 'hud-prompt');
+  private readonly actions = el('div', 'hud-actions');
+  private readonly tileInfo = el('section', 'hud-tile');
+  private readonly log = el('ol', 'hud-log');
+  private model: DisplayModel | null = null;
+  private ready: ServerUpdate | null = null;
+  private config: RuleConfig | null = null;
+  private selectedTile: TileIndex | null = null;
+
+  constructor(
+    root: HTMLElement,
+    private readonly options: HudOptions,
+  ) {
+    this.players.setAttribute('aria-label', t('hud.players'));
+    this.log.setAttribute('aria-label', t('hud.log'));
+    this.log.setAttribute('aria-live', 'polite');
+    const logSection = el('section', 'hud-log-section');
+    logSection.append(el('h2', undefined, t('hud.log')), this.log);
+    root.replaceChildren(
+      this.round,
+      this.prompt,
+      this.actions,
+      this.players,
+      this.tileInfo,
+      logSection,
+      el('p', 'hud-shortcuts', t('hud.shortcuts')),
+    );
+    this.renderTile();
+  }
+
+  showModel(model: DisplayModel): void {
+    this.model = model;
+    this.round.textContent = t('hud.round', { round: model.round });
+    this.players.replaceChildren(
+      ...model.players.map((p, seat) => {
+        const item = el('li', 'hud-player');
+        if (p.id === model.current) item.setAttribute('aria-current', 'true');
+        if (p.bankrupt) item.classList.add('is-bankrupt');
+        const swatch = el('span', 'hud-swatch');
+        swatch.style.background = cssColor(playerColor(seat));
+        const name = el('span', 'hud-name', p.name);
+        const money = el('dl', 'hud-money');
+        money.append(
+          el('dt', undefined, t('hud.cash')),
+          el('dd', 'hud-cash', formatMoney(p.cash)),
+          el('dt', undefined, t('hud.deposit')),
+          el('dd', 'hud-deposit', formatMoney(p.deposit)),
+        );
+        item.append(swatch, name, money);
+        if (p.bankrupt) item.append(el('span', 'hud-tag', t('hud.bankrupt')));
+        return item;
+      }),
+    );
+    this.renderTile();
+  }
+
+  eventPlayed(event: GameEvent, model: DisplayModel): void {
+    this.log.prepend(el('li', undefined, describeEvent(event, model, this.options.board)));
+    while (this.log.children.length > LOG_LIMIT) this.log.lastElementChild?.remove();
+  }
+
+  setReady(update: ServerUpdate | null): void {
+    this.ready = update;
+    if (update) this.config = update.view.config;
+    this.renderActions();
+    this.renderTile();
+  }
+
+  /** Shows details of a tile (from a click on the board); null clears the panel. */
+  showTile(tile: TileIndex | null): void {
+    this.selectedTile = tile;
+    this.renderTile();
+  }
+
+  private renderActions(): void {
+    const update = this.ready;
+    if (!update) {
+      this.prompt.textContent = this.model?.winners ? '' : t('hud.playing');
+      this.actions.replaceChildren();
+      return;
+    }
+    const current = update.view.players.find((p) => p.id === update.view.turn.current);
+    this.prompt.textContent =
+      update.legalActions.length > 0 && current ? t('hud.yourTurn', { name: current.name }) : '';
+    this.actions.replaceChildren(
+      ...update.legalActions.map(({ type }) => {
+        const button = el(
+          'button',
+          type === 'decline' ? 'secondary' : 'primary',
+          actionLabel(type, update),
+        );
+        button.type = 'button';
+        button.dataset.action = type;
+        button.addEventListener('click', () => this.options.onAct(type));
+        return button;
+      }),
+    );
+  }
+
+  private renderTile(): void {
+    const index = this.selectedTile;
+    const def = index === null ? undefined : this.options.board.tiles[index];
+    if (index === null || !def) {
+      this.tileInfo.replaceChildren(el('p', 'hud-hint', t('tile.hint')));
+      return;
+    }
+    const rows: [string, string][] = [];
+    if (def.kind === 'property') {
+      const state = this.model?.tiles[index];
+      const owner = state?.owner
+        ? this.model?.players.find((p) => p.id === state.owner)
+        : undefined;
+      const level = state?.level ?? 0;
+      rows.push([t('tile.price'), formatMoney(def.price)]);
+      rows.push([t('tile.owner'), owner?.name ?? t('tile.noOwner')]);
+      rows.push([t('tile.level'), String(level)]);
+      if (this.config) {
+        if (owner) rows.push([t('tile.rent'), formatMoney(rentFor(def, level, this.config))]);
+        rows.push([t('tile.upgradeCost'), formatMoney(upgradeCost(def.price, this.config))]);
+      }
+    }
+    const list = el('dl');
+    for (const [term, value] of rows)
+      list.append(el('dt', undefined, term), el('dd', undefined, value));
+    this.tileInfo.replaceChildren(
+      el('h2', undefined, def.name),
+      def.kind === 'property' ? list : el('p', undefined, t('tile.notProperty')),
+    );
+  }
+}

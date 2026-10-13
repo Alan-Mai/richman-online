@@ -8,11 +8,13 @@ import { FAST_SPEED } from '../render/timings';
 
 const MARGIN = 16;
 
-export interface GameSceneKeys {
+export interface GameSceneInput {
   /** Enter: the main action (roll, buy, upgrade). */
   onPrimary(): void;
   /** Escape: decline the pending offer. */
   onDecline(): void;
+  /** A tile on the board was clicked or tapped. */
+  onTileSelected(tile: number): void;
 }
 
 export class GameScene extends Phaser.Scene implements AnimationStage {
@@ -24,7 +26,7 @@ export class GameScene extends Phaser.Scene implements AnimationStage {
 
   constructor(
     private readonly board: Board,
-    private readonly keys: GameSceneKeys,
+    private readonly handlers: GameSceneInput,
   ) {
     super('game');
     this.ready = new Promise((resolve) => {
@@ -41,15 +43,17 @@ export class GameScene extends Phaser.Scene implements AnimationStage {
   }
 
   create(): void {
-    this.boardView = new BoardView(this, this.board, this.boardArea());
+    this.boardView = new BoardView(this, this.board, this.boardArea(), (tile) =>
+      this.handlers.onTileSelected(tile),
+    );
     if (this.pendingModel) this.boardView.show(this.pendingModel);
     this.scale.on(Phaser.Scale.Events.RESIZE, () => this.boardView?.resize(this.boardArea()));
 
     const keyboard = this.input.keyboard;
     if (keyboard) {
       this.fastKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-      keyboard.on('keydown-ENTER', () => this.keys.onPrimary());
-      keyboard.on('keydown-ESC', () => this.keys.onDecline());
+      keyboard.on('keydown-ENTER', () => this.handlers.onPrimary());
+      keyboard.on('keydown-ESC', () => this.handlers.onDecline());
     }
     this.resolveReady(this.boardView);
   }

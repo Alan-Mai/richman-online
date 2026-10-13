@@ -1,12 +1,14 @@
 // Connects a GameConnection to the screen: updates go through the EventQueue, and the player can
 // act only when playback has finished and the action is in the latest legal list.
-import type { ActionType, ServerUpdate } from '@richman/shared';
+import type { ActionType, GameEvent, ServerUpdate } from '@richman/shared';
 import type { DisplayModel } from './model/display';
 import { EventQueue, type Animator } from './model/event-queue';
 import type { GameConnection } from './net/connection';
 
 export interface ControllerSink {
   showModel?(model: DisplayModel): void;
+  /** An event finished playing; `model` is the display after it. */
+  eventPlayed?(event: GameEvent, model: DisplayModel): void;
   setBusy?(busy: boolean): void;
   /** The update whose legal actions may now be offered; null while playing. */
   setReady?(update: ServerUpdate | null): void;
@@ -30,6 +32,7 @@ export class GameController {
   ) {
     this.queue = new EventQueue(animator, {
       onDisplay: (model) => this.sinks.forEach((s) => s.showModel?.(model)),
+      onEventPlayed: (event, model) => this.sinks.forEach((s) => s.eventPlayed?.(event, model)),
       onBusyChange: (busy) => {
         if (busy) this.setReady(null);
         this.sinks.forEach((s) => s.setBusy?.(busy));

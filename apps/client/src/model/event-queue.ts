@@ -17,6 +17,8 @@ export interface EventQueueListener {
   onMismatch(diffs: string[]): void;
   /** An animation failed; playback skips to the next event. */
   onAnimationError(error: unknown, event: GameEvent): void;
+  /** An event has finished playing; `model` is the display after it. */
+  onEventPlayed(event: GameEvent, model: DisplayModel): void;
 }
 
 export class EventQueue {
@@ -78,6 +80,7 @@ export class EventQueue {
       }
       this.model = after;
       if (after !== before) this.listener.onDisplay(after);
+      this.listener.onEventPlayed(event, after);
     }
 
     const diffs = diffDisplay(this.model ?? expected, expected);

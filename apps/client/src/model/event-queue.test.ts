@@ -44,9 +44,11 @@ function recorder() {
     displays: [] as DisplayModel[],
     mismatches: [] as string[][],
     errors: [] as GameEvent['type'][],
+    played: [] as GameEvent['type'][],
   };
   const listener: EventQueueListener = {
     onDisplay: (m) => log.displays.push(m),
+    onEventPlayed: (e) => log.played.push(e.type),
     onBusyChange: (b) => log.busy.push(b),
     onReady: (u) => log.ready.push(u),
     onMismatch: (d) => log.mismatches.push(d),
@@ -71,6 +73,7 @@ describe('EventQueue', () => {
     await idle(queue);
 
     expect(animator.played).toEqual(updates.flatMap((u) => u.events));
+    expect(log.played).toEqual(updates.flatMap((u) => u.events.map((e) => e.type)));
     expect(log.mismatches).toEqual([]);
     expect(queue.display).toEqual(displayFromView(updates.at(-1)!.view));
   });

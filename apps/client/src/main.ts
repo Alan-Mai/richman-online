@@ -6,8 +6,10 @@ import { LocalGameHost } from './net/local-host';
 import { PhaserAnimator } from './render/phaser-animator';
 import { BootScene } from './scenes/boot-scene';
 import { GameScene } from './scenes/game-scene';
+import { Hud } from './ui/hud';
+import './ui/hud.css';
 
-function startGame(parent: HTMLElement): void {
+function startGame(boardParent: HTMLElement, hudRoot: HTMLElement): void {
   // Temporary until the setup screen exists: a fixed 4-player game.
   const created = LocalGameHost.create({
     config: DEFAULT_RULE_CONFIG,
@@ -19,22 +21,25 @@ function startGame(parent: HTMLElement): void {
   const { host } = created;
 
   let controller: GameController | null = null;
+  const act = (type: Parameters<GameController['act']>[0]) => controller?.act(type);
+  const hud = new Hud(hudRoot, { board: TEST_LOOP_BOARD, onAct: act });
   const scene = new GameScene(TEST_LOOP_BOARD, {
     onPrimary: () => {
       const primary = controller?.available.find((type) => type !== 'decline');
-      if (primary) controller?.act(primary);
+      if (primary) act(primary);
     },
-    onDecline: () => controller?.act('decline'),
+    onDecline: () => act('decline'),
+    onTileSelected: (tile) => hud.showTile(tile),
   });
   new Phaser.Game({
     type: Phaser.AUTO,
-    parent,
+    parent: boardParent,
     backgroundColor: '#1d2b3a',
     scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
     scene: [BootScene, scene],
   });
 
-  controller = new GameController(host, new PhaserAnimator(scene), [scene]);
+  controller = new GameController(host, new PhaserAnimator(scene), [scene, hud]);
   host.start();
 }
 
@@ -54,7 +59,8 @@ function whenSized(element: HTMLElement, callback: () => void): void {
   observer.observe(element);
 }
 
-const parent = document.querySelector<HTMLDivElement>('#app');
-if (parent) {
-  whenSized(parent, () => startGame(parent));
+const boardParent = document.querySelector<HTMLElement>('#board');
+const hudRoot = document.querySelector<HTMLElement>('#hud');
+if (boardParent && hudRoot) {
+  whenSized(boardParent, () => startGame(boardParent, hudRoot));
 }

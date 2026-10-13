@@ -2,6 +2,15 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-13 HUD 用 DOM 疊層，Phaser 只畫棋盤與動畫
+- **決策**：
+  - 玩家面板、回合數、動作按鈕、事件紀錄、格子資訊用 DOM（`apps/client/src/ui/`），棋盤、棋子、骰子、飄字用 Phaser。版面為 CSS grid：桌面右側 300px 側欄，寬度 ≤ 720px 改為上下排列；Phaser 只放在 `#board`，canvas 不會被 HUD 蓋住。
+  - 動作按鈕只依最新且已播完的 `ServerUpdate.legalActions` 產生，播放中全部移除並顯示「播放中…」。玩家名稱一律以 `textContent` 寫入。
+  - 格子太小時（< 48px）不畫名稱、< 72px 不畫價格，點格子在 HUD 看資訊。
+  - DOM 測試用 `happy-dom`（以檔頭註解 `@vitest-environment happy-dom` 逐檔啟用）。選 20.14 而非剛發布兩天的 21.0。
+- **原因**：DOM 可用 Vitest 自動測試、容易做 i18n、無障礙與手機排版；日後若改用原版面板圖，再評估移進 Phaser。
+- **替代方案**：UI 全畫在 Phaser 內（只能目視測試）；jsdom（較重，happy-dom 已足夠）。
+
 ## 2026-10-13 hot-seat 由瀏覽器內的 LocalGameHost 扮演伺服器
 - **決策**：
   - `apps/client/src/net/local-host.ts` 的 `LocalGameHost` 是客戶端唯一呼叫 `legalActions`/`applyAction` 的模組；畫面只透過 `GameConnection`（`send(intent)`、`subscribe`）收發，收到的是 `ServerUpdate`。Phase 4 換成連線版時只替換這一層。

@@ -6,6 +6,10 @@ import type { DisplayModel } from '../model/display';
 import { BOARD_COLORS, FONT_FAMILY, TEXT_RESOLUTION, cssColor, playerColor } from '../theme';
 import { layoutBoard, type BoardLayout, type Rect } from './layout';
 
+/** Below these tile sizes (screen px) names and prices are not drawn. */
+const MIN_TILE_FOR_NAME = 48;
+const MIN_TILE_FOR_PRICE = 72;
+
 /** Where each seat's token sits inside a tile, as a fraction of the tile size. */
 const SEAT_OFFSETS: readonly Point[] = [
   { x: -0.2, y: -0.2 },
@@ -29,6 +33,7 @@ export class BoardView {
     private readonly scene: Phaser.Scene,
     private readonly board: Board,
     area: Rect,
+    private readonly onTileSelected: (tile: TileIndex) => void = () => {},
   ) {
     this.tileLayer = scene.add.container().setDepth(0);
     this.ownerLayer = scene.add.container().setDepth(1);
@@ -97,7 +102,12 @@ export class BoardView {
             : BOARD_COLORS.blank;
       const rect = this.scene.add
         .rectangle(x, y, size, size, fill)
-        .setStrokeStyle(Math.max(1, size * 0.02), BOARD_COLORS.tileBorder);
+        .setStrokeStyle(Math.max(1, size * 0.02), BOARD_COLORS.tileBorder)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => this.onTileSelected(i));
+      this.tileLayer.add(rect);
+      // Small tiles (narrow screens) drop text; tapping a tile shows its details in the HUD.
+      if (this.tileSize < MIN_TILE_FOR_NAME) return;
       const name = this.scene.add
         .text(x, y - size * 0.08, tile.name, {
           color: cssColor(BOARD_COLORS.text),
@@ -108,8 +118,8 @@ export class BoardView {
           wordWrap: { width: size * 0.9, useAdvancedWrap: true },
         })
         .setOrigin(0.5);
-      this.tileLayer.add([rect, name]);
-      if (tile.kind === 'property') {
+      this.tileLayer.add(name);
+      if (tile.kind === 'property' && this.tileSize >= MIN_TILE_FOR_PRICE) {
         const price = this.scene.add
           .text(x, y + size * 0.3, formatMoney(tile.price), {
             color: cssColor(BOARD_COLORS.text),
