@@ -2,6 +2,11 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-13 客戶端使用 Phaser 3（鎖 ~3.90）
+- **決策**：`apps/client` 安裝 `phaser@~3.90.0`；npm 的 `latest` 已是 4.x，但技術堆疊定為 Phaser 3，暫不升級。Phaser 等容器有尺寸後才建立（尺寸為 0 時 WebGL 建立 framebuffer 會失敗）。
+- **原因**：Phaser 4 的渲染器與 API 有大幅變動，文件與範例仍以 3 為主；Phase 3 的需求（場景、tween、材質產生）3.90 都具備。
+- **替代方案**：直接用 Phaser 4（需先評估遷移成本，日後另議）。
+
 ## 2026-10-13 MKF 壓縮：Ghidra 只產生文字描述，查表依規則產生
 - **決策**：
   - 黑箱分析在約定時限內（3 輪、132 組參數）只確定字面值與長度部分，位置碼改用 Ghidra 分析 `rich4.exe`。Ghidra 專案放在倉庫外，反編譯與反組譯輸出只放在 `local-assets/ghidra/`；由 subagent 閱讀後只回報文字描述，解壓器依文字描述自行實作（`tools/extract/src/formats/mkf-compression.ts`）。
