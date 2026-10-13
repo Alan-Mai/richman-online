@@ -141,6 +141,44 @@ describe('Hud tile info', () => {
   });
 });
 
+describe('describeEvent bankruptcy', () => {
+  const model = displayFromView(updates[0]!.view);
+
+  it('names the unpaid rent and what the creditor received', () => {
+    const text = describeEvent(
+      {
+        type: 'PlayerBankrupt',
+        playerId: 'p1',
+        creditor: 'p2',
+        paidToCreditor: 800,
+        releasedTiles: [],
+        cause: { kind: 'rent', tile: 1, amountDue: 1200 },
+      },
+      model,
+      TEST_LOOP_BOARD,
+    );
+    expect(text).toBe(
+      `玩家1 付不起 ${TEST_LOOP_BOARD.tiles[1]!.name} 的過路費 1,200，破產了；玩家2 收到 800`,
+    );
+  });
+
+  it('falls back to a short line for system debts', () => {
+    const text = describeEvent(
+      {
+        type: 'PlayerBankrupt',
+        playerId: 'p1',
+        creditor: null,
+        paidToCreditor: 0,
+        releasedTiles: [],
+        cause: { kind: 'system', amountDue: 1200 },
+      },
+      model,
+      TEST_LOOP_BOARD,
+    );
+    expect(text).toBe('玩家1 破產了');
+  });
+});
+
 describe('describeEvent', () => {
   it('describes every event type in the sample game', () => {
     let model = displayFromView(updates[0]!.view);

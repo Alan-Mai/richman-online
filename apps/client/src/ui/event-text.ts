@@ -52,6 +52,15 @@ export function describeEvent(event: GameEvent, model: DisplayModel, board: Boar
         amount: formatMoney(event.amount),
       });
     case 'PlayerBankrupt':
+      if (event.cause.kind === 'rent' && event.creditor !== null) {
+        return t('event.bankruptRent', {
+          name: name(event.playerId),
+          tile: tile(event.cause.tile),
+          amount: formatMoney(event.cause.amountDue),
+          creditor: name(event.creditor),
+          paid: formatMoney(event.paidToCreditor),
+        });
+      }
       return t('event.bankrupt', { name: name(event.playerId) });
     case 'GameEnded':
       return t(
