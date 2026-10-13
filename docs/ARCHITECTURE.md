@@ -116,10 +116,22 @@ interface ServerUpdate {
 
 ## 客戶端（apps/client）
 
-- 啟動時從 `local-assets/`（或使用者以瀏覽器選取的轉檔包）載入素材；找不到素材時使用內建佔位圖，確保開發與測試不依賴原版檔案。
-- 場景分層：地圖、角色、UI、對話框。
-- 事件佇列：依序播放伺服器事件，播放期間鎖住輸入。
-- 可操作的按鈕/選項只依伺服器送來的 `legalActions` 顯示。
+```
+UI（DOM 按鈕 / 鍵盤）──intent──▶ GameConnection ──▶ LocalGameHost（hot-seat；Phase 4 換成 Colyseus）
+                                                     createGame / legalActions / applyAction / viewFor
+GameController ◀── ServerUpdate {events, view, legalActions} ──┘
+   └▶ EventQueue ──逐一播放──▶ Animator（PhaserAnimator）
+          │ 每個事件推進 DisplayModel ──▶ GameScene（棋盤、棋子）、Hud（DOM）、GameOverDialog
+          └ 全部播完：與 view 比對（不一致就警告並校正）→ 釋出 legalActions 給動作列
+```
+
+- **不在客戶端判斷規則**：只有 `net/local-host.ts` 呼叫 `legalActions` / `applyAction`（它扮演伺服器）；其餘模組只讀 `ServerUpdate`。intent 不帶 `playerId`，由主機補上。
+- **事件驅動畫面**：`model/display.ts` 的 `applyEventToDisplay` 逐事件推進畫面狀態；測試確認「事件依序套在前一個 view 上必定得到下一個 view」，事件缺資訊時會被抓到。
+- **輸入鎖定**：`EventQueue` 播放期間 busy，按鈕全部移除；播完才以最新一筆更新的 `legalActions` 產生按鈕。動畫失敗會跳過，不卡住遊戲。
+- **分層**：Phaser 只畫棋盤、棋子、骰子與飄字（`scenes/`、`render/`）；HUD、設定畫面、結算框、原版地圖選單是 DOM（`ui/`），可用 Vitest + happy-dom 測試。版面為 CSS grid，寬度 ≤ 720px 時改為上下排列。
+- **動畫時間**集中在 `render/timings.ts`（暫定值，待量測原版）。
+- **素材**：可玩棋局只用內建地圖與程式繪製的佔位圖，不依賴原版檔案。原版地圖目前只有唯讀預覽：dev 模式透過只回應本機的 Vite middleware 讀 `local-assets/maps/`（`vite/local-assets.ts`），任何模式都可匯入自己轉出的資料夾（`assets/`）；原版材質一律以最近鄰取樣載入（`render/original-texture.ts`）。建置產物不含任何素材。
+- 玩家可見文字集中在 `i18n/zh-TW.ts`，`t()` 依佔位名稱在型別層檢查參數。
 
 ## 素材工具（tools/extract）
 

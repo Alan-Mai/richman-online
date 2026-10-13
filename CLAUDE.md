@@ -38,7 +38,9 @@ pnpm test                 # 全部測試（Vitest projects）
 pnpm test:coverage        # 含覆蓋率（只統計 packages/shared）
 pnpm -F shared test       # 只測規則引擎
 pnpm -F server dev
-pnpm -F client dev
+pnpm -F client dev        # dev 模式；只對本機提供 local-assets/maps（原版地圖預覽）
+pnpm -F client build      # 建置產物不含任何素材
+pnpm -F client exec vite preview --host 127.0.0.1  # 檢查正式版（素材只能用匯入資料夾）
 pnpm -F extract cli <cmd> # 素材工具（啟動時驗證 RICHMAN4_DIR）
 pnpm -F extract cli map [n ...]  # 匯出地圖背景 PNG + JSON 到 local-assets/maps/
 pnpm -F extract cli view [port]  # 地圖檢視器，只綁 127.0.0.1（預設 5180）
