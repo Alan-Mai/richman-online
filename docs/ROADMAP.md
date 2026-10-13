@@ -55,7 +55,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 **Phase 3 前置**（Phase 3 開始前完成）：
 - [x] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**（已完成：LZ + 動態 Huffman，見 `ASSET_FORMATS.md`「MKF 壓縮」；462 個壓縮子檔全部通過驗證，`jump.mkf` 子檔 9–44 縮圖經使用者目視確認。）
 
-**下一步**：Phase 3 第一項「Phaser 場景載入地圖」。先讀 `ARCHITECTURE.md` 與 `apps/client` 現況，提出計畫（原版轉檔與佔位圖的載入方式、`tools/extract` 匯出哪些素材給客戶端），確認後再寫。
+**下一步**：Phase 3 進行中（計畫已確認：內建地圖 + 佔位圖完成 hot-seat，原版地圖只做唯讀預覽；HUD 用 DOM 疊層）。
 
 **未解問題**：
 - 壓縮子檔中沒有已知 magic 的 308 個（`Data.mkf` 302、`Panel.mkf` 6）格式未知，需另外分析（可用 `decompressMkf` 解壓後再看）。
@@ -70,6 +70,11 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 - [ ] 本機熱座（hot-seat）可玩完一局
 
 **完成條件**：一台電腦上 4 人輪流可完整玩一局。
+
+**Phase 3 之後、原版地圖接入**（不列入 Phase 3 完成條件；Phase 3 只做原版地圖的唯讀預覽）：
+- [ ] 原版規則逆向（Ghidra）：前進方向、岔路、過路費與地塊 7 階價格表的用法。從讀取地圖資料結構的函式追起。規則用自己的文字寫進 `GAME_RULES.md`，標「🔍 逆向得出」，與使用者確認的 ✅ 區分；反編譯輸出只留在 `local-assets/`，由 subagent 只回報文字描述。
+- [ ] 原版動畫時間量測（錄影）：擲骰、移動每格、購地、付款等各段時間，更新 `apps/client/src/render/timings.ts`。
+- [ ] 原版地圖轉成可玩 `Board`（依上兩項的結果處理前進方向、岔路、地價與過路費；引擎需支援岔路）。
 
 ## Phase 4：連線
 - [ ] Colyseus 房間、邀請碼
