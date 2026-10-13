@@ -32,7 +32,7 @@ disable-model-invocation: true
    - 已經寫進文件的、只跟這次 session 有關的，不要列。
 
 4. **Commit 與回報**
-   - 我確認後，把文件變更 commit（Conventional Commits，例如 `docs: session 收尾，更新 ROADMAP 下一步`），並推送到 `origin`。
+   - 我確認後，把文件變更 commit（Conventional Commits，例如 `docs: session 收尾，更新 ROADMAP 下一步`）；不要自行推送，停下來提醒我輸入 `/pre-push`。
    - 最後回報：
      - `可以 /clear`
      - 一句給新 session 的開場 prompt，放在 code block 裡，內容包含：要先讀哪些文件、目前階段、下一步要做什麼。
