@@ -6,7 +6,7 @@ import type { MkfEntry } from './formats/mkf';
 import { encodePngIndexed } from './png';
 import { rgb555ToRgba } from './formats/rgb555';
 
-export const MAP_JSON_VERSION = 1;
+export const MAP_JSON_VERSION = 2;
 
 export class MapExportError extends Error {
   constructor(message: string) {

@@ -12,6 +12,8 @@ export function describeMapFileError(error: MapFileError): string {
       return t('preview.error.notJson', { path: error.path });
     case 'version':
       return t('preview.error.version', { path: error.path, found: String(error.found) });
+    case 'outdated':
+      return t('preview.error.outdated', { path: error.path });
     case 'invalid':
       return t('preview.error.invalid', { path: error.path, field: error.field });
   }

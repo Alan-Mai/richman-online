@@ -3,7 +3,9 @@ import {
   MAP_DATA_HEADER_SIZE,
   MAP_DATA_STRIDES,
   MapDataFormatError,
+  blockedSlot,
   decodeMapName,
+  noRandomPlacement,
   readMapData,
 } from './map-data';
 
@@ -83,7 +85,7 @@ describe('readMapData', () => {
       ref: { section: 1, index: 0 },
       unknownAt34: 7,
       unknownAt36: 8,
-      unknownAt38: 0x8000,
+      flags: 0x8000,
     });
     expect(decodeMapName(a!.nameBytes)).toBe('測試');
     expect(b).toMatchObject({ links: [0, null, 0, null], ref: null });
@@ -111,8 +113,8 @@ describe('readMapData', () => {
     const data = readMapData(
       buildMapData([
         [],
-        [{ x: 1, y: 2, u16: { 26: 0x0300, 28: 9, 30: 1, 42: 0xfff0 } }],
-        [{ x: 3, u16: { 26: 0x0100, 34: 5, 36: 1, 46: 0x8001 } }],
+        [{ x: 1, y: 2, u16: { 26: 0x0302, 28: 9, 30: 4, 32: 1, 42: 0xfff0 } }],
+        [{ x: 3, u16: { 26: 0x0104, 34: 5, 36: 2, 38: 1, 46: 0x8001 } }],
         [{ x: 4, u16: { 24: 0x0200, 26: 6, 32: 7, 34: 8, 36: 0xffff, 38: 9 } }],
         [{ x: 5, name: TEST_NAME, u16: { 24: 3, 26: 200 } }, { x: 6 }],
       ]),
@@ -123,28 +125,36 @@ describe('readMapData', () => {
         x: 1,
         y: 2,
         nameBytes: new Uint8Array(),
-        unknownAt26: 0x0300,
-        unknownAt28: 9,
-        unknownAt30: [1, 0, 0, 0, 0, 0, 0xfff0],
+        level: 2,
+        displayFlags: 3,
+        landPrice: 9,
+        upgradeCost: 4,
+        tolls: [1, 0, 0, 0, 0, 0xfff0],
       },
     ]);
-    expect(data.section2[0]).toMatchObject({
-      x: 3,
-      unknownAt26: 0x0100,
-      unknownAt34: 5,
-      unknownAt36: [1, 0, 0, 0, 0, 0x8001],
-    });
+    expect(data.section2).toEqual([
+      {
+        x: 3,
+        y: 0,
+        nameBytes: new Uint8Array(),
+        level: 4,
+        displayFlags: 1,
+        price: 5,
+        upgradeCost: 2,
+        tolls: [1, 0, 0, 0, 0x8001],
+      },
+    ]);
     expect(data.section3[0]).toMatchObject({
       x: 4,
       unknownAt24: 0x0200,
       unknownAt26: 6,
-      unknownAt32: 7,
+      spriteIndex: 7,
       unknownAt34: 8,
       unknownAt36: 0xffff,
       unknownAt38: 9,
     });
     expect(data.section4.map((r) => r.x)).toEqual([5, 6]);
-    expect(data.section4[0]).toMatchObject({ unknownAt24: 3, unknownAt26: 200 });
+    expect(data.section4[0]).toMatchObject({ unknownAt24: 3, spriteIndex: 200 });
     expect(decodeMapName(data.section4[0]!.nameBytes)).toBe('測試');
   });
 
@@ -168,10 +178,10 @@ describe('readMapData', () => {
     expectError(new Uint8Array(79), 'too-small');
   });
 
-  it('rejects a square record size other than 40', () => {
+  it('rejects a square base offset other than 40', () => {
     const bytes = buildMapData();
     new DataView(bytes.buffer).setUint32(4, 44, true);
-    expectError(bytes, 'bad-record-size');
+    expectError(bytes, 'bad-square-base');
   });
 
   it('rejects a section offset that does not follow the previous section', () => {
@@ -208,5 +218,28 @@ describe('readMapData', () => {
     expectError(buildMapData([[{ u16: { 32: 10001 } }]]), 'bad-ref'); // class 10
     expectError(buildMapData([[{ u16: { 32: 2000 } }], [{}]]), 'bad-ref'); // index 0
     expectError(buildMapData([[{ u16: { 32: 2002 } }], [{}]]), 'bad-ref'); // past the end
+  });
+});
+
+describe('square flags', () => {
+  it('reads the one-way block of each link slot, slot 0 at bit 14 down to slot 3 at bit 11', () => {
+    expect([0, 1, 2, 3].map((k) => blockedSlot(0x4000, k))).toEqual([true, false, false, false]);
+    expect([0, 1, 2, 3].map((k) => blockedSlot(0x0800, k))).toEqual([false, false, false, true]);
+    expect([0, 1, 2, 3].map((k) => blockedSlot(0x2000 | 0x8000 | 0x07ff, k))).toEqual([
+      false,
+      true,
+      false,
+      false,
+    ]);
+  });
+
+  it('rejects a slot outside 0-3', () => {
+    expect(() => blockedSlot(0, 4)).toThrow(RangeError);
+    expect(() => blockedSlot(0, -1)).toThrow(RangeError);
+  });
+
+  it('reads the no-random-placement bit', () => {
+    expect(noRandomPlacement(0x8000)).toBe(true);
+    expect(noRandomPlacement(0x7fff)).toBe(false);
   });
 });

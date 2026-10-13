@@ -6,7 +6,7 @@ import { loadMapIndex, loadMapPreview, parseMapIndex, parseMapPreview } from './
 
 function fakeMap(patch: Record<string, unknown> = {}) {
   return {
-    version: 1,
+    version: 2,
     generatedAt: '2000-01-01T00:00:00.000Z',
     map: 2,
     source: { file: 'fake', gndIndex: 0, dataIndex: 1 },
@@ -64,9 +64,20 @@ describe('parseMapPreview', () => {
   });
 
   it('reports an unsupported version', () => {
-    expect(parseMapPreview(text(fakeMap({ version: 2 })), 'm')).toEqual({
+    expect(parseMapPreview(text(fakeMap({ version: 3 })), 'm')).toEqual({
       ok: false,
-      error: { kind: 'version', path: 'm', found: 2 },
+      error: { kind: 'version', path: 'm', found: 3 },
+    });
+    expect(parseMapPreview(text(fakeMap({ version: 'x' })), 'm')).toEqual({
+      ok: false,
+      error: { kind: 'version', path: 'm', found: 'x' },
+    });
+  });
+
+  it('reports files from an older converter as outdated', () => {
+    expect(parseMapPreview(text(fakeMap({ version: 1 })), 'm')).toEqual({
+      ok: false,
+      error: { kind: 'outdated', path: 'm', found: 1 },
     });
   });
 

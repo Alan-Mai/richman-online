@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AssetSource } from '../assets/asset-source';
 import type { MapPreview } from '../assets/map-preview';
-import { renderPreviewChooser } from './preview-chooser';
+import { describeMapFileError, renderPreviewChooser } from './preview-chooser';
 import { PreviewPanel } from './preview-panel';
 
 function source(files: Record<string, string>, kind: AssetSource['kind'] = 'dev'): AssetSource {
@@ -85,6 +85,14 @@ describe('renderPreviewChooser', () => {
     await render(null);
     const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
     expect(input.hasAttribute('webkitdirectory')).toBe(true);
+  });
+});
+
+describe('describeMapFileError', () => {
+  it('asks to convert again when the files come from an older converter', () => {
+    expect(describeMapFileError({ kind: 'outdated', path: 'maps/0/map.json', found: 1 })).toBe(
+      'maps/0/map.json 的格式已更新，請重新執行 pnpm -F extract cli map 轉檔',
+    );
   });
 });
 

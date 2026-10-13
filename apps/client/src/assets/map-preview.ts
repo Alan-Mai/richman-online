@@ -3,7 +3,7 @@
 import type { AssetSource } from './asset-source';
 
 /** map.json format version this client understands (tools/extract MAP_JSON_VERSION). */
-export const SUPPORTED_MAP_JSON_VERSION = 1;
+export const SUPPORTED_MAP_JSON_VERSION = 2;
 
 export interface PreviewSquare {
   x: number;
@@ -23,6 +23,8 @@ export type MapFileError =
   | { kind: 'missing'; path: string }
   | { kind: 'notJson'; path: string }
   | { kind: 'version'; path: string; found: unknown }
+  /** Written by an older converter: the fix is to run `cli map` again. */
+  | { kind: 'outdated'; path: string; found: number }
   | { kind: 'invalid'; path: string; field: string };
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; error: MapFileError };
@@ -69,7 +71,11 @@ export function parseMapPreview(text: string, path: string): Parsed<MapPreview> 
   if (data === undefined) return { ok: false, error: { kind: 'notJson', path } };
   if (!isObject(data)) return invalid('root');
   if (data.version !== SUPPORTED_MAP_JSON_VERSION) {
-    return { ok: false, error: { kind: 'version', path, found: data.version } };
+    const error: MapFileError =
+      isInt(data.version, 1) && data.version < SUPPORTED_MAP_JSON_VERSION
+        ? { kind: 'outdated', path, found: data.version }
+        : { kind: 'version', path, found: data.version };
+    return { ok: false, error };
   }
   if (!isInt(data.map)) return invalid('map');
 

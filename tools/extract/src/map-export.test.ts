@@ -122,7 +122,7 @@ describe('exportMap', () => {
 
   it('describes the map with decoded names and 0-based references', () => {
     expect(json).toMatchObject({
-      version: 1,
+      version: 2,
       generatedAt: '2026-01-01T00:00:00Z',
       map: 4,
       source: { file: 'map.mkf', gndIndex: 8, dataIndex: 9 },

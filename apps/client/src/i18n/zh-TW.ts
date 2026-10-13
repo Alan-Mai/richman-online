@@ -40,6 +40,7 @@ export const zhTW = {
   'preview.error.missing': '找不到檔案：{path}',
   'preview.error.notJson': '{path} 不是有效的 JSON',
   'preview.error.version': '{path} 的格式版本 {found} 不支援，請用目前版本的工具重新轉檔',
+  'preview.error.outdated': '{path} 的格式已更新，請重新執行 pnpm -F extract cli map 轉檔',
   'preview.error.invalid': '{path} 的內容不正確（{field}）',
   'preview.error.image': '背景圖載入失敗',
   'preview.mapTitle': '原版地圖 {n}（唯讀預覽）',
