@@ -6,6 +6,8 @@ import type { MkfEntry } from './formats/mkf';
 import { encodePngIndexed } from './png';
 import { rgb555ToRgba } from './formats/rgb555';
 
+// Bump when a field is renamed or changes meaning. The client reports older versions as outdated
+// and asks to run `cli map` again (apps/client/src/assets/map-preview.ts).
 export const MAP_JSON_VERSION = 2;
 
 export class MapExportError extends Error {
