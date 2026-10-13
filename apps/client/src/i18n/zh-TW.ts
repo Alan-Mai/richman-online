@@ -5,6 +5,8 @@ export const zhTW = {
   'action.upgradeProperty': '加蓋（{cost}）',
   'action.decline': '放棄',
 
+  'setup.defaultName': '玩家 {n}',
+
   'hud.round': '第 {round} 輪',
   'hud.cash': '現金',
   'hud.deposit': '存款',
