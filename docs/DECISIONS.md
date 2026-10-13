@@ -2,6 +2,15 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-13 開發時以 Vite middleware 讀 local-assets，只回應本機
+- **決策**：
+  - `apps/client/vite/local-assets.ts` 是 `apply: 'serve'` 的 Vite plugin，在 dev server 上以 `/local-assets/maps/` 提供 `local-assets/maps/` 的 `.json`、`.png`；不使用 `publicDir`、客戶端程式也不 `import` 任何素材，所以 `vite build` 的產物不含轉檔素材。
+  - 只回應 loopback 來源（`127.0.0.0/8`、`::1` 與其 IPv4-mapped 形式），並檢查 Host 標頭為本機名稱與同一埠（防 DNS rebinding）；即使以 `vite --host` 開放區網，區網裝置一律 403。路徑規則與 `tools/extract` 的檢視器相同（擋 `..`、編碼穿越、反斜線、冒號、NUL），程式各自一份，不讓客戶端依賴素材工具。
+  - 瀏覽器端以 `AssetSource` 介面讀取（`devAssetSource` 走上述路由；正式版由玩家匯入資料夾，Phase 3 後續 commit 實作）。
+  - Node 端程式（`vite.config.ts`、`vite/`）有自己的 `tsconfig`（Node 型別），`typecheck` 一併檢查。
+- **原因**：開發時直接看到自己轉出的原版地圖，又確保素材不會被打包或被區網其他裝置讀走（原版素材只限持有者本機使用）。
+- **替代方案**：`publicDir` 指向 local-assets（會被複製進 build）；共用 `tools/extract` 的 view-server（客戶端耦合素材工具）；只檢查 Host 標頭（區網裝置可偽造 Host）。
+
 ## 2026-10-13 `board.start` 單一起點是暫時設計
 - **決策**：Phase 3 不改引擎，所有玩家仍從 `board.start` 出發。原版每位玩家的起點不同（`GAME_RULES.md` 標 ❓），決定方式列入 ROADMAP「原版規則逆向」；原版地圖可玩之前，`Board` 與 `createGame` 需改為支援各玩家的起點（例如每座位一個起點，或由規則決定）。
 - **原因**：內建測試地圖用單一起點就能完成 hot-seat；在不知道原版規則前先改型別，日後很可能要再改一次。
