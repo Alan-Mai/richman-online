@@ -55,7 +55,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 **Phase 3 前置**（Phase 3 開始前完成）：
 - [x] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**（已完成：LZ + 動態 Huffman，見 `ASSET_FORMATS.md`「MKF 壓縮」；462 個壓縮子檔全部通過驗證，`jump.mkf` 子檔 9–44 縮圖經使用者目視確認。）
 
-**下一步**：Phase 3 已完成。接下來由使用者決定先做 Phase 4（連線），或先做下方「Phase 3 之後、原版地圖接入」的原版規則逆向；動手前先提出計畫。
+**下一步**：原版規則逆向（Ghidra）。從 `rich4.exe` 中讀取地圖資料（`map.mkf` 奇數子檔）的函式追起，找出前進方向、岔路、過路費與 7 階價格表的用法、玩家起點的決定方式；先提出分析計畫，反編譯輸出只放 `local-assets/`，由 subagent 只回報文字描述。
 
 **未解問題**：
 - 壓縮子檔中沒有已知 magic 的 308 個（`Data.mkf` 302、`Panel.mkf` 6）格式未知，需另外分析（可用 `decompressMkf` 解壓後再看）。
