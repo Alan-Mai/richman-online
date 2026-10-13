@@ -7,8 +7,8 @@ import type { GameConnection } from './net/connection';
 
 export interface ControllerSink {
   showModel?(model: DisplayModel): void;
-  /** An event finished playing; `model` is the display after it. */
-  eventPlayed?(event: GameEvent, model: DisplayModel): void;
+  /** An event finished playing; `model` is the display after it, `update` the one it came in. */
+  eventPlayed?(event: GameEvent, model: DisplayModel, update: ServerUpdate): void;
   setBusy?(busy: boolean): void;
   /** The update whose legal actions may now be offered; null while playing. */
   setReady?(update: ServerUpdate | null): void;
@@ -32,7 +32,8 @@ export class GameController {
   ) {
     this.queue = new EventQueue(animator, {
       onDisplay: (model) => this.sinks.forEach((s) => s.showModel?.(model)),
-      onEventPlayed: (event, model) => this.sinks.forEach((s) => s.eventPlayed?.(event, model)),
+      onEventPlayed: (event, model, update) =>
+        this.sinks.forEach((s) => s.eventPlayed?.(event, model, update)),
       onBusyChange: (busy) => {
         if (busy) this.setReady(null);
         this.sinks.forEach((s) => s.setBusy?.(busy));

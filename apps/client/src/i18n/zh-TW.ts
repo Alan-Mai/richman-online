@@ -28,6 +28,7 @@ export const zhTW = {
   'gameOver.noWinner': '沒有勝利者',
   'gameOver.rank': '第 {rank} 名',
   'gameOver.totalAssets': '總資產',
+  'gameOver.survived': '存活',
   'gameOver.seed': '本局種子：{seed}',
   'gameOver.again': '回到設定',
 
