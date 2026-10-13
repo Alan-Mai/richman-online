@@ -29,7 +29,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，�
 **未解問題**（Phase 1，延後處理）：
 - 確認原版光碟的 AVI 是否為真實影片（本機副本的 21 個 `*.avi` 是相同的佔位檔，可能是精簡版）；不影響 Phase 1 完成條件。
 - 地圖資料：玩家前進方向的來源（相鄰格子無方向）、區段 1–4 與 `unknownAt*` 欄位的意義、某張地圖 20 個沒有連結的格子、`GND` 子檔 8 背景沒有道路；需對照原版遊戲畫面確認。
-- MKF 子檔頭的 `unknown3`、`unknown4` 在全螢幕圖、(0, 0) 類的意義未知（`SMP`、`SPR`、`GND` 已確認）；`rawSize` > `storedSize` 的子檔（Data、Panel、jump、map）壓縮演算法未知。
+- MKF 子檔頭的 `unknown3`、`unknown4` 在全螢幕圖、(0, 0) 類的意義未知（`SMP`、`SPR`、`GND` 已確認）。壓縮演算法已在 Phase 3 前置完成。
 - `SMP`/`SPR` 的透明色與錨點：
   - `SMP` 四角統計沒有一致的透明色（`0x0000` 為候選）。
   - `SPR` 以調色盤索引 0 為透明（已目視確認）；但 `Data.mkf` 有 10 個調色盤的第 0 色不是 `0x0000`（見 `ASSET_FORMATS.md`）。
@@ -53,11 +53,13 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料已確認，�
 ## Phase 3：單機畫面
 
 **Phase 3 前置**（Phase 3 開始前完成）：
-- [ ] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**
+- [x] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**（已完成：LZ + 動態 Huffman，見 `ASSET_FORMATS.md`「MKF 壓縮」；462 個壓縮子檔全部通過驗證，`jump.mkf` 子檔 9–44 縮圖經使用者目視確認。）
 
-**下一步**：Phase 3 前置的壓縮演算法。先讀 `ASSET_FORMATS.md` 的 H3 與「分析順序」第 5 點，提出分析計畫（候選演算法的比對順序、判定「符合」的標準，例如解出的長度等於 `rawSize` 且開頭是合法的 `SPR` 結構、改用 Ghidra 的時限）；確認後由使用者輸入 `/asset-analyze` 開始分析 `jump.mkf` 子檔 9–44。
+**下一步**：Phase 3 第一項「Phaser 場景載入地圖」。先讀 `ARCHITECTURE.md` 與 `apps/client` 現況，提出計畫（原版轉檔與佔位圖的載入方式、`tools/extract` 匯出哪些素材給客戶端），確認後再寫。
 
 **未解問題**：
+- 壓縮子檔中沒有已知 magic 的 308 個（`Data.mkf` 302、`Panel.mkf` 6）格式未知，需另外分析（可用 `decompressMkf` 解壓後再看）。
+- 讀檔函式解壓後的兩個處理尚未分析：對 `[unknown3, unknown3 + unknown4)` 的後處理，以及開頭 3 bytes 與兩個常數比對後的分派（見 `ASSET_FORMATS.md`「MKF 壓縮」待解問題）；目前轉出的色彩已正確，不影響 Phase 3。
 - 待使用者確認的規則（`GAME_RULES.md` 標 ❓）：銀行經過時能不能存提款、叉路怎麼選、掉頭效果、原版地圖 7 階價格表的意義。
 - 前進方向：原版地圖資料的相鄰格子沒有方向，日後要讓規則引擎吃原版地圖時需先解決（見 Phase 1 未解問題）；不影響內建測試地圖。
 - GitHub 的 `ubuntu-latest` 自 2026-10-19 起改為 Ubuntu 26，留意 CI 結果。
