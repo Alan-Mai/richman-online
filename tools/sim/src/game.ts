@@ -51,8 +51,11 @@ export const ENGINE: Engine = {
 export const PLAYER_COUNT = 4;
 
 /**
- * Who plays the seats: random legal choices (players marked human), the engine's computerAction
- * for every seat, or computers in seats 2 and 4 and random choices in seats 1 and 3.
+ * Who plays the seats (a simulator setting, not a rule):
+ * - random: random legal choices everywhere (every player marked human);
+ * - computer: random choices in seat 1, the engine's computerAction in the others. Seat 1 is a human
+ *   because a game with no human ends at its first bankruptcy (docs/GAME_RULES.md §1);
+ * - mixed: computers in seats 2 and 4, random choices in seats 1 and 3.
  */
 export const CONTROLLER_MODES = ['random', 'computer', 'mixed'] as const;
 
@@ -68,7 +71,7 @@ export function controllersFor(mode: ControllerMode): Controller[] {
       case 'random':
         return 'human';
       case 'computer':
-        return 'computer';
+        return seat === 0 ? 'human' : 'computer';
       case 'mixed':
         return seat % 2 === 1 ? 'computer' : 'human';
     }

@@ -31,6 +31,8 @@ export type ParseResult = { ok: true; command: Command } | { ok: false; errors: 
 export const USAGE = `usage:
   pnpm -F sim sim -- [--games 1000] [--seed 1] [--board test-loop|test-branch]
                      [--controllers random|computer|mixed]
+                       (computer: seat 1 random, the rest computers;
+                        mixed: seats 2 and 4 computers, 1 and 3 random)
                      [--day-limit N] [--net-worth-target MULTIPLE] [--max-days 1000]
                      [--max-steps 20 x max-days] [--max-failure-details 5]
   pnpm -F sim sim -- replay <failure.json>`;

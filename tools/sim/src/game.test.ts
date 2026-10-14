@@ -258,7 +258,8 @@ describe('runGame players', () => {
     const controllers = (mode: GameSpec['controllers']) =>
       gameSetup({ ...RICHEST, controllers: mode }).players.map((p) => p.controller);
     expect(controllers('random')).toEqual(['human', 'human', 'human', 'human']);
-    expect(controllers('computer')).toEqual(['computer', 'computer', 'computer', 'computer']);
+    // Seat 1 stays human: a game without humans ends at its first bankruptcy.
+    expect(controllers('computer')).toEqual(['human', 'computer', 'computer', 'computer']);
     expect(controllers('mixed')).toEqual(['human', 'computer', 'human', 'computer']);
   });
 
@@ -328,8 +329,8 @@ describe('runGame checks on computers, views and auctions', () => {
     };
     expect(failureOf(runGame({ ...RICHEST, controllers: 'computer' }, engine)).failure).toEqual({
       kind: 'computerActionNotLegal',
-      playerId: 'p1',
-      action: { type: 'decline', playerId: 'p1' },
+      playerId: 'p2',
+      action: { type: 'decline', playerId: 'p2' },
     });
   });
 
