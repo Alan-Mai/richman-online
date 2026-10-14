@@ -98,8 +98,10 @@ export function tileOf(state: GameState, id: PlayerId): TileIndex {
   return location.tile;
 }
 
-/** A property's own amounts, as loopBoard takes them. */
-export type PropertySpec = Pick<PropertyTileDef, 'price' | 'upgradeCost' | 'rents'>;
+/** A property's own amounts, as loopBoard takes them; the name (street) defaults to T<index>. */
+export type PropertySpec = Pick<PropertyTileDef, 'price' | 'upgradeCost' | 'rents'> & {
+  name?: string;
+};
 
 /**
  * Made-up amounts for a property that only needs a price: upgrade cost floor(price / 2) and rents
@@ -126,7 +128,7 @@ export function loopBoard(spec: readonly (number | PropertySpec | null)[]): Boar
     const base = { name: `T${i}`, links, pos: { x: i, y: 0 } };
     if (entry === null) return { kind: 'blank', ...base };
     const amounts = typeof entry === 'number' ? testProperty(entry) : entry;
-    return { kind: 'property', ...amounts, ...base };
+    return { kind: 'property', ...base, ...amounts };
   });
   return { id: 'test', name: 'test', tiles };
 }

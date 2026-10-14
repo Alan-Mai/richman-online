@@ -31,14 +31,36 @@ export function upgradeCost(view: PriceView, tile: TileIndex): number {
   return propertyAt(view, tile).def.upgradeCost;
 }
 
-/** Rent for stopping on the tile at its current level. */
-export function rentFor(view: PriceView, tile: TileIndex): number {
+/** One tile's rent at its own level. */
+function levelRent(view: PriceView, tile: TileIndex): number {
   const { def, level } = propertyAt(view, tile);
   const rent = def.rents[level];
   if (rent === undefined) {
     throw new Error(`tile ${tile} has no rent for level ${level}`);
   }
   return rent;
+}
+
+/**
+ * Rent for stopping on the tile (docs/GAME_RULES.md §3): the rents of every tile on the same street
+ * (same name) that the tile's owner has, each at its own level, adjacent or not. An unowned tile
+ * counts alone.
+ */
+export function rentFor(view: PriceView, tile: TileIndex): number {
+  const { def } = propertyAt(view, tile);
+  const owner = view.tiles[tile]?.owner ?? null;
+  let total = 0;
+  view.board.tiles.forEach((other, i) => {
+    const sameStreet =
+      owner !== null &&
+      other.kind === 'property' &&
+      other.name === def.name &&
+      view.tiles[i]?.owner === owner;
+    if (i === tile || sameStreet) {
+      total += levelRent(view, i);
+    }
+  });
+  return total;
 }
 
 /**

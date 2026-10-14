@@ -21,6 +21,7 @@
 - [ ] 批次 C：
   - [x] C0。`spendable` 不再收 config；`GAME_RULES.md` 第 3 節「引擎現況」刪掉兩列、第 8 節改寫；client 設定畫面沒有用到這些選項，只改 `display.test`。
   - [x] C1。價格 helper 收 `PriceView = Pick<GameState, 'board' | 'tiles'>`（C4 加 `priceIndex`），client HUD 用 display model 的 tiles 呼叫；HUD 的 `config` 欄位已不需要而移除。購地時保留既有等級（D1 之前只有測試會構造帶等級的無主地）。測試地圖的加蓋費 = 地價 ÷ 2、過路費用兩組自編百分比範本（依邊交替）；`testing.ts` 的 `loopBoard` 只給價格時用 `testProperty` 的自編數值。
+  - [x] C2。無主地的 `rentFor` 只算自己那格；引擎只在有地主時收費，HUD 也只對有地主的地顯示過路費。`loopBoard` 的地產規格可指定 `name`（街名）。
 - [ ] D、E0、E、F
 
 實作中發現的待補項目，直接寫進對應批次的條目。

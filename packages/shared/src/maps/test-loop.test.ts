@@ -30,6 +30,15 @@ describe('TEST_LOOP_BOARD', () => {
     });
   });
 
+  it('puts each side on one street of its own', () => {
+    const { tiles } = TEST_LOOP_BOARD;
+    const streets = [0, 1, 2, 3].map(
+      (side) => new Set(tiles.slice(side * 5 + 1, side * 5 + 5).map((tile) => tile.name)),
+    );
+    for (const street of streets) expect(street.size).toBe(1);
+    expect(new Set(streets.flatMap((street) => [...street])).size).toBe(4);
+  });
+
   it('gives every property its own upgrade cost and strictly rising rents', () => {
     for (const tile of TEST_LOOP_BOARD.tiles) {
       if (tile.kind !== 'property') continue;

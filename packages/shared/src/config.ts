@@ -17,7 +17,6 @@ export interface RuleConfig {
   defaultDiceCount: number;
   diceFaces: number;
   maxLevel: number;
-  streetBonus: 'none';
 }
 
 export const DEFAULT_RULE_CONFIG: RuleConfig = {
@@ -31,7 +30,6 @@ export const DEFAULT_RULE_CONFIG: RuleConfig = {
   defaultDiceCount: 1,
   diceFaces: 6,
   maxLevel: 5,
-  streetBonus: 'none',
 };
 
 export type RuleConfigErrorReason =

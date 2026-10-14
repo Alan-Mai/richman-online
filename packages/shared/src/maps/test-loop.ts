@@ -37,6 +37,9 @@ export function testLoopAmounts(
 
 const CORNER_NAMES = ['起點', '測試空地 A', '測試空地 B', '測試空地 C'] as const;
 
+/** One street per side; rent adds up over the street an owner has (docs/GAME_RULES.md §3). */
+const STREET_NAMES = ['測試北街', '測試東街', '測試南街', '測試西街'] as const;
+
 /** Clockwise from the top-left corner: top row, right column, bottom row, left column. */
 function gridPos(i: number): Point {
   const side = Math.floor(i / SIDE);
@@ -55,7 +58,6 @@ function gridPos(i: number): Point {
 
 function buildTiles(): TileDef[] {
   const tiles: TileDef[] = [];
-  let propertyNumber = 0;
   for (let i = 0; i < TILE_COUNT; i++) {
     const side = Math.floor(i / SIDE);
     const offset = i % SIDE;
@@ -65,11 +67,10 @@ function buildTiles(): TileDef[] {
     if (offset === 0) {
       tiles.push({ kind: 'blank', name: CORNER_NAMES[side] ?? '', links, pos });
     } else {
-      propertyNumber += 1;
       const price = PRICES[side]?.[offset - 1] ?? 0;
       tiles.push({
         kind: 'property',
-        name: `測試路 ${propertyNumber}`,
+        name: STREET_NAMES[side] ?? '',
         ...testLoopAmounts(price, side),
         links,
         pos,

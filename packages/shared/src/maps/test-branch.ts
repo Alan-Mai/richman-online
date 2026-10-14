@@ -11,14 +11,14 @@ const EXTRA: readonly TileDef[] = [
   { kind: 'blank', name: '測試中路口', links: [], pos: { x: 3, y: 1 } },
   {
     kind: 'property',
-    name: '測試中路 1',
+    name: '測試中路',
     ...testLoopAmounts(1500, 0),
     links: [],
     pos: { x: 3, y: 2 },
   },
   {
     kind: 'property',
-    name: '測試中路 2',
+    name: '測試中路',
     ...testLoopAmounts(2600, 1),
     links: [],
     pos: { x: 3, y: 3 },
