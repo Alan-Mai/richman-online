@@ -1,6 +1,7 @@
 import type { Action, GameState, Result } from '@richman/shared';
 import { describe, expect, it } from 'vitest';
 import {
+  BOARDS,
   ENGINE,
   chooserSeedFor,
   gameSeedFor,
@@ -10,7 +11,13 @@ import {
   type GameSpec,
 } from './game';
 
-const RICHEST: GameSpec = { seed: 1, win: 'richestAtRoundLimit', maxRounds: 100, maxSteps: 10_000 };
+const RICHEST: GameSpec = {
+  board: 'test-loop',
+  seed: 1,
+  win: 'richestAtRoundLimit',
+  maxRounds: 100,
+  maxSteps: 10_000,
+};
 
 function failureOf(record: GameRecord) {
   if (record.outcome.kind !== 'failed') {
@@ -70,7 +77,7 @@ describe('runGame', () => {
   });
 
   it('leaves lastStanding games unfinished at the step limit', () => {
-    const record = runGame({ seed: 1, win: 'lastStanding', maxRounds: null, maxSteps: 10 });
+    const record = runGame({ ...RICHEST, win: 'lastStanding', maxRounds: null, maxSteps: 10 });
     expect(record.outcome).toEqual({ kind: 'unfinished' });
     expect(record.actions).toHaveLength(10);
   });
@@ -176,5 +183,18 @@ describe('runGame failure detection', () => {
     expect(failureOf(runGame({ ...RICHEST, maxRounds: 2 }, engine)).failure).toEqual({
       kind: 'missingGameEnded',
     });
+  });
+});
+
+describe('BOARDS', () => {
+  it('keys every built-in board by its id', () => {
+    for (const [name, board] of Object.entries(BOARDS)) expect(board.id).toBe(name);
+  });
+
+  it('plays clean games on the branch board', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const record = runGame({ ...RICHEST, board: 'test-branch', seed });
+      expect(record.outcome.kind).toBe('finished');
+    }
   });
 });

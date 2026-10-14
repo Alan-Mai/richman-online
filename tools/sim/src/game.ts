@@ -1,6 +1,7 @@
 // One simulated game: random legal actions, with every step checked.
 import {
   DEFAULT_RULE_CONFIG,
+  TEST_BRANCH_BOARD,
   TEST_LOOP_BOARD,
   applyAction,
   checkInvariants,
@@ -10,6 +11,7 @@ import {
   nextInt,
   type Action,
   type ActionType,
+  type Board,
   type CreateGameError,
   type GameSetup,
   type GameState,
@@ -30,6 +32,20 @@ export const ENGINE: Engine = { createGame, applyAction, legalActions, checkInva
 
 export const PLAYER_COUNT = 4;
 
+/** Built-in boards the simulator can play, by Board.id. */
+export const BOARDS = {
+  'test-loop': TEST_LOOP_BOARD,
+  'test-branch': TEST_BRANCH_BOARD,
+} as const satisfies Record<string, Board>;
+
+export type BoardName = keyof typeof BOARDS;
+
+export const BOARD_NAMES = Object.keys(BOARDS) as BoardName[];
+
+export function isBoardName(name: unknown): name is BoardName {
+  return typeof name === 'string' && Object.hasOwn(BOARDS, name);
+}
+
 /** A Record so adding an ActionType without listing it here is a type error. */
 const ACTION_TYPES = Object.keys({
   rollDice: true,
@@ -39,6 +55,7 @@ const ACTION_TYPES = Object.keys({
 } satisfies Record<ActionType, true>) as ActionType[];
 
 export interface GameSpec {
+  board: BoardName;
   seed: number;
   win: WinCondition;
   maxRounds: number | null;
@@ -82,10 +99,10 @@ export function chooserSeedFor(gameSeed: number): number {
   return (gameSeed ^ 0x5eed) >>> 0;
 }
 
-export function gameSetup(spec: Pick<GameSpec, 'seed' | 'win' | 'maxRounds'>): GameSetup {
+export function gameSetup(spec: Pick<GameSpec, 'board' | 'seed' | 'win' | 'maxRounds'>): GameSetup {
   return {
     config: { ...DEFAULT_RULE_CONFIG, winCondition: spec.win, maxRounds: spec.maxRounds },
-    board: TEST_LOOP_BOARD,
+    board: BOARDS[spec.board],
     players: Array.from({ length: PLAYER_COUNT }, (_, i) => ({
       id: `p${i + 1}`,
       name: `AI ${i + 1}`,

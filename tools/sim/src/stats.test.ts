@@ -137,7 +137,13 @@ describe('failureKeys', () => {
 });
 
 describe('formatting', () => {
-  const spec: GameSpec = { seed: 12, win: 'richestAtRoundLimit', maxRounds: 100, maxSteps: 10_000 };
+  const spec: GameSpec = {
+    board: 'test-loop',
+    seed: 12,
+    win: 'richestAtRoundLimit',
+    maxRounds: 100,
+    maxSteps: 10_000,
+  };
 
   it('formats actions compactly', () => {
     expect(
@@ -150,10 +156,10 @@ describe('formatting', () => {
 
   it('builds a rerun command for one game', () => {
     expect(rerunCommand(spec)).toBe(
-      'pnpm -F sim sim -- --games 1 --seed 12 --win richestAtRoundLimit --max-rounds 100 --max-steps 10000',
+      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --win richestAtRoundLimit --max-rounds 100 --max-steps 10000',
     );
     expect(rerunCommand({ ...spec, win: 'lastStanding', maxRounds: null })).toBe(
-      'pnpm -F sim sim -- --games 1 --seed 12 --win lastStanding --max-steps 10000',
+      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --win lastStanding --max-steps 10000',
     );
   });
 

@@ -1,8 +1,10 @@
 // Command-line parsing for the simulator. A small hand-written parser: node:util parseArgs refuses
 // values that start with "-", which hides the clearer range errors below.
 import type { WinCondition } from '@richman/shared';
+import { BOARD_NAMES, isBoardName, type BoardName } from './game';
 
 export interface RunOptions {
+  board: BoardName;
   games: number;
   seed: number;
   win: WinCondition;
@@ -17,11 +19,13 @@ export type Command = { kind: 'run'; options: RunOptions } | { kind: 'replay'; f
 export type ParseResult = { ok: true; command: Command } | { ok: false; errors: string[] };
 
 export const USAGE = `usage:
-  pnpm -F sim sim -- [--games 1000] [--seed 1] [--win richestAtRoundLimit|lastStanding]
-                     [--max-rounds 100] [--max-steps 10000] [--max-failure-details 5]
+  pnpm -F sim sim -- [--games 1000] [--seed 1] [--board test-loop|test-branch]
+                     [--win richestAtRoundLimit|lastStanding] [--max-rounds 100]
+                     [--max-steps 10000] [--max-failure-details 5]
   pnpm -F sim sim -- replay <failure.json>`;
 
 const OPTION_NAMES = [
+  'board',
   'games',
   'seed',
   'win',
@@ -101,6 +105,12 @@ export function parseCommand(argv: readonly string[]): ParseResult {
   const games = readInt('games', 1000, 1, Number.MAX_SAFE_INTEGER);
   const seed = readInt('seed', 1, 0, UINT32_MAX);
 
+  const boardRaw = values.get('board') ?? 'test-loop';
+  const board: BoardName = isBoardName(boardRaw) ? boardRaw : 'test-loop';
+  if (!isBoardName(boardRaw)) {
+    errors.push(`--board must be ${BOARD_NAMES.join(' or ')}, got ${boardRaw}`);
+  }
+
   const winRaw = values.get('win') ?? 'richestAtRoundLimit';
   const win: WinCondition = winRaw === 'lastStanding' ? 'lastStanding' : 'richestAtRoundLimit';
   if (winRaw !== 'lastStanding' && winRaw !== 'richestAtRoundLimit') {
@@ -124,6 +134,9 @@ export function parseCommand(argv: readonly string[]): ParseResult {
   }
   return {
     ok: true,
-    command: { kind: 'run', options: { games, seed, win, maxRounds, maxSteps, maxFailureDetails } },
+    command: {
+      kind: 'run',
+      options: { board, games, seed, win, maxRounds, maxSteps, maxFailureDetails },
+    },
   };
 }

@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { ENGINE, runGame, type Engine, type GameSpec } from './game';
 import { parseGameLog, replay, reproduces, toGameLog, type GameLog } from './replay';
 
-const RICHEST: GameSpec = { seed: 7, win: 'richestAtRoundLimit', maxRounds: 10, maxSteps: 10_000 };
+const RICHEST: GameSpec = {
+  board: 'test-loop',
+  seed: 7,
+  win: 'richestAtRoundLimit',
+  maxRounds: 10,
+  maxSteps: 10_000,
+};
 
 /** Breaks once round 3 starts. */
 const BROKEN: Engine = {
@@ -18,6 +24,15 @@ function roundTrip(log: GameLog): GameLog {
 }
 
 describe('replay', () => {
+  it('replays a game on the branch board', () => {
+    const spec: GameSpec = { ...RICHEST, board: 'test-branch' };
+    const log = toGameLog(spec, runGame(spec));
+    expect(log.board).toBe('test-branch');
+    const parsed = parseGameLog(JSON.stringify(log));
+    if (!parsed.ok) throw new Error(parsed.errors.join('; '));
+    expect(replay(parsed.log).kind).toBe('completed');
+  });
+
   it('replays a finished game to its end', () => {
     const record = runGame(RICHEST);
     const log = roundTrip(toGameLog(RICHEST, record));
@@ -42,7 +57,13 @@ describe('replay', () => {
   });
 
   it('reproduces unfinished lastStanding games and step-limit failures', () => {
-    const unfinished: GameSpec = { seed: 3, win: 'lastStanding', maxRounds: null, maxSteps: 25 };
+    const unfinished: GameSpec = {
+      ...RICHEST,
+      seed: 3,
+      win: 'lastStanding',
+      maxRounds: null,
+      maxSteps: 25,
+    };
     const log = toGameLog(unfinished, runGame(unfinished));
     expect(reproduces(log, replay(log))).toBe(true);
 

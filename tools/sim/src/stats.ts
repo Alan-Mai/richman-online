@@ -152,7 +152,7 @@ export function formatActions(actions: readonly Action[]): string {
 /** Reruns one game through the random AI; same seed, same choices. */
 export function rerunCommand(spec: GameSpec): string {
   const rounds = spec.maxRounds === null ? '' : ` --max-rounds ${spec.maxRounds}`;
-  return `pnpm -F sim sim -- --games 1 --seed ${spec.seed} --win ${spec.win}${rounds} --max-steps ${spec.maxSteps}`;
+  return `pnpm -F sim sim -- --games 1 --seed ${spec.seed} --board ${spec.board} --win ${spec.win}${rounds} --max-steps ${spec.maxSteps}`;
 }
 
 export function formatFailureDetail(

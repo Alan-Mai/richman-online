@@ -23,6 +23,7 @@ function fakeIO() {
 }
 
 const OPTIONS: RunOptions = {
+  board: 'test-loop',
   games: 20,
   seed: 1,
   win: 'richestAtRoundLimit',

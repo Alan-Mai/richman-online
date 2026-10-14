@@ -14,6 +14,7 @@ export {
   type TileLink,
   type TileDef,
 } from './board';
+export { TEST_BRANCH_BOARD } from './maps/test-branch';
 export { TEST_LOOP_BOARD } from './maps/test-loop';
 export {
   DEFAULT_RULE_CONFIG,

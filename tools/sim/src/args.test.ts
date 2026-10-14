@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseCommand, type RunOptions } from './args';
 
 const DEFAULTS: RunOptions = {
+  board: 'test-loop',
   games: 1000,
   seed: 1,
   win: 'richestAtRoundLimit',
@@ -39,6 +40,7 @@ describe('parseCommand', () => {
       command: {
         kind: 'run',
         options: {
+          board: 'test-loop',
           games: 20,
           seed: 4294967295,
           win: 'richestAtRoundLimit',
@@ -54,6 +56,13 @@ describe('parseCommand', () => {
     expect(parseCommand(['--win', 'lastStanding'])).toEqual({
       ok: true,
       command: { kind: 'run', options: { ...DEFAULTS, win: 'lastStanding', maxRounds: null } },
+    });
+  });
+
+  it('picks a built-in board', () => {
+    expect(parseCommand(['--board', 'test-branch'])).toEqual({
+      ok: true,
+      command: { kind: 'run', options: { ...DEFAULTS, board: 'test-branch' } },
     });
   });
 
@@ -74,6 +83,11 @@ describe('parseCommand', () => {
       '--seed must be an integer in 0..4294967295, got 4294967296',
     ],
     ['empty seed', ['--seed='], '--seed must be an integer in 0..4294967295, got '],
+    [
+      'unknown board',
+      ['--board', 'atlantis'],
+      '--board must be test-loop or test-branch, got atlantis',
+    ],
     [
       'unknown win condition',
       ['--win', 'richest'],

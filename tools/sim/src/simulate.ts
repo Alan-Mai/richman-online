@@ -1,7 +1,15 @@
 // Runs a parsed command against injected I/O; main.ts supplies the real console and files.
 import { ENGINE_VERSION } from '@richman/shared';
 import type { Command, RunOptions } from './args';
-import { ENGINE, PLAYER_COUNT, gameSeedFor, runGame, type Engine, type GameRecord } from './game';
+import {
+  ENGINE,
+  PLAYER_COUNT,
+  gameSeedFor,
+  runGame,
+  type Engine,
+  type GameRecord,
+  type GameSpec,
+} from './game';
 import { parseGameLog, replay, reproduces, toGameLog, type GameLog } from './replay';
 import { describeFailure, formatFailureDetail, formatStats, summarize } from './stats';
 
@@ -25,7 +33,8 @@ function simulate(options: RunOptions, io: SimIO, engine: Engine): number {
   const records: GameRecord[] = [];
   let failures = 0;
   for (let index = 0; index < options.games; index++) {
-    const spec = {
+    const spec: GameSpec = {
+      board: options.board,
       seed: gameSeedFor(options.seed, index),
       win: options.win,
       maxRounds: options.maxRounds,

@@ -2,17 +2,19 @@
 // a server would rebuild a game from its initial setup and action record.
 import {
   ENGINE_VERSION,
-  TEST_LOOP_BOARD,
   type Action,
   type GameState,
   type PlayerSetup,
   type RuleConfig,
 } from '@richman/shared';
 import {
+  BOARDS,
   ENGINE,
   checkStep,
   exceptionFailure,
   gameSetup,
+  isBoardName,
+  type BoardName,
   type Engine,
   type Failure,
   type GameRecord,
@@ -29,8 +31,8 @@ export const LOG_VERSION = 2;
 export interface GameLog {
   version: typeof LOG_VERSION;
   engineVersion: string;
-  /** Board id; only the built-in test board is supported. */
-  board: string;
+  /** Board id; one of the built-in boards (BOARDS). */
+  board: BoardName;
   config: RuleConfig;
   players: PlayerSetup[];
   seed: number;
@@ -47,11 +49,11 @@ export type ReplayResult =
   | { kind: 'failed'; step: number; failure: ReplayFailure };
 
 export function toGameLog(spec: GameSpec, record: GameRecord): GameLog {
-  const { config, board, players, seed } = gameSetup(spec);
+  const { config, players, seed } = gameSetup(spec);
   return {
     version: LOG_VERSION,
     engineVersion: ENGINE_VERSION,
-    board: board.id,
+    board: spec.board,
     config,
     players: [...players],
     seed,
@@ -87,7 +89,7 @@ export function parseGameLog(
   }
 
   const errors: string[] = [];
-  if (data.board !== TEST_LOOP_BOARD.id) {
+  if (!isBoardName(data.board)) {
     errors.push(`unknown board ${String(data.board)}`);
   }
   if (!isObject(data.config)) {
@@ -126,7 +128,7 @@ export function replay(log: GameLog, engine: Engine = ENGINE): ReplayResult {
   try {
     const created = engine.createGame({
       config: log.config,
-      board: TEST_LOOP_BOARD,
+      board: BOARDS[log.board],
       players: log.players,
       seed: log.seed,
     });
