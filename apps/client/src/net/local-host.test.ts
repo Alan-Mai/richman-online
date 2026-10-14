@@ -21,7 +21,7 @@ describe('LocalGameHost', () => {
     expect(result.ok).toBe(false);
   });
 
-  it('sends the opening TurnStarted once, with seat 0 to roll', () => {
+  it('sends the opening TurnStarted and seat 0 placement once, with seat 0 to roll', () => {
     const host = createHost(hotSeatSetup(7));
     const messages = record(host);
     host.start();
@@ -29,7 +29,8 @@ describe('LocalGameHost', () => {
 
     expect(messages).toHaveLength(1);
     const update = lastUpdate(messages);
-    expect(update.events).toEqual([{ type: 'TurnStarted', playerId: 'p1', round: 1 }]);
+    expect(update.events.map((e) => e.type)).toEqual(['TurnStarted', 'PlayerPlaced']);
+    expect(update.events[0]).toEqual({ type: 'TurnStarted', playerId: 'p1', round: 1 });
     expect(update.view.viewer).toEqual({ kind: 'player', id: 'p1' });
     expect(update.legalActions).toEqual([{ type: 'rollDice', playerId: 'p1' }]);
   });

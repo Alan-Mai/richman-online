@@ -87,7 +87,7 @@ export const zhTW = {
   'event.turnStarted': '輪到 {name}',
   'event.diceRolled': '{name} 擲出 {dice}，共 {total} 點',
   'event.moved': '{name} 走到 {tile}',
-  'event.passBonus': '{name} 經過 {tile}，獲得 {amount}',
+  'event.playerPlaced': '{name} 從 {tile} 出發',
   'event.propertyBought': '{name} 以 {price} 買下 {tile}',
   'event.propertyUpgraded': '{name} 花費 {cost} 把 {tile} 加蓋到 {level} 級',
   'event.rentPaid': '{from} 在 {tile} 付給 {to} 過路費 {amount}',

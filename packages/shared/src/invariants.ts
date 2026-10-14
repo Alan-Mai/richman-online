@@ -13,19 +13,25 @@ export function checkInvariants(state: GameState): string[] {
   return [...checkPlayers(state), ...checkTiles(state), ...checkTurn(state)];
 }
 
-function checkPlayers({ board, players, tiles }: GameState): string[] {
+function checkPlayers(state: GameState): string[] {
+  const { board, players, tiles } = state;
   const errors: string[] = [];
-  for (const { id, cash, deposit, position, prev, bankrupt } of players) {
+  for (const { id, cash, deposit, location, bankrupt } of players) {
     if (!isNonNegativeInteger(cash)) {
       errors.push(`player ${id}: cash ${cash} is not a non-negative integer`);
     }
     if (!isNonNegativeInteger(deposit)) {
       errors.push(`player ${id}: deposit ${deposit} is not a non-negative integer`);
     }
-    if (!Number.isInteger(position) || position < 0 || position >= board.tiles.length) {
-      errors.push(`player ${id}: position ${position} is not on the board`);
-    } else if (!isLinked(board, position, prev)) {
-      errors.push(`player ${id}: prev ${prev} is not a neighbour of position ${position}`);
+    if (location.kind === 'onBoard') {
+      const { tile, prev } = location;
+      if (!Number.isInteger(tile) || tile < 0 || tile >= board.tiles.length) {
+        errors.push(`player ${id}: tile ${tile} is not on the board`);
+      } else if (!isLinked(board, tile, prev)) {
+        errors.push(`player ${id}: prev ${prev} is not a neighbour of tile ${tile}`);
+      }
+    } else if (!mayBeOffBoard(state, id)) {
+      errors.push(`player ${id}: off the board after their first turn started`);
     }
     const owned = tiles.flatMap((tile, i) => (tile.owner === id ? [i] : []));
     if (bankrupt && owned.length > 0) {
@@ -33,6 +39,12 @@ function checkPlayers({ board, players, tiles }: GameState): string[] {
     }
   }
   return errors;
+}
+
+/** Only players whose first turn has not started yet: round 1, seated after the current player. */
+function mayBeOffBoard(state: GameState, id: string): boolean {
+  const seat = (playerId: string) => state.players.findIndex((p) => p.id === playerId);
+  return state.turn.round === 1 && seat(id) > seat(state.turn.current);
 }
 
 function checkTiles({ config, board, players, tiles }: GameState): string[] {
@@ -90,10 +102,9 @@ function checkPhase(state: GameState, current: PlayerState): string[] {
     case 'awaitBuyDecision':
     case 'awaitUpgradeDecision': {
       const prefix = `phase ${phase.kind}: `;
-      if (phase.tile !== current.position) {
-        errors.push(
-          `${prefix}tile ${phase.tile} is not where ${current.id} stands (${current.position})`,
-        );
+      const stands = current.location.kind === 'onBoard' ? current.location.tile : 'off board';
+      if (phase.tile !== stands) {
+        errors.push(`${prefix}tile ${phase.tile} is not where ${current.id} stands (${stands})`);
       }
       const def = board.tiles[phase.tile];
       if (def?.kind !== 'property') {

@@ -30,6 +30,12 @@ describe('checkInvariants', () => {
   it('accepts freshly created games', () => {
     expect(checkInvariants(base())).toEqual([]);
     expect(checkInvariants(newTestGame({ playerCount: 4 }))).toEqual([]);
+    // Seats after the current player wait off the board during round 1.
+    const placing = newTestGame({ playerCount: 4, placement: 'engine' });
+    expect(checkInvariants(placing)).toEqual([]);
+    expect(checkInvariants(patchTurn(placing, { current: 'p2' }))).toContain(
+      'player p2: off the board after their first turn started',
+    );
   });
 
   it('accepts consistent decision and game-over phases', () => {
@@ -60,14 +66,32 @@ describe('checkInvariants', () => {
       'player p1: deposit -5 is not a non-negative integer',
     ],
     [
-      'position off the board',
-      () => patchPlayer(base(), 'p2', { position: 4 }),
-      'player p2: position 4 is not on the board',
+      'tile off the board',
+      () => placePlayer(base(), 'p2', 4, 3),
+      'player p2: tile 4 is not on the board',
     ],
     [
-      'prev not a neighbour of position',
-      () => patchPlayer(base(), 'p1', { prev: 2 }),
-      'player p1: prev 2 is not a neighbour of position 0',
+      'prev not a neighbour of tile',
+      () => placePlayer(base(), 'p1', 0, 2),
+      'player p1: prev 2 is not a neighbour of tile 0',
+    ],
+    [
+      'current player off the board',
+      () => patchPlayer(base(), 'p1', { location: { kind: 'offBoard' } }),
+      'player p1: off the board after their first turn started',
+    ],
+    [
+      'earlier seat off the board',
+      () =>
+        patchTurn(patchPlayer(base(), 'p1', { location: { kind: 'offBoard' } }), {
+          current: 'p2',
+        }),
+      'player p1: off the board after their first turn started',
+    ],
+    [
+      'later seat off the board after round 1',
+      () => patchTurn(patchPlayer(base(), 'p2', { location: { kind: 'offBoard' } }), { round: 2 }),
+      'player p2: off the board after their first turn started',
     ],
     [
       'bankrupt player owning land',

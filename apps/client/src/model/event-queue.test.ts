@@ -135,8 +135,8 @@ describe('EventQueue', () => {
     const moved = seen.find(([type]) => type === 'PlayerMoved');
     expect(moved).toBeDefined();
     const [, before, after] = moved!;
-    expect(after.players.find((p) => p.id === 'p1')?.position).not.toBe(
-      before.players.find((p) => p.id === 'p1')?.position,
+    expect(after.players.find((p) => p.id === 'p1')?.tile).not.toBe(
+      before.players.find((p) => p.id === 'p1')?.tile,
     );
   });
 

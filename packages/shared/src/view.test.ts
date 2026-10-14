@@ -33,9 +33,15 @@ describe('viewFor', () => {
     expect(viewFor(state, SPECTATOR).viewer).toEqual({ kind: 'spectator' });
   });
 
-  it('sends where each player came from', () => {
-    const state = placePlayer(newTestGame(), 'p1', 4, 5);
-    expect(viewFor(state, P1).players[0]).toMatchObject({ position: 4, prev: 5 });
+  it('sends where each player stands and came from, or that they are not placed yet', () => {
+    const state = placePlayer(newTestGame({ playerCount: 3, placement: 'engine' }), 'p1', 4, 5);
+    const view = viewFor(state, SPECTATOR);
+    expect(view.players.map((p) => p.location)).toEqual([
+      { kind: 'onBoard', tile: 4, prev: 5 },
+      { kind: 'offBoard' },
+      { kind: 'offBoard' },
+    ]);
+    expect(view.players[0]?.location).not.toBe(state.players[0]?.location);
   });
 
   it('keeps a player whose id is "spectator" distinct from a spectator', () => {

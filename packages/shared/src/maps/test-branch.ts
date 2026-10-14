@@ -42,5 +42,4 @@ export const TEST_BRANCH_BOARD: Board = {
   id: 'test-branch',
   name: '分岔測試地圖',
   tiles: buildTiles(),
-  start: 0,
 };

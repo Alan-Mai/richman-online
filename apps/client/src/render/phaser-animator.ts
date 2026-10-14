@@ -32,13 +32,9 @@ export class PhaserAnimator implements Animator {
         return this.rollDice(board, event.dice);
       case 'PlayerMoved':
         return this.walk(board, event.playerId, before, event.path);
-      case 'PassBonusReceived':
-        return this.floatAtPlayer(
-          board,
-          event.playerId,
-          `+${formatMoney(event.amount)}`,
-          '#7CFC9A',
-        );
+      case 'PlayerPlaced':
+        this.stage.showModel(after);
+        return;
       case 'DepositWithdrawn':
         return this.floatAtPlayer(
           board,
@@ -166,7 +162,7 @@ export class PhaserAnimator implements Animator {
   ): Promise<void> {
     const token = board.token(playerId);
     if (!token) return;
-    let from = before.players.find((p) => p.id === playerId)?.position;
+    let from = before.players.find((p) => p.id === playerId)?.tile ?? undefined;
     if (from !== undefined) {
       const at = board.tokenPosition(playerId, from);
       token.setPosition(at.x, at.y);

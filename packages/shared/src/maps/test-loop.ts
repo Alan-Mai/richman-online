@@ -55,5 +55,4 @@ export const TEST_LOOP_BOARD: Board = {
   id: 'test-loop',
   name: '測試環狀地圖',
   tiles: buildTiles(),
-  start: 0,
 };

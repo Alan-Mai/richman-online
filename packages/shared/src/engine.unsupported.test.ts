@@ -3,7 +3,7 @@ import { validateBoard, type Board } from './board';
 import { DEFAULT_RULE_CONFIG } from './config';
 import { checkInvariants } from './invariants';
 import type { GameState } from './state';
-import { applyOk, getPlayer, loopBoard, newTestGame, patchTile, withFixedDice } from './testing';
+import { applyOk, loopBoard, newTestGame, patchTile, tileOf, withFixedDice } from './testing';
 import { viewFor } from './view';
 
 /** A loop whose tile 2 stands for a large building the engine does not implement. */
@@ -31,19 +31,24 @@ describe('unsupported tiles', () => {
   });
 
   it('do nothing when a player stops on them', () => {
-    const start = withFixedDice(game(), [2]);
+    // Other players own land, so a stray rent or upgrade would show up in money or tiles.
+    const owned = patchTile(patchTile(game(), 1, { owner: 'p2', level: 2 }), 3, { owner: 'p1' });
+    const start = withFixedDice(owned, [2]);
     const { state, events } = applyOk(start, { type: 'rollDice', playerId: 'p1' });
-    expect(events.map((e) => e.type)).toEqual(['DiceRolled', 'PlayerMoved', 'TurnStarted']);
-    expect(getPlayer(state, 'p1')).toMatchObject({
-      position: 2,
-      cash: getPlayer(start, 'p1').cash,
-    });
-    expect(state.tiles[2]).toEqual({ owner: null, level: 0 });
+    expect(events).toEqual([
+      { type: 'DiceRolled', playerId: 'p1', dice: [2], total: 2 },
+      { type: 'PlayerMoved', playerId: 'p1', path: [1, 2] },
+      { type: 'TurnStarted', playerId: 'p2', round: 1 },
+    ]);
+    expect(tileOf(state, 'p1')).toBe(2);
+    const money = (s: GameState) => s.players.map(({ cash, deposit }) => ({ cash, deposit }));
+    expect(money(state)).toEqual(money(start));
+    expect(state.tiles).toEqual(start.tiles);
   });
 
   it('can be walked over', () => {
     const { state } = applyOk(withFixedDice(game(), [3]), { type: 'rollDice', playerId: 'p1' });
-    expect(getPlayer(state, 'p1').position).toBe(3);
+    expect(tileOf(state, 'p1')).toBe(3);
     expect(state.turn.phase.kind).toBe('awaitBuyDecision');
   });
 

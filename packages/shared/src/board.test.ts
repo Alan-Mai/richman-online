@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { isLinked, validateBoard, type Board, type TileDef, type TileLink } from './board';
+import {
+  isLinked,
+  isPlaceable,
+  validateBoard,
+  type Board,
+  type TileDef,
+  type TileLink,
+} from './board';
 import { DEFAULT_RULE_CONFIG } from './config';
 
 type LinkSpec = number | TileLink;
@@ -22,8 +29,8 @@ function property(links: LinkSpec[], price = 100, rentTable?: number[]): TileDef
   return rentTable ? { ...tile, rentTable } : tile;
 }
 
-function board(tiles: TileDef[], start = 0): Board {
-  return { id: 'b', name: 'B', tiles, start };
+function board(tiles: TileDef[]): Board {
+  return { id: 'b', name: 'B', tiles };
 }
 
 /** A 4-tile loop 0 - 1 - 2 - 3 - 0. */
@@ -51,15 +58,6 @@ describe('validateBoard', () => {
 
   it('rejects an empty board', () => {
     expect(validateBoard(board([]), DEFAULT_RULE_CONFIG)).toContainEqual({ reason: 'empty' });
-  });
-
-  it('rejects a start outside the board', () => {
-    expect(validateBoard(board(loop(), 4), DEFAULT_RULE_CONFIG)).toContainEqual({
-      reason: 'startOutOfRange',
-    });
-    expect(validateBoard(board(loop(), 0.5), DEFAULT_RULE_CONFIG)).toContainEqual({
-      reason: 'startOutOfRange',
-    });
   });
 
   it('rejects links outside the board', () => {
@@ -181,5 +179,62 @@ describe('isLinked', () => {
     expect(isLinked(b, 3, 2)).toBe(true);
     expect(isLinked(b, 0, 2)).toBe(false);
     expect(isLinked(b, 9, 0)).toBe(false);
+  });
+});
+
+describe('placement tiles', () => {
+  const tooFew = (count: number, required = DEFAULT_RULE_CONFIG.maxPlayers) => ({
+    reason: 'tooFewPlacementTiles',
+    count,
+    required,
+  });
+  const unsupported = (links: LinkSpec[]): TileDef => ({
+    kind: 'unsupported',
+    feature: 'largeBuilding',
+    name: 'U',
+    links: toLinks(links),
+    pos: { x: 0, y: 0 },
+  });
+
+  it('accepts exactly maxPlayers placeable tiles', () => {
+    expect(loop()).toHaveLength(DEFAULT_RULE_CONFIG.maxPlayers);
+    expect(validateBoard(board(loop()), DEFAULT_RULE_CONFIG)).toEqual([]);
+  });
+
+  it('rejects one placeable tile fewer than maxPlayers', () => {
+    const tiles = loop();
+    tiles[2] = { ...property([3, 1]), noRandomPlacement: true };
+    expect(validateBoard(board(tiles), DEFAULT_RULE_CONFIG)).toEqual([tooFew(3)]);
+  });
+
+  it('does not count unsupported tiles', () => {
+    const tiles = loop();
+    tiles[1] = unsupported([2, 0]);
+    expect(validateBoard(board(tiles), DEFAULT_RULE_CONFIG)).toEqual([tooFew(3)]);
+  });
+
+  it('does not count tiles without neighbours', () => {
+    // Five tiles, but the fifth has no links (also reported as noExit and disconnected).
+    const tiles = [...loop(), blank([])];
+    tiles[0] = { ...blank([1, 3]), noRandomPlacement: true };
+    expect(validateBoard(board(tiles), DEFAULT_RULE_CONFIG)).toContainEqual(tooFew(3));
+  });
+
+  it('requires as many as the configured maxPlayers', () => {
+    const tiles = loop();
+    tiles[0] = { ...blank([1, 3]), noRandomPlacement: true };
+    tiles[1] = unsupported([2, 0]);
+    const config = { ...DEFAULT_RULE_CONFIG, maxPlayers: 2 };
+    expect(validateBoard(board(tiles), config)).toEqual([]);
+    expect(validateBoard(board(tiles), { ...config, maxPlayers: 3 })).toEqual([tooFew(2, 3)]);
+  });
+
+  it('isPlaceable follows the same rules', () => {
+    expect(isPlaceable(blank([1]))).toBe(true);
+    expect(isPlaceable(property([1]))).toBe(true);
+    expect(isPlaceable(blank([]))).toBe(false);
+    expect(isPlaceable({ ...blank([1]), noRandomPlacement: true })).toBe(false);
+    expect(isPlaceable({ ...blank([1]), noRandomPlacement: false })).toBe(true);
+    expect(isPlaceable(unsupported([1]))).toBe(false);
   });
 });

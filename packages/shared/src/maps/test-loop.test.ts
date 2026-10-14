@@ -11,7 +11,6 @@ describe('TEST_LOOP_BOARD', () => {
   it('is a 20-tile loop with blank corners and 16 properties', () => {
     const { tiles } = TEST_LOOP_BOARD;
     expect(tiles).toHaveLength(20);
-    expect(TEST_LOOP_BOARD.start).toBe(0);
     expect(tiles.filter((t) => t.kind === 'property')).toHaveLength(16);
     for (const corner of [0, 5, 10, 15]) {
       expect(tiles[corner]?.kind).toBe('blank');

@@ -34,11 +34,11 @@ describe('TEST_BRANCH_BOARD', () => {
     expect(tiles.some((tile) => tile.links.some((link) => link.blocked === true))).toBe(true);
   });
 
-  it('lets a player reach every tile from every starting direction', () => {
-    for (const { to: firstPrev } of tiles[TEST_BRANCH_BOARD.start]?.links ?? []) {
+  it('lets a player reach every tile from tile 0 in every direction', () => {
+    for (const { to: firstPrev } of tiles[0]?.links ?? []) {
       const seen = new Set<string>();
-      const reached = new Set<TileIndex>([TEST_BRANCH_BOARD.start]);
-      const queue: [TileIndex, TileIndex][] = [[TEST_BRANCH_BOARD.start, firstPrev]];
+      const reached = new Set<TileIndex>([0]);
+      const queue: [TileIndex, TileIndex][] = [[0, firstPrev]];
       for (let state = queue.pop(); state !== undefined; state = queue.pop()) {
         const [tile, prev] = state;
         for (const next of successors(tile, prev)) {

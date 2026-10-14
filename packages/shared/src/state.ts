@@ -3,18 +3,29 @@ import type { RuleConfig } from './config';
 import type { PlayerId, TileIndex } from './ids';
 import type { RngState } from './rng';
 
+/**
+ * Where a player is. Everyone starts off the board and is placed on a random tile when their first
+ * turn starts (docs/GAME_RULES.md §1).
+ */
+export type PlayerLocation =
+  | { kind: 'offBoard' }
+  | {
+      kind: 'onBoard';
+      tile: TileIndex;
+      /**
+       * The tile the player came from, always a neighbour of tile. It is the only notion of
+       * direction: the next step never goes back here unless the player is at a dead end.
+       */
+      prev: TileIndex;
+    };
+
 export interface PlayerState {
   id: PlayerId;
   name: string;
   cash: number;
   deposit: number;
   points: number;
-  position: TileIndex;
-  /**
-   * The tile the player came from, always a neighbour of position. It is the only notion of
-   * direction: the next step never goes back here unless the player is at a dead end.
-   */
-  prev: TileIndex;
+  location: PlayerLocation;
   diceCount: number;
   bankrupt: boolean;
 }

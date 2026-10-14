@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Board } from './board';
+import type { TileDef } from './board';
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from './config';
 import { createGame, type GameSetup } from './engine';
 import { TEST_LOOP_BOARD } from './maps/test-loop';
@@ -21,26 +21,21 @@ function setup(patch: Partial<GameSetup> = {}): GameSetup {
   };
 }
 
+const unplaceable = (tile: TileDef): TileDef => ({ ...tile, noRandomPlacement: true });
+
 function withConfig(patch: Partial<RuleConfig>): RuleConfig {
   return { ...DEFAULT_RULE_CONFIG, ...patch };
 }
 
-/** Where each of `count` players faces from on TEST_LOOP_BOARD: links of start are [1, 19]. */
-function startPrevs(seed: number, count: number): number[] {
+/** The RNG state after one nextInt draw per entry of `ranges`, from `seed`. */
+function afterDraws(seed: number, ranges: readonly number[]): RngState {
   let rng = createRng(seed);
-  return Array.from({ length: count }, () => {
-    const [pick, next] = nextInt(rng, 2);
-    rng = next;
-    return pick === 0 ? 1 : 19;
-  });
-}
-
-/** The RNG state after `count` draws of nextInt(range) from `seed`. */
-function afterDraws(seed: number, count: number, range: number): RngState {
-  let rng = createRng(seed);
-  for (let i = 0; i < count; i++) [, rng] = nextInt(rng, range);
+  for (const range of ranges) [, rng] = nextInt(rng, range);
   return rng;
 }
+
+/** Seat 0's placement on TEST_LOOP_BOARD: one of 20 tiles, then one of its 2 neighbours. */
+const PLACEMENT_DRAWS = [20, 2];
 
 function players(count: number) {
   return Array.from({ length: count }, (_, i) => ({ id: `p${i}`, name: `玩家${i}` }));
@@ -54,6 +49,7 @@ describe('createGame', () => {
 
     expect(state.config).toBe(DEFAULT_RULE_CONFIG);
     expect(state.board).toBe(TEST_LOOP_BOARD);
+    // Only seat 0 is placed; the rest wait for their first turn (engine.place.test.ts).
     expect(state.players).toEqual(
       PLAYERS.map(({ id, name }, seat) => ({
         id,
@@ -61,8 +57,7 @@ describe('createGame', () => {
         cash: DEFAULT_RULE_CONFIG.startingCash,
         deposit: DEFAULT_RULE_CONFIG.startingDeposit,
         points: DEFAULT_RULE_CONFIG.startingPoints,
-        position: TEST_LOOP_BOARD.start,
-        prev: startPrevs(42, PLAYERS.length)[seat],
+        location: expect.objectContaining({ kind: seat === 0 ? 'onBoard' : 'offBoard' }) as unknown,
         diceCount: DEFAULT_RULE_CONFIG.defaultDiceCount,
         bankrupt: false,
       })),
@@ -70,8 +65,7 @@ describe('createGame', () => {
     expect(state.tiles).toHaveLength(TEST_LOOP_BOARD.tiles.length);
     for (const tile of state.tiles) expect(tile).toEqual({ owner: null, level: 0 });
     expect(state.turn).toEqual({ current: 'p1', round: 1, phase: { kind: 'awaitRoll' } });
-    // One draw per player for the starting direction (start has two neighbours).
-    expect(state.rngState).toEqual(afterDraws(42, PLAYERS.length, 2));
+    expect(state.rngState).toEqual(afterDraws(42, PLACEMENT_DRAWS));
   });
 
   it('uses the configured starting values', () => {
@@ -86,30 +80,12 @@ describe('createGame', () => {
     expect(result.state.players[0]).toMatchObject({ cash: 7, deposit: 8, points: 9, diceCount: 2 });
   });
 
-  it('places everyone on board.start', () => {
-    const board: Board = { ...TEST_LOOP_BOARD, start: 5 };
-    const result = createGame(setup({ board }));
-    if (!result.ok) throw new Error('expected ok');
-    for (const player of result.state.players) expect(player.position).toBe(5);
-  });
-
-  it('faces each player from a random neighbour of start', () => {
-    const prevs = new Set<number>();
-    for (let seed = 1; seed <= 20; seed++) {
-      const result = createGame(setup({ seed }));
-      if (!result.ok) throw new Error('expected ok');
-      for (const player of result.state.players) {
-        expect([1, 19]).toContain(player.prev);
-        prevs.add(player.prev);
-      }
-    }
-    expect([...prevs].sort((a, b) => a - b)).toEqual([1, 19]);
-  });
-
-  it('starts the first turn with a TurnStarted event', () => {
+  it('starts the first turn with TurnStarted, then places seat 0', () => {
     const result = createGame(setup());
     if (!result.ok) throw new Error('expected ok');
-    expect(result.events).toEqual([{ type: 'TurnStarted', playerId: 'p1', round: 1 }]);
+    expect(result.events.map((e) => e.type)).toEqual(['TurnStarted', 'PlayerPlaced']);
+    expect(result.events[0]).toEqual({ type: 'TurnStarted', playerId: 'p1', round: 1 });
+    expect(result.events[1]).toMatchObject({ type: 'PlayerPlaced', playerId: 'p1' });
   });
 
   it('is deterministic for the same seed', () => {
@@ -188,7 +164,7 @@ describe('createGame', () => {
     expect(createGame(setup({ seed: 0 })).ok).toBe(true);
     const max = createGame(setup({ seed: 2 ** 32 - 1 }));
     if (!max.ok) throw new Error('expected ok');
-    expect(max.state.rngState).toEqual(afterDraws(2 ** 32 - 1, PLAYERS.length, 2));
+    expect(max.state.rngState).toEqual(afterDraws(2 ** 32 - 1, PLACEMENT_DRAWS));
   });
 
   it('rejects seeds that are not uint32 without throwing', () => {
@@ -209,7 +185,7 @@ describe('createGame', () => {
     const result = createGame(
       setup({
         config: withConfig({ startingCash: -1 }),
-        board: { ...TEST_LOOP_BOARD, start: 99 },
+        board: { ...TEST_LOOP_BOARD, tiles: TEST_LOOP_BOARD.tiles.map(unplaceable) },
         players: players(1),
         seed: -1,
       }),
@@ -218,7 +194,7 @@ describe('createGame', () => {
       ok: false,
       errors: [
         { reason: 'config', error: { field: 'startingCash', reason: 'notNonNegativeInteger' } },
-        { reason: 'board', error: { reason: 'startOutOfRange' } },
+        { reason: 'board', error: { reason: 'tooFewPlacementTiles', count: 0, required: 4 } },
         { reason: 'playerCount', count: 1 },
         { reason: 'invalidSeed' },
       ],

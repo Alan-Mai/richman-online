@@ -10,7 +10,7 @@ import {
 } from './display';
 
 function player(id: string, patch: Partial<DisplayPlayer> = {}): DisplayPlayer {
-  return { id, name: id, cash: 1000, deposit: 500, position: 0, bankrupt: false, ...patch };
+  return { id, name: id, cash: 1000, deposit: 500, tile: 0, bankrupt: false, ...patch };
 }
 
 function model(): DisplayModel {
@@ -47,13 +47,22 @@ describe('applyEventToDisplay', () => {
 
   it('PlayerMoved puts the player on the last tile of the path', () => {
     const next = apply({ type: 'PlayerMoved', playerId: 'b', path: [1, 2] });
-    expect(next.players[1]?.position).toBe(2);
-    expect(next.players[0]?.position).toBe(0);
+    expect(next.players[1]?.tile).toBe(2);
+    expect(next.players[0]?.tile).toBe(0);
   });
 
-  it('PassBonusReceived adds cash', () => {
-    const next = apply({ type: 'PassBonusReceived', playerId: 'a', tile: 0, amount: 200 });
-    expect(next.players[0]?.cash).toBe(1200);
+  it('PlayerPlaced puts an unplaced player on the board', () => {
+    const before: DisplayModel = {
+      ...model(),
+      players: [player('a'), player('b', { tile: null })],
+    };
+    const next = applyEventToDisplay(before, {
+      type: 'PlayerPlaced',
+      playerId: 'b',
+      tile: 2,
+      prev: 1,
+    });
+    expect(next.players.map((p) => p.tile)).toEqual([0, 2]);
   });
 
   it('DepositWithdrawn then a payment nets to cash first, then deposit', () => {
@@ -142,7 +151,6 @@ describe('events reproduce the views', () => {
   const cases: [string, GameSetup][] = [
     ['round limit', hotSeatSetup(21)],
     ['last standing', hotSeatSetup(22, 'lastStanding')],
-    ['pass bonus', withConfig(hotSeatSetup(23), { passStartBonus: 500 })],
     [
       'cash and deposit, low cash',
       withConfig(hotSeatSetup(24, 'lastStanding'), {
@@ -168,7 +176,7 @@ describe('events reproduce the views', () => {
     expect(updates.some((u) => u.events.some((e) => e.type === 'GameEnded'))).toBe(true);
   });
 
-  it('covers bankruptcies and deposit withdrawals somewhere in these games', () => {
+  it('covers bankruptcies, deposit withdrawals and placement somewhere in these games', () => {
     const types = new Set(
       cases.flatMap(([, setup]) =>
         playRandomGame(setup, 200_000).flatMap((u) => u.events.map((e) => e.type)),
@@ -176,7 +184,7 @@ describe('events reproduce the views', () => {
     );
     expect(types).toContain('PlayerBankrupt');
     expect(types).toContain('DepositWithdrawn');
-    expect(types).toContain('PassBonusReceived');
+    expect(types).toContain('PlayerPlaced');
     expect(types).toContain('PropertyUpgraded');
   });
 });

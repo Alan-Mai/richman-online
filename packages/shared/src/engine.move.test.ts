@@ -6,6 +6,7 @@ import type { GameState } from './state';
 import {
   applyOk,
   getPlayer,
+  tileOf,
   loopBoard,
   newTestGame,
   patchPlayer,
@@ -27,7 +28,7 @@ const roll = (playerId: string): Action => ({ type: 'rollDice', playerId });
 describe('rollDice', () => {
   it('moves the player by the die and passes the turn', () => {
     const { state, events } = applyOk(withFixedDice(game(), [3]), roll('p1'));
-    expect(getPlayer(state, 'p1').position).toBe(3);
+    expect(tileOf(state, 'p1')).toBe(3);
     expect(events).toEqual([
       { type: 'DiceRolled', playerId: 'p1', dice: [3], total: 3 },
       { type: 'PlayerMoved', playerId: 'p1', path: [1, 2, 3] },
@@ -40,7 +41,7 @@ describe('rollDice', () => {
     const start = withFixedDice(patchPlayer(game(), 'p1', { diceCount: 3 }), [1, 2, 6]);
     const { state, events } = applyOk(start, roll('p1'));
     expect(events[0]).toEqual({ type: 'DiceRolled', playerId: 'p1', dice: [1, 2, 6], total: 9 });
-    expect(getPlayer(state, 'p1').position).toBe(9);
+    expect(tileOf(state, 'p1')).toBe(9);
     expect(state.rngState).toEqual({ kind: 'scripted', values: [] });
   });
 
@@ -70,7 +71,7 @@ describe('rollDice', () => {
     const start = withFixedDice(placePlayer(game(), 'p1', 18), [4]);
     const { state, events } = applyOk(start, roll('p1'));
     expect(events[1]).toEqual({ type: 'PlayerMoved', playerId: 'p1', path: [19, 0, 1, 2] });
-    expect(getPlayer(state, 'p1').position).toBe(2);
+    expect(tileOf(state, 'p1')).toBe(2);
   });
 
   it('does not change the input state', () => {
@@ -78,60 +79,6 @@ describe('rollDice', () => {
     const snapshot = JSON.stringify(start);
     applyOk(start, roll('p1'));
     expect(JSON.stringify(start)).toBe(snapshot);
-  });
-});
-
-describe('pass triggers', () => {
-  it('gives nothing for passing start when passStartBonus is 0', () => {
-    const start = withFixedDice(placePlayer(game(), 'p1', 18), [4]);
-    const { state, events } = applyOk(start, roll('p1'));
-    expect(events.map((e) => e.type)).toEqual(['DiceRolled', 'PlayerMoved', 'TurnStarted']);
-    expect(getPlayer(state, 'p1').cash).toBe(getPlayer(start, 'p1').cash);
-  });
-
-  it('splits the move at the start tile and pays passStartBonus', () => {
-    const base = game({ config: { passStartBonus: 500 } });
-    const start = withFixedDice(placePlayer(base, 'p1', 18), [4]);
-    const { state, events } = applyOk(start, roll('p1'));
-    expect(events).toEqual([
-      { type: 'DiceRolled', playerId: 'p1', dice: [4], total: 4 },
-      { type: 'PlayerMoved', playerId: 'p1', path: [19, 0] },
-      { type: 'PassBonusReceived', playerId: 'p1', tile: 0, amount: 500 },
-      { type: 'PlayerMoved', playerId: 'p1', path: [1, 2] },
-      { type: 'TurnStarted', playerId: 'p2', round: 1 },
-    ]);
-    expect(getPlayer(state, 'p1').cash).toBe(getPlayer(start, 'p1').cash + 500);
-  });
-
-  it('gives no bonus for landing exactly on start', () => {
-    const base = game({ config: { passStartBonus: 500 } });
-    const start = withFixedDice(placePlayer(base, 'p1', 17), [3]);
-    const { state, events } = applyOk(start, roll('p1'));
-    expect(events.map((e) => e.type)).toEqual(['DiceRolled', 'PlayerMoved', 'TurnStarted']);
-    expect(getPlayer(state, 'p1').position).toBe(0);
-    expect(getPlayer(state, 'p1').cash).toBe(getPlayer(start, 'p1').cash);
-  });
-
-  it('gives no bonus for leaving start', () => {
-    const base = game({ config: { passStartBonus: 500 } });
-    const { events } = applyOk(withFixedDice(base, [6]), roll('p1'));
-    expect(events.map((e) => e.type)).not.toContain('PassBonusReceived');
-  });
-
-  it('pays once per pass when one roll laps the board', () => {
-    const board = loopBoard([null, null, null, null]);
-    const base = newTestGame({ board, config: { passStartBonus: 100 } });
-    // From 0, 9 steps: 1 2 3 [0] 1 2 3 [0] 1.
-    const start = withFixedDice(patchPlayer(base, 'p1', { diceCount: 3 }), [3, 3, 3]);
-    const { state, events } = applyOk(start, roll('p1'));
-    expect(events.slice(1, -1)).toEqual([
-      { type: 'PlayerMoved', playerId: 'p1', path: [1, 2, 3, 0] },
-      { type: 'PassBonusReceived', playerId: 'p1', tile: 0, amount: 100 },
-      { type: 'PlayerMoved', playerId: 'p1', path: [1, 2, 3, 0] },
-      { type: 'PassBonusReceived', playerId: 'p1', tile: 0, amount: 100 },
-      { type: 'PlayerMoved', playerId: 'p1', path: [1] },
-    ]);
-    expect(getPlayer(state, 'p1').cash).toBe(getPlayer(start, 'p1').cash + 200);
   });
 });
 
@@ -198,7 +145,7 @@ describe('applyAction validation', () => {
     const raw = { type: 'rollDice', playerId: 'p1', dice: [6, 6], cash: 1e9 } as Action;
     const { state, events } = applyOk(withFixedDice(game(), [2]), raw);
     expect(getPlayer(state, 'p1')).toMatchObject({
-      position: 2,
+      location: { kind: 'onBoard', tile: 2 },
       cash: getPlayer(game(), 'p1').cash,
     });
     expect(events[0]).toEqual({ type: 'DiceRolled', playerId: 'p1', dice: [2], total: 2 });
@@ -286,7 +233,7 @@ const BRANCH_BOARD: Board = (() => {
     links: links.map((link) => (typeof link === 'number' ? { to: link } : link)),
     pos: { x: i, y: 0 },
   }));
-  return { id: 'branch', name: 'branch', tiles, start: 0 };
+  return { id: 'branch', name: 'branch', tiles };
 })();
 
 /** p1 at `tile` having come from `prev`, with the RNG scripted to `values` (die values are 0-based). */
@@ -297,9 +244,10 @@ function onBranch(tile: number, prev: number, values: number[]): GameState {
 
 function moveOf(state: GameState) {
   const { state: after, events } = applyOk(state, roll('p1'));
-  const p1 = getPlayer(after, 'p1');
+  const { location } = getPlayer(after, 'p1');
+  if (location.kind !== 'onBoard') throw new Error('p1 left the board');
   const path = events.flatMap((e) => (e.type === 'PlayerMoved' ? e.path : []));
-  return { path, position: p1.position, prev: p1.prev, rng: after.rngState };
+  return { path, position: location.tile, prev: location.prev, rng: after.rngState };
 }
 
 describe('movement', () => {

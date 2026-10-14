@@ -22,7 +22,7 @@ type Result =
   | { ok: false; error: RuleError };
 
 function createGame(setup: GameSetup):
-  | { ok: true; state: GameState; events: GameEvent[] }   // events = 第一個 TurnStarted
+  | { ok: true; state: GameState; events: GameEvent[] }   // events = 第一個 TurnStarted、座位 0 的 PlayerPlaced
   | { ok: false; errors: CreateGameError[] };
 function applyAction(state: GameState, action: Action): Result;
 function legalActions(state: GameState, playerId: PlayerId): Action[];   // 只在伺服器執行
@@ -77,11 +77,11 @@ type Phase =
 ### 回合狀態轉移（Phase 2）
 
 ```
-createGame ──▶ awaitRoll（座位 0）
+createGame ──▶ 放置座位 0 → awaitRoll（座位 0）
                  │ rollDice
                  ▼
      擲骰 → 逐格移動：每經過一格（不含停留格）執行該格的「經過觸發」
-              ├ 自動效果（例如 passStartBonus）→ 繼續
+              ├ 自動效果（目前沒有格子有經過效果）→ 繼續
               └ 需玩家決定（日後，例如銀行）→ 暫停於新 phase，決定後走完剩下步數
      停留格處理：
        ├ 無主地產且付得起 → awaitBuyDecision ── buyProperty / decline ─┐
@@ -93,7 +93,7 @@ createGame ──▶ awaitRoll（座位 0）
                下一位未破產玩家；繞回座位 0 時：
                  ├ richestAtRoundLimit 且 round === maxRounds → gameOver（總資產最高，平手並列）
                  └ 否則 round + 1
-               → awaitRoll
+               → 尚未放置的玩家先隨機放置（PlayerPlaced）→ awaitRoll
 ```
 
 回合開始的狀態效果與擲骰前使用道具（GAME_RULES 標 ❓）日後在 `awaitRoll` 前插入新的 phase。

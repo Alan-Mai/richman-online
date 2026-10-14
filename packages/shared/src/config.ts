@@ -16,8 +16,6 @@ export interface RuleConfig {
   maxRounds: number | null;
   defaultDiceCount: number;
   diceFaces: number;
-  /** Custom-room option; the original game has no bonus for passing the start tile. */
-  passStartBonus: number;
   maxLevel: number;
   /** Upgrade cost per level = floor(price * upgradeCostPercent / 100). */
   upgradeCostPercent: number;
@@ -42,7 +40,6 @@ export const DEFAULT_RULE_CONFIG: RuleConfig = {
   maxRounds: null,
   defaultDiceCount: 1,
   diceFaces: 6,
-  passStartBonus: 0,
   maxLevel: 5,
   upgradeCostPercent: 50,
   rentPercentByLevel: [10, 30, 60, 100, 150, 200],
@@ -80,7 +77,6 @@ export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
     'startingCash',
     'startingDeposit',
     'startingPoints',
-    'passStartBonus',
     'maxLevel',
     'upgradeCostPercent',
   ] as const;

@@ -55,7 +55,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 **Phase 3 前置**（Phase 3 開始前完成）：
 - [x] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**（已完成：LZ + 動態 Huffman，見 `ASSET_FORMATS.md`「MKF 壓縮」；462 個壓縮子檔全部通過驗證，`jump.mkf` 子檔 9–44 縮圖經使用者目視確認。）
 
-**下一步**：引擎改造批次 B（第一回合隨機放置）。依 `docs/ENGINE_REFACTOR_PLAN.md`「批次 B」進行：B1 含 `validateBoard` 的可放置格數檢查（批次 B0 的 g 決定）；B2 需要使用者試玩。批次 A、B0 已完成（B0 的結論見 `GAME_RULES.md` 🔍 與計畫檔）。
+**下一步**：引擎改造批次 B2（client 畫面與試玩）。依 `docs/ENGINE_REFACTOR_PLAN.md`「批次 B」進行；B1（第一回合隨機放置、`validateBoard` 的可放置格數檢查）已完成，進度與待確認的細節記在計畫檔。批次 A、B0 已完成（B0 的結論見 `GAME_RULES.md` 🔍 與計畫檔）。
 
 **未解問題**：
 - 壓縮子檔中沒有已知 magic 的 308 個（`Data.mkf` 302、`Panel.mkf` 6）格式未知，需另外分析（可用 `decompressMkf` 解壓後再看）。

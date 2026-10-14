@@ -28,6 +28,8 @@ interface TileBase {
    * they came from and never step straight back unless they hit a dead end.
    */
   links: readonly TileLink[];
+  /** Never chosen as a player's random start (docs/GAME_RULES.md §1). */
+  noRandomPlacement?: boolean;
   pos: Point;
 }
 
@@ -63,13 +65,12 @@ export interface Board {
   id: string;
   name: string;
   tiles: readonly TileDef[];
-  /** Where every player starts; also the trigger tile for RuleConfig.passStartBonus. */
-  start: TileIndex;
 }
 
 export type BoardError =
   | { reason: 'empty' }
-  | { reason: 'startOutOfRange' }
+  /** Fewer placeable tiles than RuleConfig.maxPlayers, so a random start could find none. */
+  | { reason: 'tooFewPlacementTiles'; count: number; required: number }
   | {
       reason:
         | 'linkOutOfRange'
@@ -99,9 +100,17 @@ export function isLinked(board: Board, from: TileIndex, to: TileIndex): boolean 
 }
 
 /**
- * Board rules (docs/GAME_RULES.md §2): links are symmetric, at most MAX_LINKS per tile, every tile
- * can be left through at least one unblocked link, and every tile is connected to start. Returns
- * every problem found; empty means valid.
+ * Whether a player may be placed on this tile at random when it is free (docs/GAME_RULES.md §1):
+ * it has a neighbour, is not flagged noRandomPlacement and is not an unsupported tile.
+ */
+export function isPlaceable(tile: TileDef): boolean {
+  return tile.links.length > 0 && tile.noRandomPlacement !== true && tile.kind !== 'unsupported';
+}
+
+/**
+ * Board rules (docs/GAME_RULES.md §1, §2): links are symmetric, at most MAX_LINKS per tile, every
+ * tile can be left through at least one unblocked link, all tiles are connected, and there are at
+ * least maxPlayers placeable tiles. Returns every problem found; empty means valid.
  */
 export function validateBoard(board: Board, config: RuleConfig): BoardError[] {
   const { tiles } = board;
@@ -110,9 +119,6 @@ export function validateBoard(board: Board, config: RuleConfig): BoardError[] {
   }
 
   const errors: BoardError[] = [];
-  if (!isTileIndex(board.start, tiles.length)) {
-    errors.push({ reason: 'startOutOfRange' });
-  }
 
   tiles.forEach((tile, i) => {
     const targets = tile.links.map((link) => link.to);
@@ -152,23 +158,28 @@ export function validateBoard(board: Board, config: RuleConfig): BoardError[] {
   });
 
   // Connectivity ignores blocks: a blocked link can still be walked from the other end, and dead
-  // ends turn players around.
-  if (isTileIndex(board.start, tiles.length)) {
-    const seen = new Set<TileIndex>([board.start]);
-    const queue: TileIndex[] = [board.start];
-    for (let tile = queue.pop(); tile !== undefined; tile = queue.pop()) {
-      for (const { to } of tiles[tile]?.links ?? []) {
-        if (isTileIndex(to, tiles.length) && !seen.has(to)) {
-          seen.add(to);
-          queue.push(to);
-        }
+  // ends turn players around. Tiles not reachable from tile 0 are reported.
+  const seen = new Set<TileIndex>([0]);
+  const queue: TileIndex[] = [0];
+  for (let tile = queue.pop(); tile !== undefined; tile = queue.pop()) {
+    for (const { to } of tiles[tile]?.links ?? []) {
+      if (isTileIndex(to, tiles.length) && !seen.has(to)) {
+        seen.add(to);
+        queue.push(to);
       }
     }
-    tiles.forEach((_, i) => {
-      if (!seen.has(i)) {
-        errors.push({ reason: 'disconnected', tile: i });
-      }
-    });
+  }
+  tiles.forEach((_, i) => {
+    if (!seen.has(i)) {
+      errors.push({ reason: 'disconnected', tile: i });
+    }
+  });
+
+  // Placing skips tiles where someone stands, at most maxPlayers - 1 of them, so this many
+  // placeable tiles always leave one free (B0-g: the original game does not handle zero).
+  const placeable = tiles.filter(isPlaceable).length;
+  if (placeable < config.maxPlayers) {
+    errors.push({ reason: 'tooFewPlacementTiles', count: placeable, required: config.maxPlayers });
   }
 
   return errors;

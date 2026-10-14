@@ -13,7 +13,7 @@ const model: DisplayModel = {
     name,
     cash: 0,
     deposit: 0,
-    position: 0,
+    tile: 0,
     bankrupt: i === 3,
   })),
   tiles: [],

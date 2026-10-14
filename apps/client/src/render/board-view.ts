@@ -87,7 +87,10 @@ export class BoardView {
     this.drawOwnership(model);
     for (const player of model.players) {
       const token = this.tokens.get(player.id) ?? this.createToken(player.id);
-      const at = this.tokenPosition(player.id, player.position);
+      // Players are placed on their first turn; until then they have no token on the board.
+      token.setVisible(player.tile !== null);
+      if (player.tile === null) continue;
+      const at = this.tokenPosition(player.id, player.tile);
       token.setPosition(at.x, at.y).setAlpha(player.bankrupt ? 0.3 : 1);
     }
   }
@@ -101,12 +104,7 @@ export class BoardView {
     const fontSize = Math.max(9, Math.round(this.tileSize * 0.15));
     this.board.tiles.forEach((tile, i) => {
       const { x, y } = this.tileCenter(i);
-      const fill =
-        i === this.board.start
-          ? BOARD_COLORS.start
-          : tile.kind === 'property'
-            ? BOARD_COLORS.property
-            : BOARD_COLORS.blank;
+      const fill = tile.kind === 'property' ? BOARD_COLORS.property : BOARD_COLORS.blank;
       const rect = this.scene.add
         .rectangle(x, y, size, size, fill)
         .setStrokeStyle(Math.max(1, size * 0.02), BOARD_COLORS.tileBorder)

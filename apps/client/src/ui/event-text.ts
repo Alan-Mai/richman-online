@@ -20,12 +20,8 @@ export function describeEvent(event: GameEvent, model: DisplayModel, board: Boar
         name: name(event.playerId),
         tile: tile(event.path.at(-1) ?? 0),
       });
-    case 'PassBonusReceived':
-      return t('event.passBonus', {
-        name: name(event.playerId),
-        tile: tile(event.tile),
-        amount: formatMoney(event.amount),
-      });
+    case 'PlayerPlaced':
+      return t('event.playerPlaced', { name: name(event.playerId), tile: tile(event.tile) });
     case 'PropertyBought':
       return t('event.propertyBought', {
         name: name(event.playerId),

@@ -7,10 +7,11 @@ export type BankruptcyCause =
 /** What happened, in order, for the client to animate. */
 export type GameEvent =
   | { type: 'TurnStarted'; playerId: PlayerId; round: number }
+  /** A player's first turn put them on the board, facing away from prev. */
+  | { type: 'PlayerPlaced'; playerId: PlayerId; tile: TileIndex; prev: TileIndex }
   | { type: 'DiceRolled'; playerId: PlayerId; dice: readonly number[]; total: number }
   /** Every tile stepped on, in order, ending with the landing tile. */
   | { type: 'PlayerMoved'; playerId: PlayerId; path: readonly TileIndex[] }
-  | { type: 'PassBonusReceived'; playerId: PlayerId; tile: TileIndex; amount: number }
   | { type: 'PropertyBought'; playerId: PlayerId; tile: TileIndex; price: number }
   | { type: 'PropertyUpgraded'; playerId: PlayerId; tile: TileIndex; level: number; cost: number }
   | { type: 'RentPaid'; from: PlayerId; to: PlayerId; tile: TileIndex; amount: number }

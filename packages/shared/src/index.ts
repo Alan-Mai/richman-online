@@ -5,6 +5,7 @@ export type { Action, ActionType } from './actions';
 export {
   MAX_LINKS,
   isLinked,
+  isPlaceable,
   validateBoard,
   type BlankTileDef,
   type Board,
@@ -50,4 +51,12 @@ export {
   type ParseRngResult,
   type RngState,
 } from './rng';
-export type { GameState, Phase, PhaseKind, PlayerState, TileState, TurnState } from './state';
+export type {
+  GameState,
+  Phase,
+  PhaseKind,
+  PlayerLocation,
+  PlayerState,
+  TileState,
+  TurnState,
+} from './state';

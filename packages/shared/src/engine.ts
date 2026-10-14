@@ -1,7 +1,7 @@
 // State transitions of the rule engine. Pure and deterministic: randomness only comes from
 // state.rngState (see CLAUDE.md and .claude/rules/shared-engine.md).
 import type { Action, ActionType } from './actions';
-import { validateBoard, type Board, type BoardError } from './board';
+import { isPlaceable, validateBoard, type Board, type BoardError } from './board';
 import { validateRuleConfig, type RuleConfig, type RuleConfigError } from './config';
 import type { RuleError } from './errors';
 import type { GameEvent } from './events';
@@ -65,7 +65,10 @@ function validateSetup(setup: GameSetup): CreateGameError[] {
   return errors;
 }
 
-/** Validates the setup and deals the opening state; seat 0 moves first. */
+/**
+ * Validates the setup and deals the opening state; seat 0 moves first. Everyone starts off the
+ * board; seat 0 is placed right away as its first turn starts, the others when theirs do.
+ */
 export function createGame(setup: GameSetup): CreateGameResult {
   const errors = validateSetup(setup);
   const first = setup.players[0];
@@ -74,34 +77,26 @@ export function createGame(setup: GameSetup): CreateGameResult {
   }
 
   const { config, board } = setup;
-  // Each player starts facing away from a random neighbour of start, blocked or not
-  // (docs/GAME_RULES.md §1).
-  const startLinks = at(board.tiles, board.start).links;
-  let rng = createRng(setup.seed);
-  const players = setup.players.map(({ id, name }): PlayerState => {
-    const [pick, next] = nextInt(rng, startLinks.length);
-    rng = next;
-    return {
-      id,
-      name,
-      cash: config.startingCash,
-      deposit: config.startingDeposit,
-      points: config.startingPoints,
-      position: board.start,
-      prev: at(startLinks, pick).to,
-      diceCount: config.defaultDiceCount,
-      bankrupt: false,
-    };
-  });
+  const players = setup.players.map(({ id, name }): PlayerState => ({
+    id,
+    name,
+    cash: config.startingCash,
+    deposit: config.startingDeposit,
+    points: config.startingPoints,
+    location: { kind: 'offBoard' },
+    diceCount: config.defaultDiceCount,
+    bankrupt: false,
+  }));
   const state: GameState = {
     config,
     board,
     players,
     tiles: board.tiles.map(() => ({ owner: null, level: 0 })),
     turn: { current: first.id, round: 1, phase: { kind: 'awaitRoll' } },
-    rngState: rng,
+    rngState: createRng(setup.seed),
   };
-  return { ok: true, state, events: [{ type: 'TurnStarted', playerId: first.id, round: 1 }] };
+  const started = startTurn(state, first.id, 1);
+  return { ok: true, state: started.state, events: started.events };
 }
 
 export type Result =
@@ -283,21 +278,20 @@ export function stepFrom(
  * the right spot.
  */
 function advance(state: GameState, playerId: PlayerId, steps: number): Step {
-  const player = playerOf(state, playerId);
   let current = state;
   const events: GameEvent[] = [];
   let segment: TileIndex[] = [];
-  let { position, prev } = player;
+  let { tile, prev } = boardLocation(playerOf(state, playerId));
   for (let step = 1; step <= steps; step++) {
-    const next = stepFrom(state.board, position, prev, current.rngState);
+    const next = stepFrom(state.board, tile, prev, current.rngState);
     current = { ...current, rngState: next.rng };
-    prev = position;
-    position = next.to;
-    segment.push(position);
+    prev = tile;
+    tile = next.to;
+    segment.push(tile);
     if (step === steps) {
       break;
     }
-    const passed = resolvePass(current, playerId, position);
+    const passed = resolvePass(current);
     if (passed.events.length > 0) {
       events.push({ type: 'PlayerMoved', playerId, path: segment }, ...passed.events);
       segment = [];
@@ -307,26 +301,25 @@ function advance(state: GameState, playerId: PlayerId, steps: number): Step {
   if (segment.length > 0) {
     events.push({ type: 'PlayerMoved', playerId, path: segment });
   }
-  return { state: updatePlayer(current, playerId, () => ({ position, prev })), events };
+  return {
+    state: updatePlayer(current, playerId, () => ({ location: { kind: 'onBoard', tile, prev } })),
+    events,
+  };
 }
 
-/** Effect of walking over a tile without stopping. Phase 2: only the optional start bonus. */
-function resolvePass(state: GameState, playerId: PlayerId, tile: TileIndex): Step {
-  const amount = state.config.passStartBonus;
-  if (tile !== state.board.start || amount === 0) {
-    return { state, events: [] };
-  }
-  return {
-    state: updatePlayer(state, playerId, (p) => ({ cash: p.cash + amount })),
-    events: [{ type: 'PassBonusReceived', playerId, tile, amount }],
-  };
+/**
+ * Effect of walking over a tile without stopping. No tile has one yet; banks and road blocks
+ * (Phase 5) will take the player and tile.
+ */
+function resolvePass(state: GameState): Step {
+  return { state, events: [] };
 }
 
 /** Effect of stopping on the current player's tile. */
 function resolveLanding(state: GameState): Step {
   const { config } = state;
   const player = playerOf(state, state.turn.current);
-  const index = player.position;
+  const index = boardLocation(player).tile;
   const tile = at(state.board.tiles, index);
   if (tile.kind !== 'property') {
     return endTurn(state);
@@ -399,11 +392,66 @@ function endTurn(state: GameState): Step {
   }
 
   const round = wrapped ? state.turn.round + 1 : state.turn.round;
-  const next = at(players, nextSeat).id;
-  return {
-    state: { ...state, turn: { current: next, round, phase: { kind: 'awaitRoll' } } },
-    events: [{ type: 'TurnStarted', playerId: next, round }],
+  return startTurn(state, at(players, nextSeat).id, round);
+}
+
+/** Hands the turn to playerId, placing them on the board first if this is their first turn. */
+function startTurn(state: GameState, playerId: PlayerId, round: number): Step {
+  const started: Step = {
+    state: { ...state, turn: { current: playerId, round, phase: { kind: 'awaitRoll' } } },
+    events: [{ type: 'TurnStarted', playerId, round }],
   };
+  return chain(started, (s) => placeIfOffBoard(s, playerId));
+}
+
+/**
+ * First-turn placement (docs/GAME_RULES.md §1): a random placeable tile where no one in the game
+ * stands, facing away from a random neighbour (blocked or not). validateBoard guarantees enough
+ * placeable tiles, so running out is an engine bug, not a rule case.
+ */
+function placeIfOffBoard(state: GameState, playerId: PlayerId): Step {
+  if (playerOf(state, playerId).location.kind === 'onBoard') {
+    return { state, events: [] };
+  }
+  // Bankrupt players are out of the game and do not hold their tile.
+  const occupied = new Set(
+    state.players.flatMap((p) =>
+      p.location.kind === 'onBoard' && !p.bankrupt ? [p.location.tile] : [],
+    ),
+  );
+  const candidates = state.board.tiles.flatMap((tile, i) =>
+    isPlaceable(tile) && !occupied.has(i) ? [i] : [],
+  );
+  if (candidates.length === 0) {
+    throw new Error(`no tile to place ${playerId}`);
+  }
+  const placed = pickOne(candidates, state.rngState);
+  const facing = pickOne(
+    at(state.board.tiles, placed.item).links.map((link) => link.to),
+    placed.rng,
+  );
+  const location = { kind: 'onBoard', tile: placed.item, prev: facing.item } as const;
+  return {
+    state: { ...updatePlayer(state, playerId, () => ({ location })), rngState: facing.rng },
+    events: [{ type: 'PlayerPlaced', playerId, tile: location.tile, prev: location.prev }],
+  };
+}
+
+/** A random item; a single item is taken without drawing from the RNG. */
+function pickOne<T>(items: readonly T[], rng: RngState): { item: T; rng: RngState } {
+  if (items.length === 1) {
+    return { item: at(items, 0), rng };
+  }
+  const [pick, next] = nextInt(rng, items.length);
+  return { item: at(items, pick), rng: next };
+}
+
+/** Where an on-board player stands; only placed players move or land, so offBoard is a bug. */
+function boardLocation(player: PlayerState): { tile: TileIndex; prev: TileIndex } {
+  if (player.location.kind !== 'onBoard') {
+    throw new Error(`player ${player.id} is not on the board`);
+  }
+  return player.location;
 }
 
 function endGame(

@@ -7,7 +7,7 @@ import type { GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { TEST_LOOP_BOARD } from './maps/test-loop';
 import type { RngState } from './rng';
-import type { GameState, PlayerState, TileState, TurnState } from './state';
+import type { GameState, PlayerLocation, PlayerState, TileState, TurnState } from './state';
 
 /** An RNG whose nextInt calls return `values` in order (each must be < the requested range). */
 export function scriptedRng(values: readonly number[]): RngState {
@@ -38,6 +38,11 @@ export interface TestGameOptions {
   /** Players are p1..pN in seat order. Defaults to 2. */
   playerCount?: number;
   seed?: number;
+  /**
+   * 'fixed' (default) puts every player on tile 0 facing away from behind(0), so on a loop board
+   * they walk 0 -> 1 -> 2 -> ...; 'engine' keeps the engine's first-turn placement.
+   */
+  placement?: 'fixed' | 'engine';
 }
 
 /**
@@ -51,8 +56,8 @@ export function behind(board: Board, tile: TileIndex): TileIndex {
 }
 
 /**
- * A started game on TEST_LOOP_BOARD (unless given); throws if the setup is invalid. Every player
- * faces away from behind(start), so on a loop board they walk 0 -> 1 -> 2 -> ...
+ * A started game on TEST_LOOP_BOARD (unless given); throws if the setup is invalid. See
+ * TestGameOptions.placement for where the players stand.
  */
 export function newTestGame(options: TestGameOptions = {}): GameState {
   const count = options.playerCount ?? 2;
@@ -66,10 +71,13 @@ export function newTestGame(options: TestGameOptions = {}): GameState {
   if (!result.ok) {
     throw new Error(`invalid test game: ${JSON.stringify(result.errors)}`);
   }
-  const prev = behind(board, board.start);
+  if (options.placement === 'engine') {
+    return result.state;
+  }
+  const location: PlayerLocation = { kind: 'onBoard', tile: 0, prev: behind(board, 0) };
   return {
     ...result.state,
-    players: result.state.players.map((p) => ({ ...p, prev })),
+    players: result.state.players.map((p) => ({ ...p, location })),
   };
 }
 
@@ -80,11 +88,18 @@ export function placePlayer(
   tile: TileIndex,
   prev: TileIndex = behind(state.board, tile),
 ): GameState {
-  return patchPlayer(state, id, { position: tile, prev });
+  return patchPlayer(state, id, { location: { kind: 'onBoard', tile, prev } });
+}
+
+/** The tile a player stands on; throws if they are off the board. */
+export function tileOf(state: GameState, id: PlayerId): TileIndex {
+  const { location } = getPlayer(state, id);
+  if (location.kind !== 'onBoard') throw new Error(`${id} is off the board`);
+  return location.tile;
 }
 
 /**
- * A loop 0 -> 1 -> ... -> 0 starting at tile 0. Each entry is a property price, or null for a
+ * A loop 0 -> 1 -> ... -> 0. Each entry is a property price, or null for a
  * blank tile. Names are placeholders. Links list the forward neighbour first (see behind).
  */
 export function loopBoard(spec: readonly (number | null)[]): Board {
@@ -95,7 +110,7 @@ export function loopBoard(spec: readonly (number | null)[]): Board {
     const base = { name: `T${i}`, links, pos: { x: i, y: 0 } };
     return price === null ? { kind: 'blank', ...base } : { kind: 'property', price, ...base };
   });
-  return { id: 'test', name: 'test', tiles, start: 0 };
+  return { id: 'test', name: 'test', tiles };
 }
 
 export function getPlayer(state: GameState, id: PlayerId): PlayerState {

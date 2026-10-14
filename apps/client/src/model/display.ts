@@ -7,7 +7,8 @@ export interface DisplayPlayer {
   name: string;
   cash: number;
   deposit: number;
-  position: TileIndex;
+  /** null until the player is placed on their first turn. */
+  tile: TileIndex | null;
   bankrupt: boolean;
 }
 
@@ -30,12 +31,12 @@ export function displayFromView(view: PlayerView): DisplayModel {
   return {
     round: view.turn.round,
     current: view.turn.current,
-    players: view.players.map(({ id, name, cash, deposit, position, bankrupt }) => ({
+    players: view.players.map(({ id, name, cash, deposit, location, bankrupt }) => ({
       id,
       name,
       cash,
       deposit,
-      position,
+      tile: location.kind === 'onBoard' ? location.tile : null,
       bankrupt,
     })),
     tiles: view.tiles.map(({ owner, level }) => ({ owner, level })),
@@ -72,10 +73,10 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
       const last = event.path.at(-1);
       return last === undefined
         ? model
-        : updatePlayer(model, event.playerId, () => ({ position: last }));
+        : updatePlayer(model, event.playerId, () => ({ tile: last }));
     }
-    case 'PassBonusReceived':
-      return updatePlayer(model, event.playerId, (p) => ({ cash: p.cash + event.amount }));
+    case 'PlayerPlaced':
+      return updatePlayer(model, event.playerId, () => ({ tile: event.tile }));
     case 'DepositWithdrawn':
       return updatePlayer(model, event.playerId, (p) => ({
         cash: p.cash + event.amount,
@@ -126,7 +127,7 @@ export function diffDisplay(actual: DisplayModel, expected: DisplayModel): strin
   check('players.length', actual.players.length, expected.players.length);
   expected.players.forEach((e, i) => {
     const a = actual.players[i];
-    for (const key of ['id', 'name', 'cash', 'deposit', 'position', 'bankrupt'] as const) {
+    for (const key of ['id', 'name', 'cash', 'deposit', 'tile', 'bankrupt'] as const) {
       check(`players[${i}].${key}`, a?.[key], e[key]);
     }
   });

@@ -67,11 +67,10 @@ describe('legalActions completeness', () => {
       },
     ],
     [
-      'poor players until one is left, start bonus, no payout',
+      'poor players until one is left, no payout',
       {
         startingCash: 2000,
         startingDeposit: 0,
-        passStartBonus: 300,
         bankruptcyPayout: 'none',
         defaultDiceCount: 2,
       },

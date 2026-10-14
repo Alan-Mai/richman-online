@@ -26,7 +26,7 @@ export function viewFor(state: GameState, viewer: Viewer): PlayerView {
     viewer: { ...viewer },
     config: state.config,
     board: state.board,
-    players: state.players.map((p) => ({ ...p })),
+    players: state.players.map((p) => ({ ...p, location: { ...p.location } })),
     tiles: state.tiles.map((t) => ({ ...t })),
     turn: { ...state.turn },
   };
