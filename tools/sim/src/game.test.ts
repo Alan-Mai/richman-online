@@ -6,6 +6,7 @@ import {
   MAX_AUCTION_ACTIONS,
   chooserSeedFor,
   gameSetup,
+  sameAction,
   gameSeedFor,
   runGame,
   type Engine,
@@ -286,7 +287,7 @@ describe('runGame players', () => {
     let auctions = 0;
     let sold = 0;
     for (let seed = 1; seed <= 5; seed++) {
-      const spec: GameSpec = { ...RICHEST, seed, controllers: 'computer', dayLimit: null };
+      const spec: GameSpec = { ...RICHEST, seed, controllers: 'mixed', dayLimit: null };
       const record = runGame(spec, auctionEngine());
       expect(record.outcome.kind).not.toBe('failed');
       const { metrics } = record;
@@ -360,15 +361,16 @@ describe('runGame checks on computers, views and auctions', () => {
     const base = auctionEngine();
     const engine: Engine = {
       ...base,
-      // Passing is accepted but changes nothing, so the computers keep being asked.
+      // Bidding moves are accepted but change nothing, so the same bidder keeps being asked.
       applyAction: (state, action) =>
-        action.type === 'passRound' && state.turn.phase.kind === 'auction'
+        state.turn.phase.kind === 'auction' &&
+        base.legalActions(state, action.playerId).some((a) => sameAction(a, action))
           ? { ok: true, state, events: [] }
           : base.applyAction(state, action),
     };
     let found = false;
     for (let seed = 1; seed <= 10 && !found; seed++) {
-      const spec: GameSpec = { ...RICHEST, seed, controllers: 'computer', dayLimit: null };
+      const spec: GameSpec = { ...RICHEST, seed, controllers: 'mixed', dayLimit: null };
       const { outcome } = runGame({ ...spec, maxSteps: 1_000_000 }, engine);
       if (outcome.kind === 'failed' && outcome.failure.kind === 'auctionTooLong') {
         expect(outcome.failure.actions).toBe(MAX_AUCTION_ACTIONS);

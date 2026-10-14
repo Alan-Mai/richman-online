@@ -96,7 +96,13 @@ describe('summarize', () => {
       finished: 4,
       unfinished: 1,
       failed: 3,
-      reasons: { lastStanding: 2, dayLimitOrNetWorthTarget: 2, noWinner: 1 },
+      reasons: {
+        lastStanding: 2,
+        dayLimitOrNetWorthTarget: 2,
+        humanBankrupt: 0,
+        noHumansLeft: 0,
+        noWinner: 1,
+      },
       bankruptcies: 10,
       tiedGames: 1,
     });
@@ -167,6 +173,25 @@ describe('summarize', () => {
     );
     expect(text).toContain('lottery pool at the end: mean 5000.0');
     expect(text).toContain('moves per game: forks 15.0, dead-end turnarounds 2.0');
+  });
+
+  it('counts the endings by humans going out, which have no winner', () => {
+    const summary = summarize(
+      [
+        record(1, finished('humanBankrupt', []), 10),
+        record(2, finished('noHumansLeft', []), 20),
+        record(3, finished('noHumansLeft', []), 30),
+      ],
+      4,
+    );
+    expect(summary.reasons).toEqual({
+      lastStanding: 0,
+      dayLimitOrNetWorthTarget: 0,
+      humanBankrupt: 1,
+      noHumansLeft: 2,
+      noWinner: 0,
+    });
+    expect(formatStats(summary, 0)).toContain('humanBankrupt 1 (33.3%), noHumansLeft 2 (66.7%)');
   });
 
   it('handles a run without finished games', () => {

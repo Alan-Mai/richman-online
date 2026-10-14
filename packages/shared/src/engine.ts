@@ -6,7 +6,7 @@ import { computerBid } from './computer';
 import { isPlaceable, validateBoard, type Board, type BoardError } from './board';
 import { validateRuleConfig, type RuleConfig, type RuleConfigError } from './config';
 import type { RuleError } from './errors';
-import type { GameEvent } from './events';
+import type { GameEndReason, GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
 import { buyPrice, netWorth, pay, rentFor, spend, spendable, upgradeCost } from './money';
@@ -442,11 +442,21 @@ function resolveLanding(state: GameState): Step {
 }
 
 /**
- * The current player has just gone bankrupt (docs/GAME_RULES.md §8). If the game goes on, some of
- * the released properties may be auctioned before the turn ends; the bankrupt player stays
- * turn.current meanwhile. With one player left the game ends at once, without auctions.
+ * The current player has just gone bankrupt (docs/GAME_RULES.md §8). The game ends at once, without
+ * auctions, if that was the only human seat, if no human is left, or if one player is left. If it
+ * goes on, some of the released properties may be auctioned before the turn ends; the bankrupt
+ * player stays turn.current meanwhile.
  */
 function afterBankruptcy(state: GameState, released: readonly TileIndex[]): Step {
+  // Checked in the original's order, before the last player standing (docs/GAME_RULES.md §1).
+  const humanSeats = state.players.filter((p) => p.controller === 'human');
+  const debtor = playerOf(state, state.turn.current);
+  if (humanSeats.length === 1 && debtor.controller === 'human') {
+    return endGame(state, 'humanBankrupt', []);
+  }
+  if (!state.players.some((p) => p.controller === 'human' && !p.bankrupt)) {
+    return endGame(state, 'noHumansLeft', []);
+  }
   if (state.players.filter((p) => !p.bankrupt).length <= 1) {
     return endTurn(state);
   }
@@ -596,11 +606,7 @@ function boardLocation(player: PlayerState): { tile: TileIndex; prev: TileIndex 
   return player.location;
 }
 
-function endGame(
-  state: GameState,
-  reason: 'lastStanding' | 'dayLimitOrNetWorthTarget',
-  winners: PlayerId[],
-): Step {
+function endGame(state: GameState, reason: GameEndReason, winners: PlayerId[]): Step {
   const worth = Object.fromEntries(state.players.map((p) => [p.id, netWorth(state, p.id)]));
   return {
     state: { ...state, turn: { ...state.turn, phase: { kind: 'gameOver', winners } } },

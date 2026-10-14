@@ -9,7 +9,10 @@ export interface Stats {
   finished: number;
   unfinished: number;
   failed: number;
-  /** noWinner counts the lastStanding endings with nobody left (also counted in lastStanding). */
+  /**
+   * noWinner counts the lastStanding endings with nobody left (also counted in lastStanding); the
+   * endings by humans going out never have a winner.
+   */
   reasons: Record<EndReason, number> & { noWinner: number };
   /** Over finished games; null when none finished. */
   rounds: { mean: number; median: number; p90: number; min: number; max: number } | null;
@@ -61,7 +64,13 @@ export function summarize(records: readonly GameRecord[], seats: number): Stats 
     finished: 0,
     unfinished: 0,
     failed: 0,
-    reasons: { lastStanding: 0, dayLimitOrNetWorthTarget: 0, noWinner: 0 },
+    reasons: {
+      lastStanding: 0,
+      dayLimitOrNetWorthTarget: 0,
+      humanBankrupt: 0,
+      noHumansLeft: 0,
+      noWinner: 0,
+    },
     rounds: null,
     meanSteps: null,
     seatWins: Array.from({ length: seats }, () => 0),
@@ -116,7 +125,7 @@ export function summarize(records: readonly GameRecord[], seats: number): Stats 
         stats.finished++;
         stats.reasons[outcome.reason]++;
         const winners = outcome.winnerSeats;
-        if (winners.length === 0) stats.reasons.noWinner++;
+        if (winners.length === 0 && outcome.reason === 'lastStanding') stats.reasons.noWinner++;
         if (winners.length > 1) stats.tiedGames++;
         for (const seat of winners) {
           stats.seatWins[seat] = (stats.seatWins[seat] ?? 0) + 1 / winners.length;
@@ -296,6 +305,8 @@ export function formatStats(stats: Stats, elapsedMs: number): string {
       `${reasons.noWinner} without a winner), ` +
       `dayLimitOrNetWorthTarget ${reasons.dayLimitOrNetWorthTarget} ` +
       `(${percent(reasons.dayLimitOrNetWorthTarget, games)}), ` +
+      `humanBankrupt ${reasons.humanBankrupt} (${percent(reasons.humanBankrupt, games)}), ` +
+      `noHumansLeft ${reasons.noHumansLeft} (${percent(reasons.noHumansLeft, games)}), ` +
       `unfinished ${stats.unfinished} (${percent(stats.unfinished, games)}), ` +
       `failed ${stats.failed} (${percent(stats.failed, games)})`,
     `seat win rate (ties split 1/k, out of ${finished} finished): ` +

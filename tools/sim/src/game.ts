@@ -17,6 +17,7 @@ import {
   type Board,
   type Controller,
   type CreateGameError,
+  type GameEndReason,
   type GameEvent,
   type GameSetup,
   type GameState,
@@ -128,7 +129,7 @@ export interface GameSpec {
   maxSteps: number;
 }
 
-export type EndReason = 'lastStanding' | 'dayLimitOrNetWorthTarget';
+export type EndReason = GameEndReason;
 
 export type Failure =
   | { kind: 'createGame'; errors: CreateGameError[] }

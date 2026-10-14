@@ -4,6 +4,14 @@ import type { PlayerId, TileIndex } from './ids';
 export type BankruptcyCause =
   { kind: 'rent'; tile: TileIndex; amountDue: number } | { kind: 'system'; amountDue: number };
 
+export type GameEndReason =
+  | 'lastStanding'
+  | 'dayLimitOrNetWorthTarget'
+  /** The game had one human seat and that player went bankrupt; nobody wins. */
+  | 'humanBankrupt'
+  /** A bankruptcy left no human in the game; nobody wins. */
+  | 'noHumansLeft';
+
 /** What happened, in order, for the client to animate. */
 export type GameEvent =
   | { type: 'TurnStarted'; playerId: PlayerId; round: number }
@@ -63,10 +71,11 @@ export type GameEvent =
       type: 'GameEnded';
       /**
        * At most one player left, or the day limit or net worth target was reached as a day went
-       * by. Like the original, which of the two is not told apart (docs/GAME_RULES.md §1).
+       * by (like the original, which of the two is not told apart), or a bankruptcy took out the
+       * only human seat, or the last human still in the game (docs/GAME_RULES.md §1).
        */
-      reason: 'lastStanding' | 'dayLimitOrNetWorthTarget';
-      /** Empty only when nobody is left; at most one otherwise. */
+      reason: GameEndReason;
+      /** Empty when nobody is left or no human is; at most one otherwise. */
       winners: readonly PlayerId[];
       /** Every player's net worth when the game ended. */
       netWorth: Readonly<Record<PlayerId, number>>;

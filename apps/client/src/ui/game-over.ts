@@ -1,5 +1,7 @@
 // Result dialog, opened when the GameEnded event has played. Like the original it names only the
 // winner: the original ends with the winner's dialog and shows no ranking (docs/GAME_RULES.md §1).
+// When the only human seat goes bankrupt there is no winner; when no human is left at all the
+// original shows no dialog and returns to the title.
 import type { GameEvent } from '@richman/shared';
 import type { ControllerSink } from '../game-controller';
 import { t } from '../i18n';
@@ -18,6 +20,11 @@ export class GameOverDialog implements ControllerSink {
 
   eventPlayed(event: GameEvent, model: DisplayModel): void {
     if (event.type !== 'GameEnded') return;
+    // With no human left the original goes straight back to the title, without a dialog.
+    if (event.reason === 'noHumansLeft') {
+      this.options.onAgain();
+      return;
+    }
     const name = (id: string) => model.players.find((p) => p.id === id)?.name ?? id;
 
     const dialog = document.createElement('div');

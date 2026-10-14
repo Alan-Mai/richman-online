@@ -5,6 +5,7 @@ import { checkInvariants } from './invariants';
 import type { AuctionPhase, Controller, GameState } from './state';
 import {
   applyOk,
+  getPlayer,
   loopBoard,
   newTestGame,
   patchPlayer,
@@ -212,7 +213,7 @@ describe('computerAction', () => {
     expect(computerAction(building, 'p1')).toEqual({ type: 'upgradeProperty', playerId: 'p1' });
   });
 
-  it('only ever picks a legal action in games between computers', () => {
+  it('only ever picks a legal action in games with computers', () => {
     const board = loopBoard(Array.from({ length: 16 }, () => 2000));
     let moves = 0;
     let auctionMoves = 0;
@@ -221,7 +222,8 @@ describe('computerAction', () => {
         board,
         playerCount: 4,
         seed,
-        controllers: ['computer', 'computer', 'computer', 'computer'],
+        // Two human seats (taking their last option) keep the game going past the first bankruptcy.
+        controllers: ['human', 'computer', 'human', 'computer'],
       });
       state.players.forEach((p, seat) => {
         state = patchPlayer(state, p.id, { cash: seat === 0 ? 3000 : 40_000, deposit: 0 });
@@ -230,10 +232,13 @@ describe('computerAction', () => {
       });
       for (let step = 0; step < 1500 && state.turn.phase.kind !== 'gameOver'; step++) {
         const actor = actorOf(state) ?? '';
-        const action = computerAction(state, actor);
-        expect(action).not.toBeNull();
-        if (action === null) break;
-        expect(legalActions(state, actor)).toContainEqual(action);
+        const legal = legalActions(state, actor);
+        const computer = getPlayer(state, actor).controller === 'computer';
+        const picked = computerAction(state, actor);
+        expect(picked === null).toBe(!computer);
+        const action = picked ?? legal.at(-1);
+        if (action === undefined) break;
+        expect(legal).toContainEqual(action);
         if (state.turn.phase.kind === 'auction') auctionMoves++;
         state = applyOk(state, action).state;
         expect(checkInvariants(state)).toEqual([]);

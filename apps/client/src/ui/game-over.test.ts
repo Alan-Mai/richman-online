@@ -66,6 +66,18 @@ describe('GameOverDialog', () => {
     expect(root.querySelector('.game-over-winners')?.textContent).toBe('沒有勝利者');
   });
 
+  it('shows no winner when the only human seat went bankrupt', () => {
+    const { root } = open({ ...ended, reason: 'humanBankrupt', winners: [] });
+    expect(lines(root)).toEqual(['遊戲結束：唯一的人類玩家破產了', '沒有勝利者', '本局種子：77']);
+  });
+
+  it('goes straight back to setup when no human is left, without a dialog', () => {
+    const { root, again } = open({ ...ended, reason: 'noHumansLeft', winners: [] });
+    expect(again()).toBe(1);
+    expect(root.hidden).toBe(true);
+    expect(root.children).toHaveLength(0);
+  });
+
   it('goes back to setup on request', () => {
     const { root, again } = open();
     root.querySelector('button')!.click();

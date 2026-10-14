@@ -133,4 +133,6 @@ export const zhTW = {
   'event.auctionUnsold': '{tile} 流標',
   'event.gameEnded.lastStanding': '遊戲結束：只剩一位玩家',
   'event.gameEnded.dayLimitOrNetWorthTarget': '遊戲結束：已達天數上限或淨值目標',
+  'event.gameEnded.humanBankrupt': '遊戲結束：唯一的人類玩家破產了',
+  'event.gameEnded.noHumansLeft': '遊戲結束：場上已經沒有人類玩家',
 } as const satisfies Record<string, string>;
