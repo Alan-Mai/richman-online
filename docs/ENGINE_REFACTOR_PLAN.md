@@ -3,7 +3,14 @@
 使用者核准的計畫（含修正版 6 點），對應 ROADMAP「引擎改造」。進度：
 
 - [x] 批次 A（`b541cf0`、`b3906c6`、`fd8cd41`）。和計畫的差異：`noRandomPlacement` 移到 B1 才加，因為只有放置規則用到。
-- [ ] B0、B、C、D、E0、E、F
+- [x] 批次 B0（1 輪完成）：a–i 全部查到，寫回 `GAME_RULES.md`（🔍）。使用者對結果的決定已併入下方各批：
+  - g（原版沒有處理，候選 0 時除以 0）→ B1：不訂退路規則，改由 `validateBoard` 保證可放置格數足夠。
+  - h（全域池是彩券獎池）→ D3：累計欄位命名 `lotteryPool`，`viewFor` 暫不送；彩券本身列入 ROADMAP Phase 5。
+  - d（天數上限、淨值目標）→ C4 之後另開 C4b，改成原版勝負條件。
+  - f（最高出價者在領先時不會再輪到）→ D3 不需要「最高出價者退出」的分支。
+  - e（經過銀行可存提款）→ 不在本次改造，列入 ROADMAP Phase 5「特殊格子」。
+  - 和計畫的差異：D4 測試案例「只剩 1 位可出價者時固定加 100」改成「開拍時只有 1 位有資格的參加者」；`auctionAiDoubleCoef` 不做（i 已確認）。
+- [ ] B、C、D、E0、E、F
 
 實作中發現的待補項目，直接寫進對應批次的條目。
 
@@ -44,10 +51,11 @@
   - 原版的設定畫面選項：起始資金、勝負條件、起始交通工具。
   - 已寫進 `GAME_RULES.md` 的單一常數：`vehicleMaxDice`、拍賣加價檔位、拍賣塊數上限 3、`maxLevel`。
 
-  「非原版」只剩數值類的暫定預設（起始資金等），以及 Phase 2 已有、標非原版的勝負條件與排名。
+  「非原版」只剩數值類的暫定預設（起始資金等），以及 Phase 2 已有、標非原版的勝負條件與排名（C4b 改成原版的天數上限與淨值目標後移除）。
 - **`auctionAiDoubleCoef`**：`DECISIONS.md` 步驟 5 列出主 session 親自核對過的項目，其中**沒有**電腦出價上限，筆記也只寫「coef 被乘兩次（未實測）」。所以列入 B0（下方 i 項）：
   - 確認是程式碼行為 → 固定照原版、不做選項。
   - 無法確認 → 標示查不到，停下問你。
+  - 結果（B0-i）：程式碼確認，固定照原版、不做選項。
 - **三層資料**：
   1. 規則常數放 `RuleConfig`。
   2. 逐格數值放 `Board`（地價、`upgradeCost`、`rents`、街名＝`name`、封鎖、`noRandomPlacement`）。原版地圖由本機轉檔產生，倉庫只有自編的測試地圖。
@@ -89,7 +97,10 @@
 寫回 `GAME_RULES.md`（🔍）；3 輪內查不到的項目標「查不到」，不自行補規則。完成後停下回報。
 
 ### 批次 B：起點（第一回合隨機放置）
-- **B1 `feat(shared)`：在每位玩家的第一個 `TurnStarted` 時放置；移除 `board.start` 與 `passStartBonus`；新增 `PlayerPlaced` 事件。** 沒有可選格子時依 B0-g 實作；若 B0 查不到，停下問你。
+- **B1 `feat(shared)`：在每位玩家的第一個 `TurnStarted` 時放置；移除 `board.start` 與 `passStartBonus`；新增 `PlayerPlaced` 事件。** 沒有可選格子（B0-g，原版未處理）時不訂退路規則（使用者決定）：
+  - `validateBoard` 新增檢查「可放置格數 ≥ 玩家人數上限」，可放置 = 有相鄰格、非 `noRandomPlacement`、非 `unsupported`；新增對應的驗證錯誤種類。放置時排除的「目前有人的格」最多是其他玩家數，所以執行期不可能出現 0 候選。
+  - 萬一放置時仍出現 0 候選，視為內部錯誤（不靜默選格、不跳過放置），處理方式比照引擎既有的內部錯誤。
+  - 測試案例：可放置格數 = 上限時通過、少 1 時失敗；`noRandomPlacement`、`unsupported`、沒有相鄰格的格子不計入；內部錯誤的路徑用繞過驗證的狀態觸發一次。
   - 測試案例：
     - 座位 0 在 `createGame` 時放置，其他人在輪到時才放置；放置前是 `offBoard`。
     - 不會選到 `noRandomPlacement`、`unsupported`、沒有相鄰格、目前有人的格；可以選到已離開者的原起點。
@@ -113,9 +124,21 @@
   - 測試案例：同名的地不相鄰也加總；他人擁有的同名地不算；各塊用各自的等級。
 - **C3 `feat(shared)`：過路費收進地主存款。** `RentPaid` 加 `into`；client 的 `display.ts` 在同一個 commit 修。
   - 測試案例：地主存款增加、現金不變；破產時剩餘的錢進存款；client 的事件與 view 一致性測試通過。
-- **C4 `feat(shared)`：日與物價指數（固定開啟）。** state 加 `day`、`priceIndex`；所有價格乘 coef；新增 `DayAdvanced` 事件（含新的 coef）；新增不乘 coef 的 `netWorth()`，和 `totalAssets` 分開。推進時機與起始資金依 B0-a、b。
+- **C4 `feat(shared)`：日與物價指數（固定開啟）。** state 加 `day`、`priceIndex`；所有價格乘 coef；新增 `DayAdvanced` 事件（含新的 coef）；新增不乘 coef 的 `netWorth()`，和 `totalAssets` 分開。推進時機與起始資金依 B0-a、b：
+  - 日：每輪推進一次，在最後一位玩家的回合結束、座位 0 的回合開始前；座位 0 已破產時照樣推進。新局 `day` = 0，第 1 輪結束時第一次推進。
+  - 起始資金（使用者決定）：`RuleConfig` 改成單一 `startingFunds`（原版設定畫面只有一個起始資金），移除 `startingCash`／`startingDeposit`；coef 的除數用 `startingFunds`。同一個 commit 改寫 `GAME_RULES.md` 第 1 節的引擎現況列，client 設定畫面與模擬器的編譯修正一併處理。
+  - 開局拆成現金與存款（B0-b 查證）：
+    - 人類（照原版）：現金 = 存款 = ⌊`startingFunds` ÷ 2⌋（程式以右移 1 位算出現金，存款直接沿用同一個值）。奇數時餘數 1 **不給任何一邊**，總和比起始資金少 1；coef 的除數仍是 `startingFunds`。
+    - 電腦：原版是 現金 = 取整(角色範本的比例欄位 × 起始資金 ÷ 100)、存款 = 起始資金 − 現金；100 是程式內的單一常數，比例欄位來自執行檔內的角色範本表（資料表）。角色範本表匯出前，電腦**暫用人類的拆法**，標「暫定、非原版」；匯出後改依角色比例（ROADMAP「執行檔資料表匯出」）。
+    - 起始資金的 6 檔選項也是資料表，隨 E0a 匯出；倉庫只放非原版預設值。
+  - 測試案例（追加）：偶數時各半；奇數時現金 = 存款 = ⌊F ÷ 2⌋、總和 F − 1；電腦與人類拆法相同（暫定）；coef 除數用 `startingFunds`；`startingCash`／`startingDeposit` 已不存在（設定驗證拒絕或型別錯誤）。
   - 測試案例：新局 coef = 1；推進一日的時機；平均淨值 ÷ 起始資金取整；只升不降；破產者不算在平均內；購地、加蓋、過路費都乘 coef；淨值的地產部分不乘 coef；`viewFor` 送出 `day` 與 `priceIndex`。
-  - 若 B0-d 查到原版的天數上限或勝利目標，另開一個 commit 處理，處理方式先問你，不併入 C4。
+- **C4b `feat(shared)`：原版勝負條件（B0-d，使用者決定改成原版）。** 不併入 C4。
+  - `RuleConfig` 新增天數上限與淨值目標兩個設定，預設皆「不限」；淨值目標以「倍數 × 起始資金」表示。移除 `maxRounds` 與 `richestAtRoundLimit`（含 client 設定畫面與結算排名中對應的部分，在同一個 commit 修編譯；client 行為變更另開 commit）。
+  - 只在每日推進時檢查（在更新 coef 之前）：已過天數 ≥ 天數上限（且最高淨值 > 0），或最高淨值 ≥ 淨值目標 → 結束，`netWorth()` 最高者勝，同額座位較前者勝（不並列）；其他玩家出局。
+  - 6 檔數值（B0 查證）：天數上限與淨值目標倍數都是執行檔 `.data` 內的選項表（依設定索引讀表），**不是**程式碼立即值。所以走 `tools/extract` 匯出（併入 E0 的 `cli tables`），倉庫只放非原版預設的檔位；原版的第 1 檔「不限」是結構，可照寫。
+  - 模擬器：另設僅限模擬器的安全上限（例：天數），不放進 `RuleConfig`，觸發時記為「未結束」而不是失敗；統計時明確指定天數上限（例：`--day-limit`），結果寫進「模擬器觀察」時註明。
+  - 測試案例：預設不限時不會因天數結束；天數上限到達的那一日結束、前一日不結束；淨值目標達到時結束；同額時座位較前者勝；最高淨值 ≤ 0 時天數上限不結束；只在每日推進時檢查（回合中途淨值超過目標不立即結束）；破產淘汰仍照舊立即結束；`viewFor` 送出兩個設定。
 - **C5 `feat(client)`：HUD 顯示日期與物價指數；價格改用引擎 helper；事件紀錄文字。** 🎮 試玩。
 
 ### 批次 D：破產拍賣
@@ -124,8 +147,8 @@
 - **D2 `refactor(shared)`：`controller`（加在 `PlayerSetup`／`PlayerState`）與 `actorOf`。** `applyAction`／`legalActions` 改用 `actorOf`；這個 commit 不改變行為。
   - 測試案例：非拍賣時和原本一樣；`controller` 格式錯誤時 `createGame` 失敗；`viewFor` 送出 `controller`。
 - **D3 `feat(shared)`：拍賣階段與 `bid{raise}`／`passRound`／`withdraw` 動作；全域池累計欄位。**
-  - 最高出價者能否退出，依 B0-f 實作；查不到時停下問你。
-  - 拍賣所得與系統債務餘款：B0-h 查到用途就照原版處理；查不到時，state 加一個不影響玩法的累計欄位 `systemPool`，不直接勾銷。
+  - 最高出價者（B0-f）：在領先時不會再輪到，不需要退出的分支；不變量加「輪到的人不是最高出價者」。
+  - 拍賣所得與系統債務餘款（B0-h）：原版進彩券獎池。state 加累計欄位 `lotteryPool`（不影響玩法、不直接勾銷），`viewFor` 暫不送；開獎與號碼屬 ROADMAP Phase 5 彩券。
   - 測試案例：
     - 3 塊以下不拍賣；超過 3 塊時用 RNG 不重複抽 3 塊，依抽中順序拍。
     - 起標價 = 取整(地價 × (1 + 0.5 × 等級)) × coef。
@@ -133,17 +156,17 @@
     - 從座位最前面的參加者開始輪流；5 檔加價；現金不足時那一檔不會出現；加價後清除所有人的「本輪放棄」；輪到時現金低於目前價者自動退出。
     - 結標：只剩 1 位參加者、或只剩 1 位沒有放棄，且已有最高出價者。全部放棄或退出則流標。
     - 得標者付款（先現金後存款）、過戶、等級不變；拍完一塊接下一塊；全部拍完才 `endTurn`。
-    - 所得與系統債務餘款進 `systemPool`（或原版的去處）。
+    - 所得與系統債務餘款進 `lotteryPool`。
     - 錯誤的行動者、錯誤的 phase 被拒絕；拍賣中 `turn.current` 可以是已破產的人。
-    - `viewFor`：拍賣 phase 的公開欄位會送出；尚未開拍的地塊與 `systemPool` 不送。
-- **D4 `feat(shared)`：電腦出價與 `computerAction`。** 每塊開拍時用 RNG 算各電腦的上限，存在 phase 的隱藏欄位。coef 乘幾次依 B0-i。
-  - 測試案例：三個上限取最小值；同街自有數；一般地塊的無主比例；選最大的一檔；「領先者現金 + 500」時改用較小的檔；只剩 1 位可出價者時固定加 100；連 100 都超過時放棄；`computerAction` 的結果一定在 `legalActions` 內；`viewFor` 看不到上限。
+    - `viewFor`：拍賣 phase 的公開欄位會送出；尚未開拍的地塊與 `lotteryPool` 不送。
+- **D4 `feat(shared)`：電腦出價與 `computerAction`。** 每塊開拍時用 RNG 算各電腦的上限，存在 phase 的隱藏欄位。coef 乘兩次（B0-i 已確認，照原版固定）。
+  - 測試案例：三個上限取最小值；同街自有數；一般地塊的無主比例；選最大的一檔；「領先者現金 + 500」時改用較小的檔；開拍時只有 1 位有資格的參加者時整場固定加 100（中途剩 1 人不算）；連 100 都超過時放棄；`computerAction` 的結果一定在 `legalActions` 內；`viewFor` 看不到上限。
   - 電腦購地與加蓋：暫時用固定的非原版策略（例：付得起就買、付得起就加蓋）。同一個 commit 在 ROADMAP Phase 5 列為待逆向項目。
 - **D5 `feat(sim)`：模擬器支援帶參數的動作、改用 `actorOf`、`--controllers random|computer|mixed`。** 見問題 4。
 - **D6 `feat(client)`：拍賣面板（目前價、最高出價者、5 檔按鈕、放棄、退出）；hot-seat 切到輪到出價的人；intent 帶參數；設定畫面可把座位設成電腦，由 `LocalGameHost` 呼叫 `computerAction`。** 🎮 試玩（拍賣需要較多回合才會出現，會提供一個容易觸發破產的種子或設定）。
 
 ### 批次 E0：執行檔資料表匯出（ROADMAP 項目）
-- **E0a `feat(extract)`：`cli tables` 把動畫三表與道具表匯出到 `local-assets/tables.json`。** 用合成的假 exe 片段寫單元測試；交給 subagent 分析時，回報只含結構。
+- **E0a `feat(extract)`：`cli tables` 把動畫三表、道具表與設定選項表（起始資金、天數上限、淨值目標倍數）匯出到 `local-assets/tables.json`。** 用合成的假 exe 片段寫單元測試；交給 subagent 分析時，回報只含結構。
 - **E0b `feat(shared)`：`OriginalTables` 型別與 `parseOriginalTables`。**
   - 測試案例：合法的假資料；欄位缺少、型別錯誤、長度錯誤時回傳錯誤清單、不 throw。
 
@@ -152,7 +175,7 @@
   - `viewFor` 送出 `vehicle` 與 `diceCount`。
 - **E2 `feat(shared)`：人類在 `awaitRoll` 可用 `setDiceCount{count}`（只限機車和汽車，範圍 1 到上限）；顆數在之後的回合沿用。**
   - 測試案例：合法範圍；步行時不提供這個動作；超出範圍時 `invalidAction`；錯誤的 phase；之後的回合沿用。
-- **E3 `feat(shared)`：電腦選顆數。** 回合開始時算出（需要的 RNG 先抽好並隱藏），由 `computerAction` 送出。岔路依 B0-c；查不到時停下問你。
+- **E3 `feat(shared)`：電腦選顆數。** 回合開始時算出（需要的 RNG 先抽好並隱藏），由 `computerAction` 送出。岔路依 B0-c：預覽遇到岔路時用 RNG 隨機選一個候選（同實際移動，含在預先抽好的值內），死路掉頭；「是否遇過岔路」不影響判斷。
   - 測試案例：預覽 5 步經過的格子；好 0 格且壞 ≥ 3 格；好 ≥ 2 格且壞 ≤ 1 格；其他情況維持上限；機車和汽車的差別；`viewFor` 看不到電腦預先抽好的值。
 - **E4 `feat(client)`：顆數選擇（按鈕＋快捷鍵）、顯示交通工具、移動動畫使用該交通工具的每幀位移（有匯入的資料表時用原版數值）；設定畫面加起始交通工具。** 🎮 試玩。
 
@@ -170,21 +193,21 @@
 - `location`：在地圖上時 `prev` 是 `tile` 的相鄰格；`offBoard` 只會出現在第 1 輪、座位在目前玩家之後的人；目前行動者一定已放置。
 - 無主地可以有等級；等級在 0..`maxLevel` 之間；`unsupported` 格沒有擁有者。
 - `priceIndex` 是 ≥ 1 的整數、`day` 是 ≥ 0 的整數；`awaitBuy`／`awaitUpgrade` 的價格等於依 coef 重算的結果。
-- 拍賣：出價者有資格且未退出；有最高出價者時目前價 > 起標價、且 ≤ 最高出價者的現金；拍賣的地都是無主地；`turn.current` 只有在拍賣中才可以是破產者；只有電腦參加者才有隱藏上限；`systemPool` ≥ 0。
+- 拍賣：出價者有資格且未退出；有最高出價者時目前價 > 起標價、且 ≤ 最高出價者的現金；拍賣的地都是無主地；`turn.current` 只有在拍賣中才可以是破產者；只有電腦參加者才有隱藏上限；`lotteryPool` ≥ 0。
 - 顆數在 1..交通工具上限之間。
 
 **模擬器每一步的檢查**
 - 改用 `actorOf`；帶參數的動作從 `legalActions` 枚舉；沒提供的動作類型各造一個範例，確認被以 `wrongPhase` 拒絕。
 - coef 跨步不下降。
 - `computerAction` 的結果 ∈ `legalActions`。
-- 每位玩家的 `viewFor` 序列化後不含 `rngState`、電腦的隱藏欄位與 `systemPool`（防止外洩）。
+- 每位玩家的 `viewFor` 序列化後不含 `rngState`、電腦的隱藏欄位與 `lotteryPool`（防止外洩）。
 - 單一拍賣的動作數上限（防止無窮出價）。
 
 **統計（新增）**
 - 局長：輪數的平均、中位數、p90；`lastStanding` 未結束的比例。
 - 每局破產次數；第一次破產發生在第幾輪。
 - 物價指數：最終 coef 的平均與最大值、coef 第一次大於 1 的輪數、終局天數。
-- 拍賣：場數、每塊的成交率與流標率、成交價 ÷ 起標價；`systemPool` 終值。
+- 拍賣：場數、每塊的成交率與流標率、成交價 ÷ 起標價；`lotteryPool` 終值。
 - 移動：岔路次數、死路掉頭次數；各顆數的使用分布（批次 E 之後）。
 - 各座位勝率（第一回合隨機放置後，先手優勢是否改變）。
 
@@ -198,16 +221,17 @@
 | A3 | `unsupported` 格（在 `board` 內） | 送 |
 | B | `location`（`offBoard`／`onBoard`） | 送 |
 | C | `day`、`priceIndex` | 送 |
+| C4b | 天數上限、淨值目標（`RuleConfig`） | 送 |
 | D | `controller` | 送 |
 | D | 拍賣 phase：目前地塊、起標價、目前價、最高出價者、輪到誰、各參加者的狀態（參加／本輪放棄／退出）、剩餘塊數 | 送 |
 | D | 尚未開拍的地塊清單（由 RNG 抽出） | 不送（只送剩餘塊數） |
 | D | 電腦出價上限 | 不送 |
-| D | `systemPool` | 不送（用途未知；B0-h 查到原版會顯示時再改） |
+| D | `lotteryPool`（彩券獎池） | 暫不送（使用者決定；Phase 5 實作彩券時再定） |
 | E | `vehicle`、`diceCount` | 送 |
 | E | 電腦選顆數預先抽好的值 | 不送 |
 
 ## 驗證
 - 每個 commit：`pnpm format && pnpm test && pnpm lint && pnpm typecheck`（用管線過濾時先 `set -o pipefail`）。
-- 每批結束：`pnpm -F sim sim -- --games 1000 --seed 1`，兩種勝負條件、兩張測試地圖都沒有失敗；`pnpm test:coverage` 的 shared 覆蓋率 ≥ 90%；停下來提醒你輸入 `/wrap-up`。
+- 每批結束：`pnpm -F sim sim -- --games 1000 --seed 1`，兩種勝負條件（C4b 之後改成：不限＋模擬器安全上限、明確指定的天數上限）、兩張測試地圖都沒有失敗；`pnpm test:coverage` 的 shared 覆蓋率 ≥ 90%；停下來提醒你輸入 `/wrap-up`。
 - 🎮 B2、C5、D6、E4：`pnpm -F client dev` 試玩，確認後把你的回饋併進同一個 commit。
 - 全部完成：`pnpm -F client build` 的產物不含素材；推送前提醒你輸入 `/pre-push`。

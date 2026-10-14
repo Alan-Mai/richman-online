@@ -61,7 +61,7 @@ pnpm typecheck
 4. **每個 commit 前**執行 `pnpm test && pnpm lint && pnpm typecheck`（先跑 `pnpm format`），全部通過才 commit；任務完成時再整體跑一次。用管線過濾輸出（`| grep`、`| tail`）時先 `set -o pipefail`，否則失敗的 exit code 會被吃掉。
 5. 每次 commit 只做一件事，訊息用 Conventional Commits（`feat(shared): ...`）。
 6. 重要技術決策寫進 `docs/DECISIONS.md`；完成路線圖項目時，在同一個 commit 內更新 `docs/ROADMAP.md` 的勾選。
-7. `GAME_RULES.md` 標「待確認」的規則不要自行猜測，其他大富翁類遊戲的慣例也不能當成原版規則；先問我，不要自行補成非原版選項（引擎只實作原版規則，見 `DECISIONS.md`）。寫作慣例見 `GAME_RULES.md` 開頭。
+7. `GAME_RULES.md` 標「待確認」的規則不要自行猜測，其他大富翁類遊戲的慣例也不能當成原版規則；先問我，不要自行補成非原版選項（引擎只實作原版規則，見 `DECISIONS.md`）。原版程式會當機或結果未定義的邊界情況（例：0 個候選仍取亂數），不照抄也不自訂退路，先問我；預設做法是用驗證讓它不可能發生，萬一發生就視為內部錯誤。其餘看似缺陷但結果確定的原版行為，照原版實作。寫作慣例見 `GAME_RULES.md` 開頭。
 8. 輸出很長的工作（掃描 git 歷史、等 CI、分析二進位檔、大範圍搜尋）優先交給 subagent，只回報結論；分析原版素材時，要求 subagent 的回報只含結構與統計，不含原版內容數值。
 9. 推送前執行 `/pre-push`。
 10. 新增有 peer 依賴限制的套件時，確認版本範圍相容（例：typescript-eslint 對 TypeScript）；也避免選用發布未滿兩週的版本（尤其是新的主版本）。
