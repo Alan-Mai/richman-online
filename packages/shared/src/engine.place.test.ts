@@ -134,13 +134,13 @@ describe('first-turn placement', () => {
     expect(placementTiles(state)).toEqual([0, 2, 4, 6, 8, 9]);
   });
 
-  it('does not count bankrupt players as occupying their tile', () => {
+  it('counts bankrupt players as still occupying the tile they went bankrupt on', () => {
     const board = loopBoard(Array.from({ length: 6 }, () => null));
     const state = (pick: number) => {
       const base = placePlayer(beforeP2Placement(board, [0, pick, 0], { playerCount: 3 }), 'p3', 4);
       return patchPlayer(base, 'p3', { bankrupt: true, cash: 0, deposit: 0 });
     };
-    expect(placementTiles(state)).toEqual([0, 2, 3, 4, 5]);
+    expect(placementTiles(state)).toEqual([0, 2, 3, 5]);
   });
 
   it('faces away from a random neighbour, blocked or not', () => {

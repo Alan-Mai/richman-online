@@ -413,11 +413,9 @@ function placeIfOffBoard(state: GameState, playerId: PlayerId): Step {
   if (playerOf(state, playerId).location.kind === 'onBoard') {
     return { state, events: [] };
   }
-  // Bankrupt players are out of the game and do not hold their tile.
+  // Bankrupt players still hold the tile they went bankrupt on (docs/GAME_RULES.md §1).
   const occupied = new Set(
-    state.players.flatMap((p) =>
-      p.location.kind === 'onBoard' && !p.bankrupt ? [p.location.tile] : [],
-    ),
+    state.players.flatMap((p) => (p.location.kind === 'onBoard' ? [p.location.tile] : [])),
   );
   const candidates = state.board.tiles.flatMap((tile, i) =>
     isPlaceable(tile) && !occupied.has(i) ? [i] : [],
@@ -437,7 +435,10 @@ function placeIfOffBoard(state: GameState, playerId: PlayerId): Step {
   };
 }
 
-/** A random item; a single item is taken without drawing from the RNG. */
+/**
+ * A random item; a single item is taken without drawing from the RNG, as at forks. This is an
+ * engine detail, not a rule: the engine's RNG is its own, and the choice is the same either way.
+ */
 function pickOne<T>(items: readonly T[], rng: RngState): { item: T; rng: RngState } {
   if (items.length === 1) {
     return { item: at(items, 0), rng };
