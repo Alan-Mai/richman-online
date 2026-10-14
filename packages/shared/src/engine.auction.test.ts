@@ -89,6 +89,7 @@ function auction(
     leader: null,
     bidder: 'p2',
     bidders: bidding('p2', 'p3', 'p4'),
+    computerLimits: {},
     ...patch,
   };
   const started = patchTurn(state, { current: 'p1', phase });

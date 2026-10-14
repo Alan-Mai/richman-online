@@ -220,6 +220,24 @@ function checkAuction(state: GameState, phase: AuctionPhase): string[] {
     }
   }
 
+  const computers = new Set(
+    phase.bidders.flatMap(({ id }) =>
+      players.find((p) => p.id === id)?.controller === 'computer' ? [id] : [],
+    ),
+  );
+  for (const id of computers) {
+    if (!(id in phase.computerLimits)) {
+      errors.push(`computer bidder ${id} has no limit`);
+    }
+  }
+  for (const [id, limit] of Object.entries(phase.computerLimits)) {
+    if (!computers.has(id)) {
+      errors.push(`${id} has a computer limit but is not a computer bidder`);
+    } else if (!isNonNegativeInteger(limit)) {
+      errors.push(`computer limit ${limit} of ${id} is not a non-negative integer`);
+    }
+  }
+
   const bidder = phase.bidders.find((b) => b.id === phase.bidder);
   if (bidder === undefined) {
     errors.push(`bidder ${phase.bidder} is not a bidder`);

@@ -4,6 +4,7 @@ import type { Action } from './actions';
 import type { RuleError } from './errors';
 import type { GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
+import { drawComputerLimits } from './computer';
 import { auctionStartPrice, spend } from './money';
 import { nextInt, type RngState } from './rng';
 import type { AuctionBidder, AuctionBidderStatus, AuctionPhase, GameState } from './state';
@@ -52,7 +53,8 @@ export function startAuctions(state: GameState, released: readonly TileIndex[]):
 
 /**
  * Opens the auction of the first of `tiles`. Everyone still in the game with more cash than the
- * start price may bid, in seat order; with nobody, the property is passed at once.
+ * start price may bid, in seat order; with nobody, the property is passed at once. Computer
+ * bidders' limits are drawn now.
  */
 function openNext(state: GameState, tiles: readonly TileIndex[]): AuctionStep {
   const [tile, ...queue] = tiles;
@@ -75,6 +77,12 @@ function openNext(state: GameState, tiles: readonly TileIndex[]): AuctionStep {
     const unsold: Step = { state, events: [started, { type: 'AuctionUnsold', tile }] };
     return then(unsold, (s) => openNext(s, queue));
   }
+  const drawn = drawComputerLimits(
+    state,
+    tile,
+    startPrice,
+    bidders.map((b) => b.id),
+  );
   const phase: AuctionPhase = {
     kind: 'auction',
     tile,
@@ -84,8 +92,13 @@ function openNext(state: GameState, tiles: readonly TileIndex[]): AuctionStep {
     leader: null,
     bidder: first.id,
     bidders,
+    computerLimits: drawn.limits,
   };
-  return { state: withPhase(state, phase), events: [started], done: false };
+  return {
+    state: withPhase({ ...state, rngState: drawn.rng }, phase),
+    events: [started],
+    done: false,
+  };
 }
 
 /** The bidder's options: every raise their cash covers, passing the round and withdrawing. */

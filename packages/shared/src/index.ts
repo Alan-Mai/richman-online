@@ -21,6 +21,7 @@ export { TEST_LOOP_BOARD } from './maps/test-loop';
 export {
   DEFAULT_RULE_CONFIG,
   validateRuleConfig,
+  type ComputerBidConfig,
   type RuleConfig,
   type RuleConfigError,
   type RuleConfigErrorReason,
@@ -28,6 +29,7 @@ export {
 export {
   actorOf,
   applyAction,
+  computerAction,
   createGame,
   legalActions,
   type Result,

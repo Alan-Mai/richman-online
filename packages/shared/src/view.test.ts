@@ -62,7 +62,7 @@ describe('viewFor', () => {
     expect(JSON.stringify(view)).not.toContain('123456');
   });
 
-  it('sends the open auction but only how many drawn properties are still to come', () => {
+  it('sends the open auction but neither the drawn properties to come nor computer limits', () => {
     const phase: AuctionPhase = {
       kind: 'auction',
       tile: 2,
@@ -75,15 +75,18 @@ describe('viewFor', () => {
         { id: 'p2', status: 'bidding' },
         { id: 'p3', status: 'passed' },
       ],
+      computerLimits: { p3: 98_765 },
     };
     const base = patchPlayer(newTestGame({ playerCount: 3 }), 'p1', { bankrupt: true });
     const state = patchTurn(base, { phase });
     for (const viewer of [P1, SPECTATOR]) {
       const view = viewFor(state, viewer);
-      const { queue, ...open } = phase;
+      const { queue, computerLimits, ...open } = phase;
       expect(queue).toHaveLength(2);
+      expect(computerLimits).toEqual({ p3: 98_765 });
       expect(view.turn.phase).toEqual({ ...open, remaining: 2 });
       expect('queue' in view.turn.phase).toBe(false);
+      expect(JSON.stringify(view)).not.toContain('98765');
     }
   });
 

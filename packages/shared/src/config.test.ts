@@ -68,6 +68,30 @@ describe('validateRuleConfig', () => {
     }
   });
 
+  it('requires sensible computer bidding constants', () => {
+    const bid = DEFAULT_RULE_CONFIG.computerBid;
+    expect(bid).toEqual({
+      streetFactor: [0.5, 0.8],
+      landFactor: [3, 3.5],
+      unownedBase: 6,
+      unownedSlope: 4,
+      leaderCashMargin: 500,
+    });
+    const bad = [
+      { ...bid, streetFactor: [0.8, 0.5] as const },
+      { ...bid, landFactor: [-1, 3] as const },
+      { ...bid, landFactor: [3, Infinity] as const },
+      { ...bid, unownedBase: NaN },
+      { ...bid, unownedSlope: -4 },
+      { ...bid, leaderCashMargin: -1 },
+    ];
+    for (const computerBid of bad) {
+      expect(validateRuleConfig(withConfig({ computerBid }))).toEqual([
+        { field: 'computerBid', reason: 'invalidComputerBid' },
+      ]);
+    }
+  });
+
   it('takes null or a positive integer as the day limit and the net worth target', () => {
     const valid = withConfig({ dayLimit: 50, netWorthTargetMultiple: 3 });
     expect(validateRuleConfig(valid)).toEqual([]);

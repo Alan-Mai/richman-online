@@ -243,9 +243,13 @@ describe('checkInvariants', () => {
 describe('checkInvariants during an auction', () => {
   const PLOTS = loopBoard([null, 1000, 2000, 1000, 1000, null]);
 
-  /** p1 went bankrupt; p2..p4 bid on tile 2 (start 2000) with tile 3 to follow. */
+  /** p1 went bankrupt; p2..p4 (p3 a computer) bid on tile 2 (start 2000) with tile 3 to follow. */
   function auction(patch: Partial<AuctionPhase> = {}): GameState {
-    let state = newTestGame({ board: PLOTS, playerCount: 4 });
+    let state = newTestGame({
+      board: PLOTS,
+      playerCount: 4,
+      controllers: ['human', 'human', 'computer', 'human'],
+    });
     state = patchPlayer(state, 'p1', { cash: 0, deposit: 0, bankrupt: true });
     const phase: AuctionPhase = {
       kind: 'auction',
@@ -260,6 +264,7 @@ describe('checkInvariants during an auction', () => {
         { id: 'p3', status: 'passed' },
         { id: 'p4', status: 'withdrawn' },
       ],
+      computerLimits: { p3: 4000 },
       ...patch,
     };
     return patchTurn(state, { phase });
@@ -351,5 +356,17 @@ describe('checkInvariants during an auction', () => {
 
   it.each(cases)('reports %s', (_, build, message) => {
     expect(checkInvariants(build())).toEqual([message]);
+  });
+
+  it('reports computer limits that do not match the computer bidders', () => {
+    expect(checkInvariants(auction({ computerLimits: {} }))).toEqual([
+      'phase auction: computer bidder p3 has no limit',
+    ]);
+    expect(checkInvariants(auction({ computerLimits: { p2: 100, p3: 4000 } }))).toEqual([
+      'phase auction: p2 has a computer limit but is not a computer bidder',
+    ]);
+    expect(checkInvariants(auction({ computerLimits: { p3: -1 } }))).toEqual([
+      'phase auction: computer limit -1 of p3 is not a non-negative integer',
+    ]);
   });
 });

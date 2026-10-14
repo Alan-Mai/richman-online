@@ -9,7 +9,9 @@ import type { AuctionPhase, GameState, Phase, PlayerState, TileState, TurnState 
 export type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 
 /** An auction as clients see it: the drawn properties still to come only as a count. */
-export type AuctionPhaseView = Omit<AuctionPhase, 'queue'> & { remaining: number };
+export type AuctionPhaseView = Omit<AuctionPhase, 'queue' | 'computerLimits'> & {
+  remaining: number;
+};
 
 export type PhaseView = Exclude<Phase, AuctionPhase> | AuctionPhaseView;
 
@@ -47,6 +49,15 @@ function viewPhase(phase: Phase): PhaseView {
   if (phase.kind !== 'auction') {
     return phase;
   }
-  const { queue, ...open } = phase;
-  return { ...open, bidders: open.bidders.map((b) => ({ ...b })), remaining: queue.length };
+  // Copied field by field: the queue and the computer limits stay hidden.
+  return {
+    kind: phase.kind,
+    tile: phase.tile,
+    startPrice: phase.startPrice,
+    price: phase.price,
+    leader: phase.leader,
+    bidder: phase.bidder,
+    bidders: phase.bidders.map((b) => ({ ...b })),
+    remaining: phase.queue.length,
+  };
 }

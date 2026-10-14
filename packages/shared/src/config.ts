@@ -36,6 +36,29 @@ export interface RuleConfig {
    * (docs/GAME_RULES.md §8; the original's five steps).
    */
   auctionRaises: readonly number[];
+  /** How computer players bid (docs/GAME_RULES.md §8; the original's constants). */
+  computerBid: ComputerBidConfig;
+}
+
+/**
+ * A computer bidder's limit is the least of its cash and two amounts, each with a random factor
+ * drawn when the auction opens:
+ * - (level ÷ 2 rounded down + 1 + own properties on the street) × start price × price index ×
+ *   (unownedBase − unownedSlope × share of unowned properties) × streetFactor
+ * - land price × price index × landFactor
+ */
+export interface ComputerBidConfig {
+  /** Closed range of the first random factor. */
+  streetFactor: readonly [number, number];
+  /** Half-open range of the second random factor. */
+  landFactor: readonly [number, number];
+  unownedBase: number;
+  unownedSlope: number;
+  /**
+   * When the leader's cash plus this falls short of the chosen raise, a smaller raise is used
+   * (docs/GAME_RULES.md §8).
+   */
+  leaderCashMargin: number;
 }
 
 export const DEFAULT_RULE_CONFIG: RuleConfig = {
@@ -50,13 +73,21 @@ export const DEFAULT_RULE_CONFIG: RuleConfig = {
   maxLevel: 5,
   auctionPlotCount: 3,
   auctionRaises: [100, 500, 1000, 5000, 10000],
+  computerBid: {
+    streetFactor: [0.5, 0.8],
+    landFactor: [3, 3.5],
+    unownedBase: 6,
+    unownedSlope: 4,
+    leaderCashMargin: 500,
+  },
 };
 
 export type RuleConfigErrorReason =
   | 'notNonNegativeInteger'
   | 'notPositiveInteger'
   | 'lessThanMinPlayers'
-  | 'notAscendingPositiveIntegers';
+  | 'notAscendingPositiveIntegers'
+  | 'invalidComputerBid';
 
 export interface RuleConfigError {
   field: keyof RuleConfig;
@@ -105,6 +136,14 @@ export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
   );
   if (raises.length === 0 || !ascending) {
     errors.push({ field: 'auctionRaises', reason: 'notAscendingPositiveIntegers' });
+  }
+
+  const { streetFactor, landFactor, unownedBase, unownedSlope, leaderCashMargin } =
+    config.computerBid;
+  const amounts = [...streetFactor, ...landFactor, unownedBase, unownedSlope, leaderCashMargin];
+  const ranges = [streetFactor, landFactor].every(([low, high]) => low <= high);
+  if (!amounts.every((n) => Number.isFinite(n) && n >= 0) || !ranges) {
+    errors.push({ field: 'computerBid', reason: 'invalidComputerBid' });
   }
 
   for (const field of ['dayLimit', 'netWorthTargetMultiple'] as const) {

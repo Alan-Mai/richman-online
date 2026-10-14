@@ -75,6 +75,11 @@ export interface AuctionPhase {
   bidder: PlayerId;
   /** The players who could bid when the auction opened, in seat order. */
   bidders: readonly AuctionBidder[];
+  /**
+   * Each computer bidder's limit, drawn when the auction opened (RuleConfig.computerBid). Hidden
+   * from clients.
+   */
+  computerLimits: Readonly<Record<PlayerId, number>>;
 }
 
 /** What the game is waiting for. */

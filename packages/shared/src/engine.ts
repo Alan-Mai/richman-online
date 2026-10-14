@@ -2,6 +2,7 @@
 // state.rngState (see CLAUDE.md and .claude/rules/shared-engine.md).
 import type { Action, ActionType } from './actions';
 import { applyAuctionAction, auctionActions, startAuctions, type AuctionStep } from './auction';
+import { computerBid } from './computer';
 import { isPlaceable, validateBoard, type Board, type BoardError } from './board';
 import { validateRuleConfig, type RuleConfig, type RuleConfigError } from './config';
 import type { RuleError } from './errors';
@@ -223,6 +224,31 @@ export function actorOf(state: GameState): PlayerId | null {
       return phase.bidder;
     default:
       return state.turn.current;
+  }
+}
+
+/**
+ * Server and simulator only: what the computer player playerId does now, or null when the game is
+ * not waiting for them or they are not a computer. Always one of legalActions(state, playerId).
+ * Buying and building use a provisional, non-original rule: whenever offered (and so affordable).
+ */
+export function computerAction(state: GameState, playerId: PlayerId): Action | null {
+  const player = findPlayer(state, playerId);
+  if (player?.controller !== 'computer' || actorOf(state) !== playerId) {
+    return null;
+  }
+  const { phase } = state.turn;
+  switch (phase.kind) {
+    case 'awaitRoll':
+      return { type: 'rollDice', playerId };
+    case 'awaitBuyDecision':
+      return { type: 'buyProperty', playerId };
+    case 'awaitUpgradeDecision':
+      return { type: 'upgradeProperty', playerId };
+    case 'auction':
+      return computerBid(state, phase);
+    case 'gameOver':
+      return null;
   }
 }
 
