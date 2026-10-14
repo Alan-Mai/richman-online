@@ -23,6 +23,13 @@
   - [x] C1。價格 helper 收 `PriceView = Pick<GameState, 'board' | 'tiles'>`（C4 加 `priceIndex`），client HUD 用 display model 的 tiles 呼叫；HUD 的 `config` 欄位已不需要而移除。購地時保留既有等級（D1 之前只有測試會構造帶等級的無主地）。測試地圖的加蓋費 = 地價 ÷ 2、過路費用兩組自編百分比範本（依邊交替）；`testing.ts` 的 `loopBoard` 只給價格時用 `testProperty` 的自編數值。
   - [x] C2。無主地的 `rentFor` 只算自己那格；引擎只在有地主時收費，HUD 也只對有地主的地顯示過路費。`loopBoard` 的地產規格可指定 `name`（街名）。
   - [x] C3。`RentPaid.into` 是單一字面值 `'deposit'`；`PlayerBankrupt.paidToCreditor` 同樣進存款，只在型別註解寫明、沒有加欄位。
+  - [x] C4。和計畫的差異與補充：
+    - 「電腦與人類拆法相同（暫定）」的測試延到 D2（`controller` 在 D2 才加入）；開局拆法的程式註解已寫明電腦暫用人類拆法。
+    - `startingFunds` 必須是正整數（coef 的除數）；暫定預設 40,000（非原版，等於原本現金 + 存款）。
+    - `totalAssets`（`richestAtRoundLimit` 用，非原版）改成乘 coef 的「目前購地價」，與不乘 coef 的 `netWorth` 分開。
+    - client 的編譯修正：display model 加 `day`、`priceIndex` 並處理 `DayAdvanced`（事件與 view 一致性測試因此涵蓋兩欄）；HUD 的價格 helper 帶 `priceIndex`；設定畫面的起始現金／存款合併成「起始資金」；`DayAdvanced` 的紀錄文字先放一版，C5 再調整。
+    - 模擬器每步檢查 coef 不下降（新的失敗種類 `priceIndexFell`，重播同樣檢查）。
+    - `engine.legal.test` 的「破產到剩一人」案例：過路費改進存款後錢不再離開場上，600 步內不會結束，改成起始資金 2000、上限 2000 步。模擬器（種子 1、1000 局）：`lastStanding` 環狀圖 93.0%、分岔圖 91.7% 結束，平均 867／968 輪；`richestAtRoundLimit`（100 輪）每局破產 0.52／0.28 次；沒有失敗。
 - [ ] D、E0、E、F
 
 實作中發現的待補項目，直接寫進對應批次的條目。

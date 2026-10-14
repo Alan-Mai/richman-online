@@ -9,7 +9,7 @@ import { playerOf, updatePlayer, type Step } from './update';
  * What the price helpers read. GameState and PlayerView both have it, so the server and the client
  * show the same prices.
  */
-export type PriceView = Pick<GameState, 'board' | 'tiles'>;
+export type PriceView = Pick<GameState, 'board' | 'tiles' | 'priceIndex'>;
 
 /** The property at `tile` and its level; anything else is a caller bug. */
 function propertyAt(view: PriceView, tile: TileIndex): { def: PropertyTileDef; level: number } {
@@ -20,15 +20,15 @@ function propertyAt(view: PriceView, tile: TileIndex): { def: PropertyTileDef; l
   return { def, level: view.tiles[tile]?.level ?? 0 };
 }
 
-/** What buying the tile costs (docs/GAME_RULES.md §3). */
+/** What buying the tile costs (docs/GAME_RULES.md §3), buildings included. */
 export function buyPrice(view: PriceView, tile: TileIndex): number {
   const { def, level } = propertyAt(view, tile);
-  return def.price + level * def.upgradeCost;
+  return view.priceIndex * (def.price + level * def.upgradeCost);
 }
 
 /** Cost of the next building level on the tile; the same for every level. */
 export function upgradeCost(view: PriceView, tile: TileIndex): number {
-  return propertyAt(view, tile).def.upgradeCost;
+  return view.priceIndex * propertyAt(view, tile).def.upgradeCost;
 }
 
 /** One tile's rent at its own level. */
@@ -60,12 +60,29 @@ export function rentFor(view: PriceView, tile: TileIndex): number {
       total += levelRent(view, i);
     }
   });
+  return view.priceIndex * total;
+}
+
+/**
+ * Net worth (docs/GAME_RULES.md §3): cash + deposit + land price and built levels of every owned
+ * property, NOT multiplied by the price index. Drives the price index and the original win
+ * conditions.
+ */
+export function netWorth(state: GameState, playerId: PlayerId): number {
+  const player = playerOf(state, playerId);
+  let total = player.cash + player.deposit;
+  state.tiles.forEach((tile, i) => {
+    const def = state.board.tiles[i];
+    if (tile.owner === playerId && def?.kind === 'property') {
+      total += def.price + tile.level * def.upgradeCost;
+    }
+  });
   return total;
 }
 
 /**
- * Cash + deposit + what the player invested in their properties (price plus each built level at
- * the tile's upgrade cost), as used by richestAtRoundLimit (docs/GAME_RULES.md §1).
+ * Cash + deposit + what the player's properties would cost to buy now (price index included), as
+ * used by richestAtRoundLimit (docs/GAME_RULES.md §1). Unlike netWorth.
  */
 export function totalAssets(state: GameState, playerId: PlayerId): number {
   const player = playerOf(state, playerId);

@@ -10,7 +10,23 @@ function isNonNegativeInteger(value: number): boolean {
 
 /** Every violated invariant as one line of text; an empty array means the state is consistent. */
 export function checkInvariants(state: GameState): string[] {
-  return [...checkPlayers(state), ...checkTiles(state), ...checkTurn(state)];
+  return [
+    ...checkCalendar(state),
+    ...checkPlayers(state),
+    ...checkTiles(state),
+    ...checkTurn(state),
+  ];
+}
+
+function checkCalendar({ day, priceIndex }: GameState): string[] {
+  const errors: string[] = [];
+  if (!isNonNegativeInteger(day)) {
+    errors.push(`day ${day} is not a non-negative integer`);
+  }
+  if (!Number.isSafeInteger(priceIndex) || priceIndex < 1) {
+    errors.push(`priceIndex ${priceIndex} is not an integer >= 1`);
+  }
+  return errors;
 }
 
 function checkPlayers(state: GameState): string[] {

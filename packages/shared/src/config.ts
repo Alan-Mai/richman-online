@@ -6,8 +6,11 @@ export type WinCondition = 'lastStanding' | 'richestAtRoundLimit';
 export interface RuleConfig {
   minPlayers: number;
   maxPlayers: number;
-  startingCash: number;
-  startingDeposit: number;
+  /**
+   * The one starting amount of the original setup screen (docs/GAME_RULES.md §1). Each player gets
+   * floor(startingFunds / 2) as cash and as deposit; it is also the price index divisor.
+   */
+  startingFunds: number;
   /** Unused in Phase 2. */
   startingPoints: number;
   /** Both conditions also end the game when at most one player is left. */
@@ -22,8 +25,7 @@ export interface RuleConfig {
 export const DEFAULT_RULE_CONFIG: RuleConfig = {
   minPlayers: 2,
   maxPlayers: 4,
-  startingCash: 20_000,
-  startingDeposit: 20_000,
+  startingFunds: 40_000,
   startingPoints: 0,
   winCondition: 'lastStanding',
   maxRounds: null,
@@ -55,14 +57,20 @@ function isPositiveInteger(value: number): boolean {
 export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
   const errors: RuleConfigError[] = [];
 
-  const nonNegative = ['startingCash', 'startingDeposit', 'startingPoints', 'maxLevel'] as const;
+  const nonNegative = ['startingPoints', 'maxLevel'] as const;
   for (const field of nonNegative) {
     if (!isNonNegativeInteger(config[field])) {
       errors.push({ field, reason: 'notNonNegativeInteger' });
     }
   }
 
-  const positive = ['minPlayers', 'maxPlayers', 'defaultDiceCount', 'diceFaces'] as const;
+  const positive = [
+    'startingFunds',
+    'minPlayers',
+    'maxPlayers',
+    'defaultDiceCount',
+    'diceFaces',
+  ] as const;
   for (const field of positive) {
     if (!isPositiveInteger(config[field])) {
       errors.push({ field, reason: 'notPositiveInteger' });

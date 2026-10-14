@@ -16,6 +16,8 @@ function player(id: string, patch: Partial<DisplayPlayer> = {}): DisplayPlayer {
 function model(): DisplayModel {
   return {
     round: 1,
+    day: 0,
+    priceIndex: 1,
     current: 'a',
     players: [player('a'), player('b')],
     tiles: [
@@ -32,6 +34,11 @@ function apply(...events: GameEvent[]): DisplayModel {
 }
 
 describe('applyEventToDisplay', () => {
+  it('DayAdvanced sets the day and the price index', () => {
+    const next = apply({ type: 'DayAdvanced', day: 4, priceIndex: 3 });
+    expect(next).toMatchObject({ day: 4, priceIndex: 3 });
+  });
+
   it('TurnStarted sets the current player and round', () => {
     const next = apply({ type: 'TurnStarted', playerId: 'b', round: 3 });
     expect(next.current).toBe('b');
@@ -172,7 +179,7 @@ describe('events reproduce the views', () => {
   const cases: [string, GameSetup][] = [
     ['round limit', hotSeatSetup(21)],
     ['last standing', hotSeatSetup(22, 'lastStanding')],
-    ['low cash', withConfig(hotSeatSetup(24, 'lastStanding'), { startingCash: 2000 })],
+    ['low cash', withConfig(hotSeatSetup(24, 'lastStanding'), { startingFunds: 4000 })],
     ['two players', hotSeatSetup(27, 'lastStanding', 2)],
   ];
 
@@ -199,5 +206,6 @@ describe('events reproduce the views', () => {
     expect(types).toContain('DepositWithdrawn');
     expect(types).toContain('PlayerPlaced');
     expect(types).toContain('PropertyUpgraded');
+    expect(types).toContain('DayAdvanced');
   });
 });

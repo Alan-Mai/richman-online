@@ -109,6 +109,7 @@ export function failureKeys(failure: ReplayFailure): string[] {
     case 'exception':
       return [`exception: ${normalize(failure.message)}`];
     case 'noLegalActions':
+    case 'priceIndexFell':
     case 'missingGameEnded':
     case 'stepLimit':
       return [failure.kind];
@@ -122,6 +123,8 @@ export function describeFailure(failure: ReplayFailure): string[] {
       return [`createGame rejected the setup: ${JSON.stringify(failure.errors)}`];
     case 'invariant':
       return ['invariants violated:', ...failure.violations.map((v) => `  ${v}`)];
+    case 'priceIndexFell':
+      return [`price index fell from ${failure.from} to ${failure.to}`];
     case 'noLegalActions':
       return [`no legal actions for current player ${failure.playerId}`];
     case 'offeredOutOfTurn':

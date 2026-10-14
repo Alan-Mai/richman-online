@@ -53,31 +53,32 @@ function playRandomGame(config: Partial<RuleConfig>, seed: number, maxSteps: num
 }
 
 describe('legalActions completeness', () => {
-  const configs: [string, Partial<RuleConfig>][] = [
-    ['defaults with a round limit', { winCondition: 'richestAtRoundLimit', maxRounds: 25 }],
+  // [name, config, step limit]; rent goes into deposits, so last-standing games run long.
+  const configs: [string, Partial<RuleConfig>, number][] = [
+    ['defaults with a round limit', { winCondition: 'richestAtRoundLimit', maxRounds: 25 }, 600],
     [
       'poor players',
       {
         winCondition: 'richestAtRoundLimit',
         maxRounds: 40,
-        startingCash: 1500,
-        startingDeposit: 1500,
+        startingFunds: 3000,
       },
+      600,
     ],
     [
       'poor players until one is left',
       {
-        startingCash: 2000,
-        startingDeposit: 0,
+        startingFunds: 2000,
         defaultDiceCount: 2,
       },
+      2000,
     ],
   ];
 
-  it.each(configs)('holds for random games: %s', (_, config) => {
+  it.each(configs)('holds for random games: %s', (_, config, maxSteps) => {
     let finished = 0;
     for (const seed of [1, 2, 3, 4, 5]) {
-      const end = playRandomGame(config, seed, 600);
+      const end = playRandomGame(config, seed, maxSteps);
       if (end.turn.phase.kind === 'gameOver') finished++;
     }
     expect(finished).toBeGreaterThan(0);

@@ -9,6 +9,8 @@ export function describeEvent(event: GameEvent, model: DisplayModel, board: Boar
   switch (event.type) {
     case 'TurnStarted':
       return t('event.turnStarted', { name: name(event.playerId) });
+    case 'DayAdvanced':
+      return t('event.dayAdvanced', { day: event.day, priceIndex: event.priceIndex });
     case 'DiceRolled':
       return t('event.diceRolled', {
         name: name(event.playerId),

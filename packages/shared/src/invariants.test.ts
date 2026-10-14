@@ -50,6 +50,14 @@ describe('checkInvariants', () => {
   });
 
   const cases: [string, () => GameState, string][] = [
+    ['negative day', () => ({ ...base(), day: -1 }), 'day -1 is not a non-negative integer'],
+    ['fractional day', () => ({ ...base(), day: 0.5 }), 'day 0.5 is not a non-negative integer'],
+    ['price index 0', () => ({ ...base(), priceIndex: 0 }), 'priceIndex 0 is not an integer >= 1'],
+    [
+      'fractional price index',
+      () => ({ ...base(), priceIndex: 1.5 }),
+      'priceIndex 1.5 is not an integer >= 1',
+    ],
     [
       'negative cash',
       () => patchPlayer(base(), 'p1', { cash: -1 }),

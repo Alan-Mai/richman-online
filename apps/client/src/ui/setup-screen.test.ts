@@ -37,12 +37,12 @@ function submit(): void {
 describe('setup screen', () => {
   it('starts a game with the form values', () => {
     setValue('name0', '阿土伯');
-    setValue('startingCash', '3000');
+    setValue('startingFunds', '3000');
     submit();
     expect(started).toHaveLength(1);
     const [setup, form] = started[0]!;
     expect(setup.players[0]?.name).toBe('阿土伯');
-    expect(setup.config.startingCash).toBe(3000);
+    expect(setup.config.startingFunds).toBe(3000);
     expect(setup.seed).toBe(99);
     expect(form.names[0]).toBe('阿土伯');
   });

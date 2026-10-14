@@ -59,6 +59,12 @@ export interface GameState {
   players: readonly PlayerState[];
   tiles: readonly TileState[];
   turn: TurnState;
+  /**
+   * Days gone by: 0 in a new game, +1 each time play wraps back to seat 0 (docs/GAME_RULES.md §2).
+   */
+  day: number;
+  /** The price index (coef, docs/GAME_RULES.md §3): starts at 1 and never falls. */
+  priceIndex: number;
   /** Server-only; viewFor strips it. */
   rngState: RngState;
 }

@@ -19,6 +19,9 @@ export interface DisplayTile {
 
 export interface DisplayModel {
   round: number;
+  /** Days gone by (GameState.day). */
+  day: number;
+  priceIndex: number;
   current: PlayerId;
   players: readonly DisplayPlayer[];
   tiles: readonly DisplayTile[];
@@ -30,6 +33,8 @@ export function displayFromView(view: PlayerView): DisplayModel {
   const { phase } = view.turn;
   return {
     round: view.turn.round,
+    day: view.day,
+    priceIndex: view.priceIndex,
     current: view.turn.current,
     players: view.players.map(({ id, name, cash, deposit, location, bankrupt }) => ({
       id,
@@ -67,6 +72,8 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
   switch (event.type) {
     case 'TurnStarted':
       return { ...model, current: event.playerId, round: event.round };
+    case 'DayAdvanced':
+      return { ...model, day: event.day, priceIndex: event.priceIndex };
     case 'DiceRolled':
       return model;
     case 'PlayerMoved': {
@@ -122,6 +129,8 @@ export function diffDisplay(actual: DisplayModel, expected: DisplayModel): strin
     if (a !== b) diffs.push(`${path}: ${String(a)} != ${String(b)}`);
   };
   check('round', actual.round, expected.round);
+  check('day', actual.day, expected.day);
+  check('priceIndex', actual.priceIndex, expected.priceIndex);
   check('current', actual.current, expected.current);
   check('winners', actual.winners?.join(','), expected.winners?.join(','));
   check('players.length', actual.players.length, expected.players.length);

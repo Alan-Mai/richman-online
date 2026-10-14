@@ -54,8 +54,8 @@ describe('createGame', () => {
       PLAYERS.map(({ id, name }, seat) => ({
         id,
         name,
-        cash: DEFAULT_RULE_CONFIG.startingCash,
-        deposit: DEFAULT_RULE_CONFIG.startingDeposit,
+        cash: DEFAULT_RULE_CONFIG.startingFunds / 2,
+        deposit: DEFAULT_RULE_CONFIG.startingFunds / 2,
         points: DEFAULT_RULE_CONFIG.startingPoints,
         location: expect.objectContaining({ kind: seat === 0 ? 'onBoard' : 'offBoard' }) as unknown,
         diceCount: DEFAULT_RULE_CONFIG.defaultDiceCount,
@@ -65,19 +65,19 @@ describe('createGame', () => {
     expect(state.tiles).toHaveLength(TEST_LOOP_BOARD.tiles.length);
     for (const tile of state.tiles) expect(tile).toEqual({ owner: null, level: 0 });
     expect(state.turn).toEqual({ current: 'p1', round: 1, phase: { kind: 'awaitRoll' } });
+    expect(state).toMatchObject({ day: 0, priceIndex: 1 });
     expect(state.rngState).toEqual(afterDraws(42, PLACEMENT_DRAWS));
   });
 
   it('uses the configured starting values', () => {
     const config = withConfig({
-      startingCash: 7,
-      startingDeposit: 8,
+      startingFunds: 16,
       startingPoints: 9,
       defaultDiceCount: 2,
     });
     const result = createGame(setup({ config }));
     if (!result.ok) throw new Error('expected ok');
-    expect(result.state.players[0]).toMatchObject({ cash: 7, deposit: 8, points: 9, diceCount: 2 });
+    expect(result.state.players[0]).toMatchObject({ cash: 8, deposit: 8, points: 9, diceCount: 2 });
   });
 
   it('starts the first turn with TurnStarted, then places seat 0', () => {
@@ -182,7 +182,7 @@ describe('createGame', () => {
   it('reports every problem at once', () => {
     const result = createGame(
       setup({
-        config: withConfig({ startingCash: -1 }),
+        config: withConfig({ startingFunds: -1 }),
         board: { ...TEST_LOOP_BOARD, tiles: TEST_LOOP_BOARD.tiles.map(unplaceable) },
         players: players(1),
         seed: -1,
@@ -191,7 +191,7 @@ describe('createGame', () => {
     expect(result).toEqual({
       ok: false,
       errors: [
-        { reason: 'config', error: { field: 'startingCash', reason: 'notNonNegativeInteger' } },
+        { reason: 'config', error: { field: 'startingFunds', reason: 'notPositiveInteger' } },
         { reason: 'board', error: { reason: 'tooFewPlacementTiles', count: 0, required: 4 } },
         { reason: 'playerCount', count: 1 },
         { reason: 'invalidSeed' },

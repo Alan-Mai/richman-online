@@ -7,6 +7,8 @@ export type BankruptcyCause =
 /** What happened, in order, for the client to animate. */
 export type GameEvent =
   | { type: 'TurnStarted'; playerId: PlayerId; round: number }
+  /** A round ended: one more day has gone by and the price index was updated (maybe unchanged). */
+  | { type: 'DayAdvanced'; day: number; priceIndex: number }
   /** A player's first turn put them on the board, facing away from prev. */
   | { type: 'PlayerPlaced'; playerId: PlayerId; tile: TileIndex; prev: TileIndex }
   | { type: 'DiceRolled'; playerId: PlayerId; dice: readonly number[]; total: number }

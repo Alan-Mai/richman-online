@@ -73,13 +73,12 @@ describe('buildSetup', () => {
   });
 
   it('accepts starting money with thousands separators and rejects anything else', () => {
-    const setup = ok(form({ startingCash: '3,000', startingDeposit: '0' }));
-    expect(setup.config.startingCash).toBe(3000);
-    expect(setup.config.startingDeposit).toBe(0);
-    for (const bad of ['-1', '1.5', 'abc', '']) {
-      expect(buildSetup(form({ startingCash: bad }), fixedSeed)).toMatchObject({
+    const setup = ok(form({ startingFunds: '3,001' }));
+    expect(setup.config.startingFunds).toBe(3001);
+    for (const bad of ['0', '-1', '1.5', 'abc', '']) {
+      expect(buildSetup(form({ startingFunds: bad }), fixedSeed)).toMatchObject({
         ok: false,
-        errors: [{ field: 'startingCash' }],
+        errors: [{ field: 'startingFunds' }],
       });
     }
   });
@@ -96,7 +95,7 @@ describe('buildSetup', () => {
 
   it('reports every problem at once', () => {
     const result = buildSetup(
-      form({ names: ['甲', '甲'], maxRounds: '', startingDeposit: 'x', seed: '-3' }),
+      form({ names: ['甲', '甲'], maxRounds: '', startingFunds: 'x', seed: '-3' }),
       fixedSeed,
     );
     expect(result.ok).toBe(false);
@@ -104,7 +103,7 @@ describe('buildSetup', () => {
       expect(result.errors.map((e) => e.field)).toEqual([
         'name',
         'maxRounds',
-        'startingDeposit',
+        'startingFunds',
         'seed',
       ]);
     }
@@ -117,8 +116,8 @@ describe('describeSetupError', () => {
     expect(describeSetupError({ field: 'name', seat: 1, reason: 'duplicate' }, f)).toBe(
       '玩家名稱不可重複：甲',
     );
-    expect(describeSetupError({ field: 'startingCash', reason: 'invalid' }, f)).toBe(
-      '起始現金必須是 0 以上的整數',
+    expect(describeSetupError({ field: 'startingFunds', reason: 'invalid' }, f)).toBe(
+      '起始資金必須是 1 以上的整數',
     );
   });
 });

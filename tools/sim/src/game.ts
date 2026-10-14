@@ -65,6 +65,8 @@ export interface GameSpec {
 export type Failure =
   | { kind: 'createGame'; errors: CreateGameError[] }
   | { kind: 'invariant'; violations: string[] }
+  /** The price index only rises (docs/GAME_RULES.md §3). */
+  | { kind: 'priceIndexFell'; from: number; to: number }
   | { kind: 'noLegalActions'; playerId: PlayerId }
   /** Someone other than the current player (or anyone after game over) was offered actions. */
   | { kind: 'offeredOutOfTurn'; playerId: PlayerId; actions: Action[] }
@@ -112,11 +114,19 @@ export function gameSetup(spec: Pick<GameSpec, 'board' | 'seed' | 'win' | 'maxRo
 }
 
 /**
- * Checks one state before an action is chosen: invariants hold, nobody but the current player is
+ * Checks one state before an action is chosen: the price index did not fall since the previous
+ * state (null for the first), invariants hold, nobody but the current player is
  * offered anything (nobody at all after game over), every offered action is accepted and every
  * other action type is refused with wrongPhase. May throw if the engine does.
  */
-export function checkStep(engine: Engine, state: GameState): Failure | null {
+export function checkStep(
+  engine: Engine,
+  state: GameState,
+  previous: GameState | null,
+): Failure | null {
+  if (previous !== null && state.priceIndex < previous.priceIndex) {
+    return { kind: 'priceIndexFell', from: previous.priceIndex, to: state.priceIndex };
+  }
   const violations = engine.checkInvariants(state);
   if (violations.length > 0) {
     return { kind: 'invariant', violations };
@@ -187,12 +197,13 @@ export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
       return fail({ kind: 'createGame', errors: created.errors });
     }
     let state = created.state;
+    let previous: GameState | null = null;
     let chooser = createRng(chooserSeedFor(spec.seed));
     let ending: { reason: 'lastStanding' | 'roundLimit'; winners: readonly PlayerId[] } | null =
       null;
     for (;;) {
       rounds = state.turn.round;
-      const failure = checkStep(engine, state);
+      const failure = checkStep(engine, state, previous);
       if (failure !== null) {
         return fail(failure);
       }
@@ -217,6 +228,7 @@ export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
         return fail({ kind: 'legalActionRejected', action, error: result.error });
       }
       actions.push(action);
+      previous = state;
       state = result.state;
       for (const event of result.events) {
         if (event.type === 'PlayerBankrupt') bankruptcies++;

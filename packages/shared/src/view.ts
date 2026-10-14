@@ -15,6 +15,8 @@ export interface PlayerView {
   players: readonly PlayerState[];
   tiles: readonly TileState[];
   turn: TurnState;
+  day: number;
+  priceIndex: number;
 }
 
 /**
@@ -29,5 +31,7 @@ export function viewFor(state: GameState, viewer: Viewer): PlayerView {
     players: state.players.map((p) => ({ ...p, location: { ...p.location } })),
     tiles: state.tiles.map((t) => ({ ...t })),
     turn: { ...state.turn },
+    day: state.day,
+    priceIndex: state.priceIndex,
   };
 }

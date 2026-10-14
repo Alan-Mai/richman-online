@@ -99,13 +99,11 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
   const advanced = document.createElement('details');
   const summary = document.createElement('summary');
   summary.textContent = t('setup.advanced');
-  const cash = input('startingCash', initial.startingCash, { inputmode: 'numeric' });
-  const deposit = input('startingDeposit', initial.startingDeposit, { inputmode: 'numeric' });
+  const funds = input('startingFunds', initial.startingFunds, { inputmode: 'numeric' });
   const seed = input('seed', initial.seed, { inputmode: 'numeric' });
   advanced.append(
     summary,
-    labelled(t('setup.startingCash'), cash),
-    labelled(t('setup.startingDeposit'), deposit),
+    labelled(t('setup.startingFunds'), funds),
     labelled(t('setup.seed'), seed),
   );
 
@@ -127,8 +125,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
         ? 'lastStanding'
         : 'richestAtRoundLimit',
     maxRounds: maxRounds.value,
-    startingCash: cash.value,
-    startingDeposit: deposit.value,
+    startingFunds: funds.value,
     seed: seed.value,
   });
 

@@ -31,15 +31,14 @@ export interface SetupForm {
   names: string[];
   winCondition: WinCondition;
   maxRounds: string;
-  startingCash: string;
-  startingDeposit: string;
+  startingFunds: string;
   /** Empty means a random seed. */
   seed: string;
 }
 
 export type SetupError =
   | { field: 'name'; seat: number; reason: 'duplicate' }
-  | { field: 'maxRounds' | 'startingCash' | 'startingDeposit' | 'seed'; reason: 'invalid' };
+  | { field: 'maxRounds' | 'startingFunds' | 'seed'; reason: 'invalid' };
 
 export type BuildSetupResult = { ok: true; setup: GameSetup } | { ok: false; errors: SetupError[] };
 
@@ -52,8 +51,7 @@ export function defaultSetupForm(): SetupForm {
     ),
     winCondition: 'richestAtRoundLimit',
     maxRounds: '20',
-    startingCash: String(DEFAULT_RULE_CONFIG.startingCash),
-    startingDeposit: String(DEFAULT_RULE_CONFIG.startingDeposit),
+    startingFunds: String(DEFAULT_RULE_CONFIG.startingFunds),
     seed: '',
   };
 }
@@ -91,14 +89,12 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
   if (form.winCondition === 'richestAtRoundLimit' && maxRounds === null) {
     errors.push({ field: 'maxRounds', reason: 'invalid' });
   }
-  const startingCash = parseWhole(form.startingCash, 0, 1_000_000_000);
-  if (startingCash === null) errors.push({ field: 'startingCash', reason: 'invalid' });
-  const startingDeposit = parseWhole(form.startingDeposit, 0, 1_000_000_000);
-  if (startingDeposit === null) errors.push({ field: 'startingDeposit', reason: 'invalid' });
+  const startingFunds = parseWhole(form.startingFunds, 1, 1_000_000_000);
+  if (startingFunds === null) errors.push({ field: 'startingFunds', reason: 'invalid' });
   const seed = form.seed.trim() === '' ? makeSeed() : parseWhole(form.seed, 0, UINT32_MAX);
   if (seed === null) errors.push({ field: 'seed', reason: 'invalid' });
 
-  if (errors.length > 0 || startingCash === null || startingDeposit === null || seed === null) {
+  if (errors.length > 0 || startingFunds === null || seed === null) {
     return { ok: false, errors };
   }
   return {
@@ -108,8 +104,7 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
         ...DEFAULT_RULE_CONFIG,
         winCondition: form.winCondition,
         maxRounds,
-        startingCash,
-        startingDeposit,
+        startingFunds,
       },
       board: BOARDS[form.board],
       players: names.map((name, seat) => ({ id: `p${seat + 1}`, name })),
@@ -124,10 +119,8 @@ export function describeSetupError(error: SetupError, form: SetupForm): string {
       return t('setup.error.duplicateName', { name: (form.names[error.seat] ?? '').trim() });
     case 'maxRounds':
       return t('setup.error.maxRounds');
-    case 'startingCash':
-      return t('setup.error.money', { field: t('setup.startingCash') });
-    case 'startingDeposit':
-      return t('setup.error.money', { field: t('setup.startingDeposit') });
+    case 'startingFunds':
+      return t('setup.error.startingFunds');
     case 'seed':
       return t('setup.error.seed');
   }

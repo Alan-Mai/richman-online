@@ -18,20 +18,21 @@ describe('DEFAULT_RULE_CONFIG', () => {
 
 describe('validateRuleConfig', () => {
   it('rejects non-integer and negative amounts', () => {
-    expect(validateRuleConfig(withConfig({ startingCash: -1 }))).toContainEqual({
-      field: 'startingCash',
+    expect(validateRuleConfig(withConfig({ startingPoints: -1 }))).toContainEqual({
+      field: 'startingPoints',
       reason: 'notNonNegativeInteger',
     });
-    expect(validateRuleConfig(withConfig({ startingDeposit: 1.5 }))).toContainEqual({
-      field: 'startingDeposit',
+    expect(validateRuleConfig(withConfig({ maxLevel: 1.5 }))).toContainEqual({
+      field: 'maxLevel',
       reason: 'notNonNegativeInteger',
     });
   });
 
-  it('requires positive dice and player counts', () => {
+  it('requires positive starting funds, dice and player counts', () => {
     const errors = validateRuleConfig(
-      withConfig({ minPlayers: 0, defaultDiceCount: 0, diceFaces: 0 }),
+      withConfig({ startingFunds: 0, minPlayers: 0, defaultDiceCount: 0, diceFaces: 0 }),
     );
+    expect(errors).toContainEqual({ field: 'startingFunds', reason: 'notPositiveInteger' });
     expect(errors).toContainEqual({ field: 'minPlayers', reason: 'notPositiveInteger' });
     expect(errors).toContainEqual({ field: 'defaultDiceCount', reason: 'notPositiveInteger' });
     expect(errors).toContainEqual({ field: 'diceFaces', reason: 'notPositiveInteger' });

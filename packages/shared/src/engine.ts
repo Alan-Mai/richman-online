@@ -7,7 +7,16 @@ import type { RuleError } from './errors';
 import type { GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
-import { buyPrice, pay, rentFor, spend, spendable, totalAssets, upgradeCost } from './money';
+import {
+  buyPrice,
+  netWorth,
+  pay,
+  rentFor,
+  spend,
+  spendable,
+  totalAssets,
+  upgradeCost,
+} from './money';
 import type { GameState, Phase, PhaseKind, PlayerState } from './state';
 import { at, chain, findPlayer, playerOf, updatePlayer, updateTile, type Step } from './update';
 
@@ -77,11 +86,15 @@ export function createGame(setup: GameSetup): CreateGameResult {
   }
 
   const { config, board } = setup;
+  // Half each as cash and deposit; an odd one goes to neither (docs/GAME_RULES.md §1). Computer
+  // players will split by their character's ratio once that table is exported (non-original until
+  // then).
+  const dealt = Math.floor(config.startingFunds / 2);
   const players = setup.players.map(({ id, name }): PlayerState => ({
     id,
     name,
-    cash: config.startingCash,
-    deposit: config.startingDeposit,
+    cash: dealt,
+    deposit: dealt,
     points: config.startingPoints,
     location: { kind: 'offBoard' },
     diceCount: config.defaultDiceCount,
@@ -93,6 +106,8 @@ export function createGame(setup: GameSetup): CreateGameResult {
     players,
     tiles: board.tiles.map(() => ({ owner: null, level: 0 })),
     turn: { current: first.id, round: 1, phase: { kind: 'awaitRoll' } },
+    day: 0,
+    priceIndex: 1,
     rngState: createRng(setup.seed),
   };
   const started = startTurn(state, first.id, 1);
@@ -395,8 +410,28 @@ function endTurn(state: GameState): Step {
     );
   }
 
-  const round = wrapped ? state.turn.round + 1 : state.turn.round;
-  return startTurn(state, at(players, nextSeat).id, round);
+  const next = at(players, nextSeat).id;
+  if (!wrapped) {
+    return startTurn(state, next, state.turn.round);
+  }
+  return chain(advanceDay(state), (s) => startTurn(s, next, s.turn.round + 1));
+}
+
+/**
+ * One day goes by at the end of every round (docs/GAME_RULES.md §2), then the price index becomes
+ * floor(average net worth of the players still in / starting funds) unless that is lower
+ * (docs/GAME_RULES.md §3).
+ */
+function advanceDay(state: GameState): Step {
+  const day = state.day + 1;
+  const standing = state.players.filter((p) => !p.bankrupt);
+  const sum = standing.reduce((total, p) => total + netWorth(state, p.id), 0);
+  const average = Math.floor(sum / standing.length);
+  const priceIndex = Math.max(state.priceIndex, Math.floor(average / state.config.startingFunds));
+  return {
+    state: { ...state, day, priceIndex },
+    events: [{ type: 'DayAdvanced', day, priceIndex }],
+  };
 }
 
 /** Hands the turn to playerId, placing them on the board first if this is their first turn. */

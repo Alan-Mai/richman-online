@@ -194,7 +194,8 @@ export class Hud implements ControllerSink {
       rows.push([t('tile.owner'), owner?.name ?? t('tile.noOwner')]);
       rows.push([t('tile.level'), String(level)]);
       if (this.model) {
-        const view = { board: this.options.board, tiles: this.model.tiles };
+        const { tiles, priceIndex } = this.model;
+        const view = { board: this.options.board, tiles, priceIndex };
         if (owner) rows.push([t('tile.rent'), formatMoney(rentFor(view, index))]);
         rows.push([t('tile.upgradeCost'), formatMoney(upgradeCost(view, index))]);
       }

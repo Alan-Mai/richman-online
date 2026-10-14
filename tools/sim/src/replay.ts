@@ -136,8 +136,9 @@ export function replay(log: GameLog, engine: Engine = ENGINE): ReplayResult {
       return { kind: 'failed', step, failure: { kind: 'createGame', errors: created.errors } };
     }
     let state = created.state;
+    let previous: GameState | null = null;
     for (const action of log.actions) {
-      const failure = checkStep(engine, state);
+      const failure = checkStep(engine, state, previous);
       if (failure !== null) {
         return { kind: 'failed', step, failure };
       }
@@ -152,10 +153,11 @@ export function replay(log: GameLog, engine: Engine = ENGINE): ReplayResult {
           failure: { kind: 'legalActionRejected', action, error: result.error },
         };
       }
+      previous = state;
       state = result.state;
       step++;
     }
-    const failure = checkStep(engine, state);
+    const failure = checkStep(engine, state, previous);
     return failure === null
       ? { kind: 'completed', steps: step, state }
       : { kind: 'failed', step, failure };

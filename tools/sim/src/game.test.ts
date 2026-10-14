@@ -115,6 +115,27 @@ describe('runGame failure detection', () => {
     expect(outcome.step).toBeGreaterThan(0);
   });
 
+  it('reports a falling price index', () => {
+    const engine: Engine = {
+      ...ENGINE,
+      createGame: (setup) => {
+        const created = ENGINE.createGame(setup);
+        return created.ok ? { ...created, state: { ...created.state, priceIndex: 5 } } : created;
+      },
+      applyAction: (state, action) => {
+        const result = ENGINE.applyAction(state, action);
+        return result.ok
+          ? { ...result, state: { ...result.state, priceIndex: state.priceIndex - 1 } }
+          : result;
+      },
+    };
+    expect(failureOf(runGame(RICHEST, engine))).toEqual({
+      kind: 'failed',
+      step: 1,
+      failure: { kind: 'priceIndexFell', from: 5, to: 4 },
+    });
+  });
+
   it('reports a missing legal action', () => {
     const engine: Engine = { ...ENGINE, legalActions: () => [] };
     expect(failureOf(runGame(RICHEST, engine)).failure).toEqual({
