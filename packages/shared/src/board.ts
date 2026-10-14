@@ -45,8 +45,19 @@ export interface BlankTileDef extends TileBase {
   kind: 'blank';
 }
 
+/**
+ * A placeholder for map content the engine does not implement yet, so a converted original map
+ * says so explicitly instead of passing it off as a blank tile. Players walk over and stop on it
+ * with no effect, and it is never a random start.
+ */
+export interface UnsupportedTileDef extends TileBase {
+  kind: 'unsupported';
+  /** What the tile stands for; the map converter warns about each one. */
+  feature: 'largeBuilding';
+}
+
 /** Special tiles (bank, hospital, ...) are added here as new kinds. */
-export type TileDef = PropertyTileDef | BlankTileDef;
+export type TileDef = PropertyTileDef | BlankTileDef | UnsupportedTileDef;
 
 export interface Board {
   id: string;

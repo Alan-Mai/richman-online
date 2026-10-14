@@ -61,7 +61,7 @@ interface GameState {
 }
 
 interface Board { tiles: TileDef[]; start: TileIndex; /* id, name */ }
-// TileDef 為依 kind 區分的聯合型別（目前 'property' | 'blank'），每格有無向的 links（最多 4 個，
+// TileDef 為依 kind 區分的聯合型別（目前 'property' | 'blank' | 'unsupported'），每格有無向的 links（最多 4 個，
 // 兩端都要列出；可設 blocked = 不能從這一端走出去）。沒有前進方向：玩家記 prev（上一格），
 // 每步走「未封鎖且不是 prev」的相鄰格，多個時用 RNG 選，沒有時掉頭（GAME_RULES.md 第 2 節）。
 

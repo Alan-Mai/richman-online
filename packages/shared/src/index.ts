@@ -12,6 +12,7 @@ export {
   type Point,
   type PropertyTileDef,
   type TileLink,
+  type UnsupportedTileDef,
   type TileDef,
 } from './board';
 export { TEST_BRANCH_BOARD } from './maps/test-branch';
