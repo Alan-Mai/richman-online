@@ -56,12 +56,12 @@ pnpm typecheck
 ## 開發流程
 
 1. 動手前先讀相關文件：架構看 `docs/ARCHITECTURE.md`，目前進度看 `docs/ROADMAP.md`，規則細節看 `docs/GAME_RULES.md`，檔案格式看 `docs/ASSET_FORMATS.md`。
-2. 非小改動先提出計畫，等我確認再寫。計畫中標明需要我目視確認的 commit，做到該處先停下、不要 commit，確認後把我的回饋併進同一個 commit。要修正未推送、但不在最上面的 commit 時，優先新增一個修正 commit；只有我要求改寫歷史時，才用暫時分支 amend 再 cherry-pick 的方式（不用 `git rebase -i`），完成後確認新舊頂端的 diff 只有預期改動。
-3. 規則引擎採測試先行：先寫測試並實際跑一次，確認它因為功能未實作而**斷言失敗**（空殼回傳空值或預設值，不要 throw；import 錯誤或測試檔載入失敗不算），再寫實作。若實作已先寫好，就暫時把實作改壞，確認測試會失敗後再改回。
+2. 非小改動先提出計畫，等我確認再寫。跨多個 session 的分批計畫核准後存成 `docs/` 內的檔案，在 ROADMAP 對應項目註明位置；進度、與計畫的差異、實作中發現的待補項寫回該檔對應批次。分批計畫全部完成後，在收尾 commit 刪除該計畫檔，或在檔頭標「已完成，僅供歷史參考」，並移除 ROADMAP 的指向。計畫中標明需要我目視確認的 commit，做到該處先停下、不要 commit，確認後把我的回饋併進同一個 commit。要修正未推送、但不在最上面的 commit 時，優先新增一個修正 commit；只有我要求改寫歷史時，才用暫時分支 amend 再 cherry-pick 的方式（不用 `git rebase -i`），完成後確認新舊頂端的 diff 只有預期改動。
+3. 規則引擎採測試先行：先寫測試並實際跑一次，確認它因為功能未實作而**斷言失敗**（空殼回傳空值或預設值，不要 throw；import 錯誤或測試檔載入失敗不算），再寫實作。若實作已先寫好，就暫時把實作改壞，確認測試會失敗後再改回；改壞後仍通過的測試代表斷言太弱，要補強或記成待補項。
 4. **每個 commit 前**執行 `pnpm test && pnpm lint && pnpm typecheck`（先跑 `pnpm format`），全部通過才 commit；任務完成時再整體跑一次。用管線過濾輸出（`| grep`、`| tail`）時先 `set -o pipefail`，否則失敗的 exit code 會被吃掉。
 5. 每次 commit 只做一件事，訊息用 Conventional Commits（`feat(shared): ...`）。
 6. 重要技術決策寫進 `docs/DECISIONS.md`；完成路線圖項目時，在同一個 commit 內更新 `docs/ROADMAP.md` 的勾選。
-7. `GAME_RULES.md` 標「待確認」的規則不要自行猜測，其他大富翁類遊戲的慣例也不能當成原版規則；先問我，或做成參數並標「非原版」。寫作慣例見 `GAME_RULES.md` 開頭。
+7. `GAME_RULES.md` 標「待確認」的規則不要自行猜測，其他大富翁類遊戲的慣例也不能當成原版規則；先問我，不要自行補成非原版選項（引擎只實作原版規則，見 `DECISIONS.md`）。寫作慣例見 `GAME_RULES.md` 開頭。
 8. 輸出很長的工作（掃描 git 歷史、等 CI、分析二進位檔、大範圍搜尋）優先交給 subagent，只回報結論；分析原版素材時，要求 subagent 的回報只含結構與統計，不含原版內容數值。
 9. 推送前執行 `/pre-push`。
 10. 新增有 peer 依賴限制的套件時，確認版本範圍相容（例：typescript-eslint 對 TypeScript）；也避免選用發布未滿兩週的版本（尤其是新的主版本）。
@@ -76,4 +76,4 @@ pnpm typecheck
 - 遊戲內玩家可見文字集中在 i18n 檔，預設 `zh-TW`。
 - 狀態物件不可就地修改，回傳新物件。
 - 優先使用可辨識聯合型別（discriminated unions）表示 Action、Event，以及任何「id 或特殊值」的參數（例：`Viewer = { kind: 'player'; id } | { kind: 'spectator' }`）。不要把特殊值和字串 id 混在同一個型別（`PlayerId | 'spectator'`），也不要用 `eslint-disable` 掩蓋型別問題。
-- 含反斜線或單引號的文字（Windows 路徑、正則、跳脫字元、含單引號的字串常值）一律用 Write/Edit 工具寫，不要用 bash heredoc、sed 或 `node -e '…'`（本機 Git Bash 會吞掉 `\\`，單引號會提前結束 bash 字串）。
+- 含反斜線、單引號、反引號或 `${…}` 的文字（Windows 路徑、正則、跳脫字元、JS 樣板字串、含單引號的字串常值）一律用 Write/Edit 工具寫，不要用 bash heredoc、sed、perl 或 `node -e '…'`（本機 Git Bash 會吞掉 `\\`、單引號會提前結束 bash 字串、雙引號內的反引號與 `${…}` 會被 shell 展開）。
