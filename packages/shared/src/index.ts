@@ -38,7 +38,14 @@ export {
 export type { RuleError } from './errors';
 export { checkInvariants } from './invariants';
 export type { BankruptcyCause, GameEvent, GameEventType } from './events';
-export { buyPrice, netWorth, rentFor, upgradeCost, type PriceView } from './money';
+export {
+  buyPrice,
+  netWorth,
+  rentFor,
+  upgradeCost,
+  type NetWorthView,
+  type PriceView,
+} from './money';
 export type { PlayerId, TileIndex } from './ids';
 export type { ServerUpdate } from './protocol';
 export { viewFor, type PlayerView, type Viewer } from './view';

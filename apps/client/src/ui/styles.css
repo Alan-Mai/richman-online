@@ -57,6 +57,11 @@ body {
   font-weight: bold;
 }
 
+.hud-calendar,
+.hud-limits {
+  font-size: 13px;
+}
+
 .hud-players {
   display: grid;
   gap: 6px;

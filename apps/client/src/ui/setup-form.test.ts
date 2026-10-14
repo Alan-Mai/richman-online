@@ -63,6 +63,20 @@ describe('buildSetup', () => {
     ).toBe(true);
   });
 
+  it('takes a net worth target as a multiple, or none when blank', () => {
+    for (const bad of ['0', '1000', 'x', '2.5']) {
+      expect(buildSetup(form({ netWorthTarget: bad }), fixedSeed)).toMatchObject({
+        ok: false,
+        errors: [{ field: 'netWorthTarget' }],
+      });
+    }
+    expect(ok(form({ netWorthTarget: '3' })).config.netWorthTargetMultiple).toBe(3);
+    expect(ok(form({ netWorthTarget: '' })).config.netWorthTargetMultiple).toBeNull();
+    expect(describeSetupError({ field: 'netWorthTarget', reason: 'invalid' }, form())).toBe(
+      '淨值目標必須是 1 到 999 的整數，或留空表示無目標',
+    );
+  });
+
   it('takes a day limit, or none when blank', () => {
     for (const bad of ['0', '10000', 'x', '1.5']) {
       expect(buildSetup(form({ dayLimit: bad }), fixedSeed)).toMatchObject({
@@ -71,6 +85,7 @@ describe('buildSetup', () => {
       });
     }
     expect(ok(form({ dayLimit: ' 30 ' })).config.dayLimit).toBe(30);
+    expect(ok(form({ dayLimit: '9999' })).config.dayLimit).toBe(9999);
     const setup = ok(form({ dayLimit: '  ' }));
     expect(setup.config.dayLimit).toBeNull();
     expect(createGame(setup).ok).toBe(true);

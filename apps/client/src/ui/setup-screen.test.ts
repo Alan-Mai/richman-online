@@ -75,6 +75,13 @@ describe('setup screen', () => {
     expect(started[1]?.[0].config.dayLimit).toBe(30);
   });
 
+  it('takes a net worth target, blank meaning none', () => {
+    expect(field<HTMLInputElement>('netWorthTarget').value).toBe('');
+    setValue('netWorthTarget', '4');
+    submit();
+    expect(started[0]?.[0].config.netWorthTargetMultiple).toBe(4);
+  });
+
   it('lists errors instead of starting', () => {
     setValue('name1', '玩家 1');
     setValue('seed', 'abc');

@@ -30,6 +30,8 @@ export interface SetupForm {
   names: string[];
   /** Empty means no day limit. */
   dayLimit: string;
+  /** Multiple of the starting funds; empty means no target. */
+  netWorthTarget: string;
   startingFunds: string;
   /** Empty means a random seed. */
   seed: string;
@@ -37,7 +39,7 @@ export interface SetupForm {
 
 export type SetupError =
   | { field: 'name'; seat: number; reason: 'duplicate' }
-  | { field: 'dayLimit' | 'startingFunds' | 'seed'; reason: 'invalid' };
+  | { field: 'dayLimit' | 'netWorthTarget' | 'startingFunds' | 'seed'; reason: 'invalid' };
 
 export type BuildSetupResult = { ok: true; setup: GameSetup } | { ok: false; errors: SetupError[] };
 
@@ -49,6 +51,7 @@ export function defaultSetupForm(): SetupForm {
       t('setup.defaultName', { n: i + 1 }),
     ),
     dayLimit: '',
+    netWorthTarget: '',
     startingFunds: String(DEFAULT_RULE_CONFIG.startingFunds),
     seed: '',
   };
@@ -60,6 +63,12 @@ function parseWhole(text: string, min: number, max: number): number | null {
   if (!/^\d+$/.test(cleaned)) return null;
   const value = Number(cleaned);
   return Number.isSafeInteger(value) && value >= min && value <= max ? value : null;
+}
+
+/** Blank is null (no limit); otherwise a whole number in 1..max, or undefined when invalid. */
+function parseOptional(text: string, max: number): number | null | undefined {
+  if (text.trim() === '') return null;
+  return parseWhole(text, 1, max) ?? undefined;
 }
 
 export function randomSeed(): number {
@@ -82,17 +91,24 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
     if (names.indexOf(name) !== seat) errors.push({ field: 'name', seat, reason: 'duplicate' });
   });
 
-  const noDayLimit = form.dayLimit.trim() === '';
-  const dayLimit = noDayLimit ? null : parseWhole(form.dayLimit, 1, 9999);
-  if (!noDayLimit && dayLimit === null) {
-    errors.push({ field: 'dayLimit', reason: 'invalid' });
+  const dayLimit = parseOptional(form.dayLimit, 9999);
+  if (dayLimit === undefined) errors.push({ field: 'dayLimit', reason: 'invalid' });
+  const netWorthTargetMultiple = parseOptional(form.netWorthTarget, 999);
+  if (netWorthTargetMultiple === undefined) {
+    errors.push({ field: 'netWorthTarget', reason: 'invalid' });
   }
   const startingFunds = parseWhole(form.startingFunds, 1, 1_000_000_000);
   if (startingFunds === null) errors.push({ field: 'startingFunds', reason: 'invalid' });
   const seed = form.seed.trim() === '' ? makeSeed() : parseWhole(form.seed, 0, UINT32_MAX);
   if (seed === null) errors.push({ field: 'seed', reason: 'invalid' });
 
-  if (errors.length > 0 || startingFunds === null || seed === null) {
+  if (
+    errors.length > 0 ||
+    dayLimit === undefined ||
+    netWorthTargetMultiple === undefined ||
+    startingFunds === null ||
+    seed === null
+  ) {
     return { ok: false, errors };
   }
   return {
@@ -101,6 +117,7 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
       config: {
         ...DEFAULT_RULE_CONFIG,
         dayLimit,
+        netWorthTargetMultiple,
         startingFunds,
       },
       board: BOARDS[form.board],
@@ -116,6 +133,8 @@ export function describeSetupError(error: SetupError, form: SetupForm): string {
       return t('setup.error.duplicateName', { name: (form.names[error.seat] ?? '').trim() });
     case 'dayLimit':
       return t('setup.error.dayLimit');
+    case 'netWorthTarget':
+      return t('setup.error.netWorthTarget');
     case 'startingFunds':
       return t('setup.error.startingFunds');
     case 'seed':

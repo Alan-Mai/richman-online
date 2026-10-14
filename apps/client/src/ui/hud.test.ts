@@ -1,5 +1,12 @@
 // @vitest-environment happy-dom
-import { TEST_LOOP_BOARD, type ActionType, type ServerUpdate } from '@richman/shared';
+import {
+  DEFAULT_RULE_CONFIG,
+  TEST_LOOP_BOARD,
+  buyPrice,
+  rentFor,
+  type ActionType,
+  type ServerUpdate,
+} from '@richman/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { applyEventToDisplay, displayFromView, type DisplayModel } from '../model/display';
 import { hotSeatSetup, playRandomGame } from '../testing/random-game';
@@ -21,7 +28,11 @@ let hud: Hud;
 beforeEach(() => {
   root = document.createElement('div');
   acted = [];
-  hud = new Hud(root, { board: TEST_LOOP_BOARD, onAct: (type) => acted.push(type) });
+  hud = new Hud(root, {
+    board: TEST_LOOP_BOARD,
+    config: DEFAULT_RULE_CONFIG,
+    onAct: (type) => acted.push(type),
+  });
 });
 
 function buttons(): HTMLButtonElement[] {
@@ -92,6 +103,42 @@ describe('Hud players', () => {
     expect(root.querySelector('.hud-round')?.textContent).toBe('第 7 輪');
   });
 
+  it('shows the days gone by and the price index', () => {
+    const model = displayFromView(updates[0]!.view);
+    hud.showModel({ ...model, day: 12, priceIndex: 3 });
+    expect(root.querySelector('.hud-calendar')?.textContent).toBe('已過 12 天　物價指數 ×3');
+  });
+
+  it("shows each player's net worth, properties at their unindexed value", () => {
+    const model = displayFromView(updates[0]!.view);
+    // Tile 1 of the test loop: price 1000, upgrade cost 500.
+    const tiles = model.tiles.map((t, i) => (i === 1 ? { owner: 'p1', level: 2 } : t));
+    const players = model.players.map((p) => ({ ...p, cash: 100, deposit: 20 }));
+    hud.showModel({ ...model, tiles, players, priceIndex: 4 });
+    const worths = [...root.querySelectorAll('.hud-networth')].map((dd) => dd.textContent);
+    expect(worths).toEqual(['2,120', '120', '120', '120']);
+  });
+});
+
+describe('Hud limits', () => {
+  it('shows nothing without a day limit or net worth target', () => {
+    expect(root.querySelector<HTMLElement>('.hud-limits')?.hidden).toBe(true);
+  });
+
+  it('shows the day limit and the net worth target in money', () => {
+    const limited = document.createElement('div');
+    const config = {
+      ...DEFAULT_RULE_CONFIG,
+      startingFunds: 30_000,
+      dayLimit: 50,
+      netWorthTargetMultiple: 3,
+    };
+    new Hud(limited, { board: TEST_LOOP_BOARD, config, onAct: () => {} });
+    const limits = limited.querySelector<HTMLElement>('.hud-limits');
+    expect(limits?.hidden).toBe(false);
+    expect(limits?.textContent).toBe('天數上限 50 天　淨值目標 90,000');
+  });
+
   it('marks players who are not on the board yet', () => {
     const opening = displayFromView(updates[0]!.view);
     hud.showModel(opening);
@@ -145,9 +192,59 @@ describe('Hud tile info', () => {
     expect(text).toContain('加蓋費用');
   });
 
+  it("shows the engine's prices: price index and the owner's whole street", () => {
+    const model = displayFromView(updates[0]!.view);
+    // Tiles 1 and 2 are on the same street of the test loop.
+    const tiles = model.tiles.map((t, i) => (i === 1 || i === 2 ? { owner: 'p2', level: 1 } : t));
+    const shown = { ...model, tiles, priceIndex: 2 };
+    hud.showModel(shown);
+    hud.showTile(1);
+    const view = { ...shown, board: TEST_LOOP_BOARD };
+    const text = root.querySelector('.hud-tile')?.textContent ?? '';
+    expect(text).toContain(`目前過路費${rentFor(view, 1).toLocaleString('en-US')}`);
+    expect(rentFor(view, 1)).toBe(2 * (300 + 300));
+
+    hud.showModel({
+      ...shown,
+      tiles: model.tiles.map((t, i) => (i === 3 ? { owner: null, level: 2 } : t)),
+    });
+    hud.showTile(3);
+    const unowned = root.querySelector('.hud-tile')?.textContent ?? '';
+    const price = buyPrice(
+      { ...view, tiles: model.tiles.map((t, i) => (i === 3 ? { owner: null, level: 2 } : t)) },
+      3,
+    );
+    expect(unowned).toContain(`目前購地價${price.toLocaleString('en-US')}`);
+    expect(unowned).not.toContain('目前過路費');
+  });
+
   it('says a blank tile cannot be bought', () => {
     hud.showTile(0);
     expect(root.querySelector('.hud-tile')?.textContent).toContain('這一格不能購買');
+  });
+});
+
+describe('describeEvent day and rent', () => {
+  const model = displayFromView(updates[0]!.view);
+
+  it('reports the day gone by and the price index', () => {
+    const text = describeEvent(
+      { type: 'DayAdvanced', day: 3, priceIndex: 2 },
+      model,
+      TEST_LOOP_BOARD,
+    );
+    expect(text).toBe('過了一天（已過 3 天），物價指數 ×2');
+  });
+
+  it("says rent goes into the owner's deposit", () => {
+    const text = describeEvent(
+      { type: 'RentPaid', from: 'p1', to: 'p2', tile: 1, amount: 600, into: 'deposit' },
+      model,
+      TEST_LOOP_BOARD,
+    );
+    expect(text).toBe(
+      `玩家1 在 ${TEST_LOOP_BOARD.tiles[1]!.name} 付給 玩家2 過路費 600，存入 玩家2 的存款`,
+    );
   });
 });
 
@@ -168,7 +265,7 @@ describe('describeEvent bankruptcy', () => {
       TEST_LOOP_BOARD,
     );
     expect(text).toBe(
-      `玩家1 付不起 ${TEST_LOOP_BOARD.tiles[1]!.name} 的過路費 1,200，破產了；玩家2 收到 800`,
+      `玩家1 付不起 ${TEST_LOOP_BOARD.tiles[1]!.name} 的過路費 1,200，破產了；玩家2 的存款收到 800`,
     );
   });
 
@@ -212,6 +309,7 @@ describe('Hud game speed', () => {
     const speedRoot = document.createElement('div');
     new Hud(speedRoot, {
       board: TEST_LOOP_BOARD,
+      config: DEFAULT_RULE_CONFIG,
       onAct: () => {},
       gameSpeed: { initial: 1, onChange: (speed) => changes.push(speed) },
     });

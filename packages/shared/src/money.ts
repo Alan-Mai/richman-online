@@ -63,16 +63,24 @@ export function rentFor(view: PriceView, tile: TileIndex): number {
   return view.priceIndex * total;
 }
 
+/** What netWorth reads; GameState, PlayerView and the client's display model all have it. */
+export type NetWorthView = Pick<GameState, 'board' | 'tiles'> & {
+  players: readonly Pick<PlayerState, 'id' | 'cash' | 'deposit'>[];
+};
+
 /**
  * Net worth (docs/GAME_RULES.md §3): cash + deposit + land price and built levels of every owned
  * property, NOT multiplied by the price index. Drives the price index and the original win
- * conditions.
+ * conditions. Takes a NetWorthView so the client can show it from what is on screen.
  */
-export function netWorth(state: GameState, playerId: PlayerId): number {
-  const player = playerOf(state, playerId);
+export function netWorth(view: NetWorthView, playerId: PlayerId): number {
+  const player = view.players.find((p) => p.id === playerId);
+  if (player === undefined) {
+    throw new Error(`unknown player ${playerId}`);
+  }
   let total = player.cash + player.deposit;
-  state.tiles.forEach((tile, i) => {
-    const def = state.board.tiles[i];
+  view.tiles.forEach((tile, i) => {
+    const def = view.board.tiles[i];
     if (tile.owner === playerId && def?.kind === 'property') {
       total += def.price + tile.level * def.upgradeCost;
     }

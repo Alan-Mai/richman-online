@@ -1,11 +1,14 @@
 // DOM overlay: player panels, round, action buttons, event log and tile info. Buttons come only
 // from the legal actions of the latest fully played update.
 import {
+  buyPrice,
+  netWorth,
   rentFor,
   upgradeCost,
   type ActionType,
   type Board,
   type GameEvent,
+  type RuleConfig,
   type ServerUpdate,
   type TileIndex,
 } from '@richman/shared';
@@ -20,6 +23,8 @@ const LOG_LIMIT = 50;
 
 export interface HudOptions {
   board: Board;
+  /** For the day limit and net worth target shown under the round. */
+  config: RuleConfig;
   onAct(type: ActionType): void;
   /** Shows the game speed control when given. */
   gameSpeed?: { initial: GameSpeed; onChange(speed: GameSpeed): void };
@@ -75,6 +80,8 @@ export function actionLabel(type: ActionType, update: ServerUpdate): string {
 
 export class Hud implements ControllerSink {
   private readonly round = el('div', 'hud-round');
+  private readonly calendar = el('div', 'hud-calendar');
+  private readonly limits = el('div', 'hud-limits');
   private readonly players = el('ol', 'hud-players');
   private readonly prompt = el('div', 'hud-prompt');
   private readonly actions = el('div', 'hud-actions');
@@ -93,8 +100,11 @@ export class Hud implements ControllerSink {
     this.log.setAttribute('aria-live', 'polite');
     const logSection = el('section', 'hud-log-section');
     logSection.append(el('h2', undefined, t('hud.log')), this.log);
+    this.renderLimits();
     root.replaceChildren(
       this.round,
+      this.calendar,
+      this.limits,
       this.prompt,
       this.actions,
       this.players,
@@ -109,6 +119,11 @@ export class Hud implements ControllerSink {
   showModel(model: DisplayModel): void {
     this.model = model;
     this.round.textContent = t('hud.round', { round: model.round });
+    this.calendar.textContent = t('hud.calendar', {
+      day: model.day,
+      priceIndex: model.priceIndex,
+    });
+    const view = { ...model, board: this.options.board };
     this.players.replaceChildren(
       ...model.players.map((p, seat) => {
         const item = el('li', 'hud-player');
@@ -123,6 +138,8 @@ export class Hud implements ControllerSink {
           el('dd', 'hud-cash', formatMoney(p.cash)),
           el('dt', undefined, t('hud.deposit')),
           el('dd', 'hud-deposit', formatMoney(p.deposit)),
+          el('dt', undefined, t('hud.netWorth')),
+          el('dd', 'hud-networth', formatMoney(netWorth(view, p.id))),
         );
         item.append(swatch, name, money);
         if (p.bankrupt) item.append(el('span', 'hud-tag', t('hud.bankrupt')));
@@ -143,6 +160,22 @@ export class Hud implements ControllerSink {
     this.ready = update;
     this.renderActions();
     this.renderTile();
+  }
+
+  private renderLimits(): void {
+    const { dayLimit, netWorthTargetMultiple, startingFunds } = this.options.config;
+    const parts = [
+      ...(dayLimit === null ? [] : [t('hud.dayLimit', { days: dayLimit })]),
+      ...(netWorthTargetMultiple === null
+        ? []
+        : [
+            t('hud.netWorthTarget', {
+              amount: formatMoney(netWorthTargetMultiple * startingFunds),
+            }),
+          ]),
+    ];
+    this.limits.textContent = parts.join('　');
+    this.limits.hidden = parts.length === 0;
   }
 
   /** Shows details of a tile (from a click on the board); null clears the panel. */
@@ -194,8 +227,9 @@ export class Hud implements ControllerSink {
       rows.push([t('tile.owner'), owner?.name ?? t('tile.noOwner')]);
       rows.push([t('tile.level'), String(level)]);
       if (this.model) {
-        const { tiles, priceIndex } = this.model;
-        const view = { board: this.options.board, tiles, priceIndex };
+        // Prices as the engine computes them: price index, buildings and the whole street.
+        const view = { ...this.model, board: this.options.board };
+        if (!owner) rows.push([t('tile.buyPrice'), formatMoney(buyPrice(view, index))]);
         if (owner) rows.push([t('tile.rent'), formatMoney(rentFor(view, index))]);
         rows.push([t('tile.upgradeCost'), formatMoney(upgradeCost(view, index))]);
       }

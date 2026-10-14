@@ -1,6 +1,6 @@
 // Draws the board, ownership, house levels and player tokens with placeholder shapes.
 import Phaser from 'phaser';
-import type { Board, Point, TileIndex } from '@richman/shared';
+import { buyPrice, type Board, type Point, type TileIndex } from '@richman/shared';
 import { formatMoney } from '../i18n';
 import type { DisplayModel } from '../model/display';
 import { BOARD_COLORS, FONT_FAMILY, TEXT_RESOLUTION, cssColor, playerColor } from '../theme';
@@ -21,6 +21,7 @@ const SEAT_OFFSETS: readonly Point[] = [
 export class BoardView {
   private layout: BoardLayout;
   private readonly tileLayer: Phaser.GameObjects.Container;
+  private readonly priceLayer: Phaser.GameObjects.Container;
   private readonly ownerLayer: Phaser.GameObjects.Container;
   readonly tokenLayer: Phaser.GameObjects.Container;
   private readonly tokens = new Map<string, Phaser.GameObjects.Container>();
@@ -36,6 +37,7 @@ export class BoardView {
     private readonly onTileSelected: (tile: TileIndex) => void = () => {},
   ) {
     this.tileLayer = scene.add.container().setDepth(0);
+    this.priceLayer = scene.add.container().setDepth(0);
     this.ownerLayer = scene.add.container().setDepth(1);
     this.tokenLayer = scene.add.container().setDepth(2);
     this.layout = layoutBoard(this.positions(), area);
@@ -80,11 +82,12 @@ export class BoardView {
     return this.tokens.get(playerId);
   }
 
-  /** Redraws ownership and tokens to match the model. */
+  /** Redraws ownership, prices and tokens to match the model. */
   show(model: DisplayModel): void {
     this.model = model;
     this.seats = new Map(model.players.map((p, i) => [p.id, i]));
     this.drawOwnership(model);
+    this.drawPrices(model);
     for (const player of model.players) {
       const token = this.tokens.get(player.id) ?? this.createToken(player.id);
       // Players are placed on their first turn; until then they have no token on the board.
@@ -99,9 +102,13 @@ export class BoardView {
     return this.board.tiles.map((t) => t.pos);
   }
 
+  private get fontSize(): number {
+    return Math.max(9, Math.round(this.tileSize * 0.15));
+  }
+
   private drawTiles(): void {
     const size = this.tileSize * 0.92;
-    const fontSize = Math.max(9, Math.round(this.tileSize * 0.15));
+    const { fontSize } = this;
     this.board.tiles.forEach((tile, i) => {
       const { x, y } = this.tileCenter(i);
       const fill = tile.kind === 'property' ? BOARD_COLORS.property : BOARD_COLORS.blank;
@@ -124,17 +131,27 @@ export class BoardView {
         })
         .setOrigin(0.5);
       this.tileLayer.add(name);
-      if (tile.kind === 'property' && this.tileSize >= MIN_TILE_FOR_PRICE) {
-        const price = this.scene.add
-          .text(x, y + size * 0.3, formatMoney(tile.price), {
-            color: cssColor(BOARD_COLORS.text),
-            fontSize: `${Math.round(fontSize * 0.85)}px`,
-            fontFamily: FONT_FAMILY,
-            resolution: TEXT_RESOLUTION,
-          })
-          .setOrigin(0.5);
-        this.tileLayer.add(price);
-      }
+    });
+  }
+
+  /** The current buy price (price index and buildings included) on each property. */
+  private drawPrices(model: DisplayModel): void {
+    this.priceLayer.removeAll(true);
+    if (this.tileSize < MIN_TILE_FOR_PRICE) return;
+    const size = this.tileSize * 0.92;
+    const view = { ...model, board: this.board };
+    this.board.tiles.forEach((tile, i) => {
+      if (tile.kind !== 'property') return;
+      const { x, y } = this.tileCenter(i);
+      const price = this.scene.add
+        .text(x, y + size * 0.3, formatMoney(buyPrice(view, i)), {
+          color: cssColor(BOARD_COLORS.text),
+          fontSize: `${Math.round(this.fontSize * 0.85)}px`,
+          fontFamily: FONT_FAMILY,
+          resolution: TEXT_RESOLUTION,
+        })
+        .setOrigin(0.5);
+      this.priceLayer.add(price);
     });
   }
 

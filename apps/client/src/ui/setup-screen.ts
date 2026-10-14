@@ -75,6 +75,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
   );
 
   const dayLimit = input('dayLimit', initial.dayLimit, { inputmode: 'numeric' });
+  const netWorthTarget = input('netWorthTarget', initial.netWorthTarget, { inputmode: 'numeric' });
 
   const advanced = document.createElement('details');
   const summary = document.createElement('summary');
@@ -101,6 +102,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     playerCount: Number(count.value),
     names: nameInputs.map((n) => n.value),
     dayLimit: dayLimit.value,
+    netWorthTarget: netWorthTarget.value,
     startingFunds: funds.value,
     seed: seed.value,
   });
@@ -136,6 +138,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     labelled(t('setup.playerCount'), count),
     ...nameLabels,
     labelled(t('setup.dayLimit'), dayLimit),
+    labelled(t('setup.netWorthTarget'), netWorthTarget),
     advanced,
     errors,
     start,

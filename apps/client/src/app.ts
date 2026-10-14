@@ -57,6 +57,7 @@ function startGameSession(setup: GameSetup, elements: AppElements, onAgain: () =
   const gameSpeed = loadGameSpeed();
   const hud = new Hud(elements.hud, {
     board,
+    config: setup.config,
     onAct: act,
     gameSpeed: {
       initial: gameSpeed,
