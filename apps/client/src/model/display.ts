@@ -92,7 +92,7 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
     }
     case 'RentPaid': {
       const paid = updatePlayer(model, event.from, (p) => ({ cash: p.cash - event.amount }));
-      return updatePlayer(paid, event.to, (p) => ({ cash: p.cash + event.amount }));
+      return updatePlayer(paid, event.to, (p) => ({ deposit: p.deposit + event.amount }));
     }
     case 'PlayerBankrupt': {
       const released = new Set(event.releasedTiles);
@@ -108,7 +108,7 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
       const { creditor } = event;
       return creditor === null
         ? next
-        : updatePlayer(next, creditor, (p) => ({ cash: p.cash + event.paidToCreditor }));
+        : updatePlayer(next, creditor, (p) => ({ deposit: p.deposit + event.paidToCreditor }));
     }
     case 'GameEnded':
       return { ...model, winners: [...event.winners] };

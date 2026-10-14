@@ -19,7 +19,7 @@ describe('pay when the debtor can cover it', () => {
     expect(result.bankrupt).toBe(false);
     expect(result.events).toEqual([]);
     expect(getPlayer(result.state, 'p1')).toMatchObject({ cash: 100, deposit: 50 });
-    expect(getPlayer(result.state, 'p2').cash).toBe(1500);
+    expect(getPlayer(result.state, 'p2')).toMatchObject({ cash: 1000, deposit: 1500 });
   });
 
   it('empties cash without touching the deposit when cash is exactly the debt', () => {
@@ -34,7 +34,7 @@ describe('pay when the debtor can cover it', () => {
     expect(result.bankrupt).toBe(false);
     expect(result.events).toEqual([{ type: 'DepositWithdrawn', playerId: 'p1', amount: 200 }]);
     expect(getPlayer(result.state, 'p1')).toMatchObject({ cash: 0, deposit: 200 });
-    expect(getPlayer(result.state, 'p2').cash).toBe(1500);
+    expect(getPlayer(result.state, 'p2')).toMatchObject({ cash: 1000, deposit: 1500 });
   });
 
   it('is not bankruptcy when the deposit exactly covers the rest', () => {
@@ -42,7 +42,7 @@ describe('pay when the debtor can cover it', () => {
     expect(result.bankrupt).toBe(false);
     expect(result.events).toEqual([{ type: 'DepositWithdrawn', playerId: 'p1', amount: 200 }]);
     expect(getPlayer(result.state, 'p1')).toMatchObject({ cash: 0, deposit: 0, bankrupt: false });
-    expect(getPlayer(result.state, 'p2').cash).toBe(1500);
+    expect(getPlayer(result.state, 'p2')).toMatchObject({ cash: 1000, deposit: 1500 });
   });
 
   it('pays entirely from the deposit when cash is 0', () => {
@@ -88,7 +88,7 @@ describe('pay when the debtor cannot cover it', () => {
       },
     ]);
     expect(getPlayer(result.state, 'p1')).toMatchObject({ cash: 0, deposit: 0, bankrupt: true });
-    expect(getPlayer(result.state, 'p2')).toMatchObject({ cash: 1000 + paid, deposit: 1000 });
+    expect(getPlayer(result.state, 'p2')).toMatchObject({ cash: 1000, deposit: 1000 + paid });
     expect(getPlayer(result.state, 'p3')).toEqual(getPlayer(state, 'p3'));
   });
 
@@ -96,7 +96,7 @@ describe('pay when the debtor cannot cover it', () => {
     const result = pay(game({ cash: 0, deposit: 0 }), 'p1', rent(10));
     expect(result.bankrupt).toBe(true);
     expect(result.events[0]).toMatchObject({ type: 'PlayerBankrupt', paidToCreditor: 0 });
-    expect(getPlayer(result.state, 'p2').cash).toBe(1000);
+    expect(getPlayer(result.state, 'p2')).toMatchObject({ cash: 1000, deposit: 1000 });
   });
 
   it('releases every tile the debtor owned and clears houses', () => {

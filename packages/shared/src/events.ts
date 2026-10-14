@@ -14,7 +14,15 @@ export type GameEvent =
   | { type: 'PlayerMoved'; playerId: PlayerId; path: readonly TileIndex[] }
   | { type: 'PropertyBought'; playerId: PlayerId; tile: TileIndex; price: number }
   | { type: 'PropertyUpgraded'; playerId: PlayerId; tile: TileIndex; level: number; cost: number }
-  | { type: 'RentPaid'; from: PlayerId; to: PlayerId; tile: TileIndex; amount: number }
+  /** Out of the payer's cash (after any DepositWithdrawn), into the owner's deposit. */
+  | {
+      type: 'RentPaid';
+      from: PlayerId;
+      to: PlayerId;
+      tile: TileIndex;
+      amount: number;
+      into: 'deposit';
+    }
   /** Cash fell short of a payment and the rest came out of the deposit. */
   | { type: 'DepositWithdrawn'; playerId: PlayerId; amount: number }
   | {
@@ -22,6 +30,7 @@ export type GameEvent =
       playerId: PlayerId;
       /** null when the debt was owed to the system. */
       creditor: PlayerId | null;
+      /** Goes into the creditor's deposit, like rent. */
       paidToCreditor: number;
       releasedTiles: readonly TileIndex[];
       cause: BankruptcyCause;

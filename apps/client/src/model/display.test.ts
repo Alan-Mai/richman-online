@@ -80,13 +80,20 @@ describe('applyEventToDisplay', () => {
     expect(next.tiles[2]).toEqual({ owner: 'a', level: 3 });
   });
 
-  it('RentPaid moves cash between players', () => {
-    const next = apply({ type: 'RentPaid', from: 'b', to: 'a', tile: 2, amount: 250 });
-    expect(next.players[0]?.cash).toBe(1250);
-    expect(next.players[1]?.cash).toBe(750);
+  it("RentPaid moves money from the payer's cash into the owner's deposit", () => {
+    const next = apply({
+      type: 'RentPaid',
+      from: 'b',
+      to: 'a',
+      tile: 2,
+      amount: 250,
+      into: 'deposit',
+    });
+    expect(next.players[0]).toMatchObject({ cash: 1000, deposit: 750 });
+    expect(next.players[1]).toMatchObject({ cash: 750, deposit: 500 });
   });
 
-  it('PlayerBankrupt zeroes money, releases tiles and pays the creditor', () => {
+  it("PlayerBankrupt zeroes money, releases tiles and pays into the creditor's deposit", () => {
     const next = apply({
       type: 'PlayerBankrupt',
       playerId: 'a',
@@ -96,7 +103,7 @@ describe('applyEventToDisplay', () => {
       cause: { kind: 'rent', tile: 2, amountDue: 9000 },
     });
     expect(next.players[0]).toMatchObject({ cash: 0, deposit: 0, bankrupt: true });
-    expect(next.players[1]?.cash).toBe(2500);
+    expect(next.players[1]).toMatchObject({ cash: 1000, deposit: 2000 });
     expect(next.tiles[2]).toEqual({ owner: null, level: 0 });
   });
 
@@ -125,7 +132,14 @@ describe('applyEventToDisplay', () => {
   it('does not modify its input', () => {
     const before = model();
     const copy = JSON.parse(JSON.stringify(before)) as DisplayModel;
-    applyEventToDisplay(before, { type: 'RentPaid', from: 'b', to: 'a', tile: 2, amount: 250 });
+    applyEventToDisplay(before, {
+      type: 'RentPaid',
+      from: 'b',
+      to: 'a',
+      tile: 2,
+      amount: 250,
+      into: 'deposit',
+    });
     expect(before).toEqual(copy);
   });
 });
@@ -133,9 +147,16 @@ describe('applyEventToDisplay', () => {
 describe('diffDisplay', () => {
   it('is empty for equal models and names each differing field', () => {
     expect(diffDisplay(model(), model())).toEqual([]);
-    const changed = apply({ type: 'RentPaid', from: 'b', to: 'a', tile: 2, amount: 1 });
+    const changed = apply({
+      type: 'RentPaid',
+      from: 'b',
+      to: 'a',
+      tile: 2,
+      amount: 1,
+      into: 'deposit',
+    });
     expect(diffDisplay(changed, model())).toEqual([
-      'players[0].cash: 1001 != 1000',
+      'players[0].deposit: 501 != 500',
       'players[1].cash: 999 != 1000',
     ]);
   });

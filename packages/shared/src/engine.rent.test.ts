@@ -101,11 +101,11 @@ describe("landing on another player's property", () => {
   it('pays the rent to the owner and ends the turn', () => {
     const { state, events } = applyOk(beforeLanding({ cash: 5000, level: 2 }), roll);
     expect(events.slice(2)).toEqual([
-      { type: 'RentPaid', from: 'p1', to: 'p2', tile: 1, amount: 600 },
+      { type: 'RentPaid', from: 'p1', to: 'p2', tile: 1, amount: 600, into: 'deposit' },
       { type: 'TurnStarted', playerId: 'p2', round: 1 },
     ]);
     expect(getPlayer(state, 'p1').cash).toBe(4400);
-    expect(getPlayer(state, 'p2').cash).toBe(600);
+    expect(getPlayer(state, 'p2')).toMatchObject({ cash: 0, deposit: 600 });
     expect(state.turn).toMatchObject({ current: 'p2', phase: { kind: 'awaitRoll' } });
     expect(state.tiles[1]).toEqual({ owner: 'p2', level: 2 });
   });
@@ -114,14 +114,28 @@ describe("landing on another player's property", () => {
     let start = beforeLanding({ cash: 5000 }, { board: STREET_BOARD });
     start = patchTile(start, 4, { owner: 'p2', level: 3 });
     const { state, events } = applyOk(start, roll);
-    expect(events[2]).toEqual({ type: 'RentPaid', from: 'p1', to: 'p2', tile: 1, amount: 430 });
+    expect(events[2]).toEqual({
+      type: 'RentPaid',
+      from: 'p1',
+      to: 'p2',
+      tile: 1,
+      amount: 430,
+      into: 'deposit',
+    });
     expect(getPlayer(state, 'p1').cash).toBe(5000 - 430);
   });
 
   it("charges the tile's own rent for its level", () => {
     const board = OWN_RENTS_BOARD;
     const { events } = applyOk(beforeLanding({ cash: 50, level: 3 }, { board }), roll);
-    expect(events[2]).toEqual({ type: 'RentPaid', from: 'p1', to: 'p2', tile: 1, amount: 10 });
+    expect(events[2]).toEqual({
+      type: 'RentPaid',
+      from: 'p1',
+      to: 'p2',
+      tile: 1,
+      amount: 10,
+      into: 'deposit',
+    });
   });
 
   it('can pay with exactly enough cash', () => {
@@ -139,10 +153,10 @@ describe("landing on another player's property", () => {
     const { state, events } = applyOk(beforeLanding({ cash: 40, deposit: 60 }), roll);
     expect(events.slice(2, 4)).toEqual([
       { type: 'DepositWithdrawn', playerId: 'p1', amount: 60 },
-      { type: 'RentPaid', from: 'p1', to: 'p2', tile: 1, amount: 100 },
+      { type: 'RentPaid', from: 'p1', to: 'p2', tile: 1, amount: 100, into: 'deposit' },
     ]);
     expect(getPlayer(state, 'p1')).toMatchObject({ cash: 0, deposit: 0, bankrupt: false });
-    expect(getPlayer(state, 'p2').cash).toBe(100);
+    expect(getPlayer(state, 'p2')).toMatchObject({ cash: 0, deposit: 100 });
   });
 
   it('bankrupts a player who cannot pay and moves on to the next one', () => {
@@ -173,7 +187,14 @@ describe("landing on another player's property", () => {
       null,
     ]);
     const { state, events } = applyOk(beforeLanding({ cash: 0 }, { board }), roll);
-    expect(events[2]).toEqual({ type: 'RentPaid', from: 'p1', to: 'p2', tile: 1, amount: 0 });
+    expect(events[2]).toEqual({
+      type: 'RentPaid',
+      from: 'p1',
+      to: 'p2',
+      tile: 1,
+      amount: 0,
+      into: 'deposit',
+    });
     expect(getPlayer(state, 'p1').bankrupt).toBe(false);
   });
 
@@ -193,6 +214,6 @@ describe("landing on another player's property", () => {
     const start = withFixedDice(beforeLanding({ cash: 500 }), [2]);
     const { state, events } = applyOk(start, roll);
     expect(events.map((e) => e.type)).not.toContain('RentPaid');
-    expect(getPlayer(state, 'p2').cash).toBe(0);
+    expect(getPlayer(state, 'p2')).toMatchObject({ cash: 0, deposit: 0 });
   });
 });

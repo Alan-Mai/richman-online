@@ -163,8 +163,9 @@ export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult
   };
 }
 
+/** A creditor is paid into their deposit, not their cash (docs/GAME_RULES.md §3, §8). */
 function receive(state: GameState, playerId: PlayerId, amount: number): GameState {
-  return updatePlayer(state, playerId, (p) => ({ cash: p.cash + amount }));
+  return updatePlayer(state, playerId, (p) => ({ deposit: p.deposit + amount }));
 }
 
 /** Voluntary payment to the bank (buying, upgrading); must be within spendable(). */

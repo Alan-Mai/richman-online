@@ -342,7 +342,10 @@ function resolveLanding(state: GameState): Step {
     const paid = pay(state, player.id, { kind: 'rent', tile: index, creditor: owner, amount });
     const events: GameEvent[] = paid.bankrupt
       ? paid.events
-      : [...paid.events, { type: 'RentPaid', from: player.id, to: owner, tile: index, amount }];
+      : [
+          ...paid.events,
+          { type: 'RentPaid', from: player.id, to: owner, tile: index, amount, into: 'deposit' },
+        ];
     return chain({ state: paid.state, events }, endTurn);
   }
   return endTurn(state);
