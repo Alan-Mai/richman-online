@@ -55,12 +55,11 @@ function playRandomGame(config: Partial<RuleConfig>, seed: number, maxSteps: num
 describe('legalActions completeness', () => {
   // [name, config, step limit]; rent goes into deposits, so last-standing games run long.
   const configs: [string, Partial<RuleConfig>, number][] = [
-    ['defaults with a round limit', { winCondition: 'richestAtRoundLimit', maxRounds: 25 }, 600],
+    ['defaults with a day limit', { dayLimit: 25 }, 600],
     [
       'poor players',
       {
-        winCondition: 'richestAtRoundLimit',
-        maxRounds: 40,
+        dayLimit: 40,
         startingFunds: 3000,
       },
       600,

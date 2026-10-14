@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GameRecord, GameSpec, Outcome } from './game';
+import type { EndReason, GameRecord, GameSpec, Outcome } from './game';
 import {
   failureKeys,
   formatActions,
@@ -17,15 +17,15 @@ function record(seed: number, outcome: Outcome, rounds: number, steps = 10, bank
   return { seed, actions, rounds, bankruptcies, outcome } satisfies GameRecord;
 }
 
-const finished = (reason: 'lastStanding' | 'roundLimit', winnerSeats: number[]): Outcome => ({
+const finished = (reason: EndReason, winnerSeats: number[]): Outcome => ({
   kind: 'finished',
   reason,
   winnerSeats,
 });
 
 const RECORDS: GameRecord[] = [
-  record(1, finished('roundLimit', [0]), 100, 400, 1),
-  record(2, finished('roundLimit', [1, 2]), 100, 400),
+  record(1, finished('dayLimit', [0]), 100, 400, 1),
+  record(2, finished('netWorthTarget', [1, 2]), 100, 400),
   record(3, finished('lastStanding', [3]), 40, 150, 3),
   record(4, finished('lastStanding', []), 30, 50, 4),
   record(5, { kind: 'unfinished' }, 500, 1000, 2),
@@ -75,7 +75,7 @@ describe('summarize', () => {
       finished: 4,
       unfinished: 1,
       failed: 3,
-      reasons: { roundLimit: 2, lastStanding: 2, noWinner: 1 },
+      reasons: { lastStanding: 2, dayLimit: 1, netWorthTarget: 1, noWinner: 1 },
       bankruptcies: 10,
       tiedGames: 1,
     });
@@ -140,9 +140,10 @@ describe('formatting', () => {
   const spec: GameSpec = {
     board: 'test-loop',
     seed: 12,
-    win: 'richestAtRoundLimit',
-    maxRounds: 100,
-    maxSteps: 10_000,
+    dayLimit: 100,
+    netWorthTargetMultiple: null,
+    maxDays: 1000,
+    maxSteps: 20_000,
   };
 
   it('formats actions compactly', () => {
@@ -156,10 +157,10 @@ describe('formatting', () => {
 
   it('builds a rerun command for one game', () => {
     expect(rerunCommand(spec)).toBe(
-      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --win richestAtRoundLimit --max-rounds 100 --max-steps 10000',
+      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --day-limit 100 --max-days 1000 --max-steps 20000',
     );
-    expect(rerunCommand({ ...spec, win: 'lastStanding', maxRounds: null })).toBe(
-      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --win lastStanding --max-steps 10000',
+    expect(rerunCommand({ ...spec, dayLimit: null, netWorthTargetMultiple: 3 })).toBe(
+      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --net-worth-target 3 --max-days 1000 --max-steps 20000',
     );
   });
 
@@ -177,8 +178,9 @@ describe('formatting', () => {
     const text = formatStats(summarize(RECORDS, 4), 2500);
     expect(text).toContain('games: 8 (finished 4, unfinished 1, failed 3)');
     expect(text).toContain('rounds (finished games): mean 67.5, min 30, max 100');
-    expect(text).toContain('roundLimit 2 (25.0%)');
     expect(text).toContain('lastStanding 2 (25.0%, 1 without a winner)');
+    expect(text).toContain('dayLimit 1 (12.5%)');
+    expect(text).toContain('netWorthTarget 1 (12.5%)');
     expect(text).toContain('seat 1 25.0%');
     expect(text).toContain('seat 2 12.5%');
     expect(text).toContain('tied games: 1');

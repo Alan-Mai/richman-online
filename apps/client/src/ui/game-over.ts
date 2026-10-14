@@ -41,11 +41,7 @@ export class GameOverDialog implements ControllerSink {
     title.id = 'game-over-title';
     title.textContent = t('gameOver.title');
     const reason = document.createElement('p');
-    reason.textContent = t(
-      event.reason === 'lastStanding'
-        ? 'event.gameEnded.lastStanding'
-        : 'event.gameEnded.roundLimit',
-    );
+    reason.textContent = t(`event.gameEnded.${event.reason}`);
     const winners = document.createElement('p');
     winners.className = 'game-over-winners';
     winners.textContent =
@@ -67,9 +63,9 @@ export class GameOverDialog implements ControllerSink {
       label.textContent = `${t('gameOver.rank', { rank: p.rank })} ${name(p.id)}`;
       const detail = document.createElement('span');
       detail.textContent =
-        event.reason === 'roundLimit'
-          ? `${t('gameOver.totalAssets')} ${formatMoney(p.totalAssets)}`
-          : t(p.bankrupt ? 'hud.bankrupt' : 'gameOver.survived');
+        event.reason === 'lastStanding'
+          ? t(p.bankrupt ? 'hud.bankrupt' : 'gameOver.survived')
+          : `${t('gameOver.netWorth')} ${formatMoney(p.netWorth)}`;
       item.append(label, detail);
       table.append(item);
     }

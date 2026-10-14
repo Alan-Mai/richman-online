@@ -6,21 +6,17 @@ import {
   nextInt,
   type GameSetup,
   type ServerUpdate,
-  type WinCondition,
 } from '@richman/shared';
 import { LocalGameHost } from '../net/local-host';
 
+/** 'dayLimit' ends after 20 days; 'lastStanding' has no day limit or target. */
 export function hotSeatSetup(
   seed: number,
-  win: WinCondition = 'richestAtRoundLimit',
+  ending: 'dayLimit' | 'lastStanding' = 'dayLimit',
   playerCount = 4,
 ): GameSetup {
   return {
-    config: {
-      ...DEFAULT_RULE_CONFIG,
-      winCondition: win,
-      maxRounds: win === 'richestAtRoundLimit' ? 20 : null,
-    },
+    config: { ...DEFAULT_RULE_CONFIG, dayLimit: ending === 'dayLimit' ? 20 : null },
     board: TEST_LOOP_BOARD,
     players: Array.from({ length: playerCount }, (_, i) => ({
       id: `p${i + 1}`,

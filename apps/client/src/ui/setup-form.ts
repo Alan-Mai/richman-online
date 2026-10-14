@@ -5,7 +5,6 @@ import {
   TEST_LOOP_BOARD,
   type Board,
   type GameSetup,
-  type WinCondition,
 } from '@richman/shared';
 import { t } from '../i18n';
 
@@ -29,8 +28,8 @@ export interface SetupForm {
   board: BoardChoice;
   playerCount: number;
   names: string[];
-  winCondition: WinCondition;
-  maxRounds: string;
+  /** Empty means no day limit. */
+  dayLimit: string;
   startingFunds: string;
   /** Empty means a random seed. */
   seed: string;
@@ -38,7 +37,7 @@ export interface SetupForm {
 
 export type SetupError =
   | { field: 'name'; seat: number; reason: 'duplicate' }
-  | { field: 'maxRounds' | 'startingFunds' | 'seed'; reason: 'invalid' };
+  | { field: 'dayLimit' | 'startingFunds' | 'seed'; reason: 'invalid' };
 
 export type BuildSetupResult = { ok: true; setup: GameSetup } | { ok: false; errors: SetupError[] };
 
@@ -49,8 +48,7 @@ export function defaultSetupForm(): SetupForm {
     names: Array.from({ length: DEFAULT_RULE_CONFIG.maxPlayers }, (_, i) =>
       t('setup.defaultName', { n: i + 1 }),
     ),
-    winCondition: 'richestAtRoundLimit',
-    maxRounds: '20',
+    dayLimit: '',
     startingFunds: String(DEFAULT_RULE_CONFIG.startingFunds),
     seed: '',
   };
@@ -84,10 +82,10 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
     if (names.indexOf(name) !== seat) errors.push({ field: 'name', seat, reason: 'duplicate' });
   });
 
-  const maxRounds =
-    form.winCondition === 'richestAtRoundLimit' ? parseWhole(form.maxRounds, 1, 9999) : null;
-  if (form.winCondition === 'richestAtRoundLimit' && maxRounds === null) {
-    errors.push({ field: 'maxRounds', reason: 'invalid' });
+  const noDayLimit = form.dayLimit.trim() === '';
+  const dayLimit = noDayLimit ? null : parseWhole(form.dayLimit, 1, 9999);
+  if (!noDayLimit && dayLimit === null) {
+    errors.push({ field: 'dayLimit', reason: 'invalid' });
   }
   const startingFunds = parseWhole(form.startingFunds, 1, 1_000_000_000);
   if (startingFunds === null) errors.push({ field: 'startingFunds', reason: 'invalid' });
@@ -102,8 +100,7 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
     setup: {
       config: {
         ...DEFAULT_RULE_CONFIG,
-        winCondition: form.winCondition,
-        maxRounds,
+        dayLimit,
         startingFunds,
       },
       board: BOARDS[form.board],
@@ -117,8 +114,8 @@ export function describeSetupError(error: SetupError, form: SetupForm): string {
   switch (error.field) {
     case 'name':
       return t('setup.error.duplicateName', { name: (form.names[error.seat] ?? '').trim() });
-    case 'maxRounds':
-      return t('setup.error.maxRounds');
+    case 'dayLimit':
+      return t('setup.error.dayLimit');
     case 'startingFunds':
       return t('setup.error.startingFunds');
     case 'seed':

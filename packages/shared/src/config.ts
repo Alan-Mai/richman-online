@@ -1,8 +1,6 @@
 // Tunable rule parameters (docs/GAME_RULES.md, fields marked ⚙️).
 // Defaults are provisional values chosen for this project, not values from the original game.
 
-export type WinCondition = 'lastStanding' | 'richestAtRoundLimit';
-
 export interface RuleConfig {
   minPlayers: number;
   maxPlayers: number;
@@ -13,10 +11,17 @@ export interface RuleConfig {
   startingFunds: number;
   /** Unused in Phase 2. */
   startingPoints: number;
-  /** Both conditions also end the game when at most one player is left. */
-  winCondition: WinCondition;
-  /** Required (positive) for 'richestAtRoundLimit', must be null for 'lastStanding'. */
-  maxRounds: number | null;
+  /**
+   * Days gone by (GameState.day) that end the game, checked as each day goes by
+   * (docs/GAME_RULES.md §1); null means no limit, the original's first option. The game also ends
+   * whenever at most one player is left.
+   */
+  dayLimit: number | null;
+  /**
+   * Net worth that ends the game, as a multiple of startingFunds, checked as each day goes by;
+   * null means no target, the original's first option.
+   */
+  netWorthTargetMultiple: number | null;
   defaultDiceCount: number;
   diceFaces: number;
   maxLevel: number;
@@ -27,18 +32,15 @@ export const DEFAULT_RULE_CONFIG: RuleConfig = {
   maxPlayers: 4,
   startingFunds: 40_000,
   startingPoints: 0,
-  winCondition: 'lastStanding',
-  maxRounds: null,
+  dayLimit: null,
+  netWorthTargetMultiple: null,
   defaultDiceCount: 1,
   diceFaces: 6,
   maxLevel: 5,
 };
 
 export type RuleConfigErrorReason =
-  | 'notNonNegativeInteger'
-  | 'notPositiveInteger'
-  | 'lessThanMinPlayers'
-  | 'mustBeNullForLastStanding';
+  'notNonNegativeInteger' | 'notPositiveInteger' | 'lessThanMinPlayers';
 
 export interface RuleConfigError {
   field: keyof RuleConfig;
@@ -81,12 +83,11 @@ export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
     errors.push({ field: 'maxPlayers', reason: 'lessThanMinPlayers' });
   }
 
-  if (config.winCondition === 'lastStanding') {
-    if (config.maxRounds !== null) {
-      errors.push({ field: 'maxRounds', reason: 'mustBeNullForLastStanding' });
+  for (const field of ['dayLimit', 'netWorthTargetMultiple'] as const) {
+    const value = config[field];
+    if (value !== null && !isPositiveInteger(value)) {
+      errors.push({ field, reason: 'notPositiveInteger' });
     }
-  } else if (config.maxRounds === null || !isPositiveInteger(config.maxRounds)) {
-    errors.push({ field: 'maxRounds', reason: 'notPositiveInteger' });
   }
 
   return errors;

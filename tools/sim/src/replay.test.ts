@@ -5,9 +5,10 @@ import { parseGameLog, replay, reproduces, toGameLog, type GameLog } from './rep
 const RICHEST: GameSpec = {
   board: 'test-loop',
   seed: 7,
-  win: 'richestAtRoundLimit',
-  maxRounds: 10,
-  maxSteps: 10_000,
+  dayLimit: 10,
+  netWorthTargetMultiple: null,
+  maxDays: 1000,
+  maxSteps: 20_000,
 };
 
 /** Breaks once round 3 starts. */
@@ -56,14 +57,8 @@ describe('replay', () => {
     expect(reproduces(log, fixed)).toBe(false);
   });
 
-  it('reproduces unfinished lastStanding games and step-limit failures', () => {
-    const unfinished: GameSpec = {
-      ...RICHEST,
-      seed: 3,
-      win: 'lastStanding',
-      maxRounds: null,
-      maxSteps: 25,
-    };
+  it('reproduces games left unfinished at the day cap and step-limit failures', () => {
+    const unfinished: GameSpec = { ...RICHEST, seed: 3, dayLimit: null, maxDays: 4 };
     const log = toGameLog(unfinished, runGame(unfinished));
     expect(reproduces(log, replay(log))).toBe(true);
 
@@ -124,7 +119,7 @@ describe('parseGameLog', () => {
     [
       'an older version',
       edit({ version: 1 }),
-      'unsupported log version 1 (expected 2; logs from older engines cannot be replayed)',
+      'unsupported log version 1 (expected 3; logs from older engines cannot be replayed)',
     ],
     ['an unknown board', edit({ board: 'elsewhere' }), 'unknown board elsewhere'],
     ['a missing config', edit({ config: null }), 'config must be an object'],

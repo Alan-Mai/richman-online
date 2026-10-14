@@ -36,8 +36,9 @@ function simulate(options: RunOptions, io: SimIO, engine: Engine): number {
     const spec: GameSpec = {
       board: options.board,
       seed: gameSeedFor(options.seed, index),
-      win: options.win,
-      maxRounds: options.maxRounds,
+      dayLimit: options.dayLimit,
+      netWorthTargetMultiple: options.netWorthTargetMultiple,
+      maxDays: options.maxDays,
       maxSteps: options.maxSteps,
     };
     const record = runGame(spec, engine);

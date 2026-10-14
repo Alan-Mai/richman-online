@@ -1,6 +1,6 @@
 // The new-game form as DOM. Validation lives in setup-form.ts.
-import { DEFAULT_RULE_CONFIG, type GameSetup, type WinCondition } from '@richman/shared';
-import { t, type MessageKey } from '../i18n';
+import { DEFAULT_RULE_CONFIG, type GameSetup } from '@richman/shared';
+import { t } from '../i18n';
 import {
   BOARDS,
   NAME_MAX_LENGTH,
@@ -27,11 +27,6 @@ function input(name: string, value: string, attrs: Record<string, string> = {}):
   node.value = value;
   return node;
 }
-
-const WIN_LABELS = {
-  lastStanding: 'setup.win.lastStanding',
-  richestAtRoundLimit: 'setup.win.richestAtRoundLimit',
-} as const satisfies Record<WinCondition, MessageKey>;
 
 export interface SetupScreenOptions {
   initial: SetupForm;
@@ -79,22 +74,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     labelled(t('setup.playerName', { n: seat + 1 }), node),
   );
 
-  const win = document.createElement('fieldset');
-  const legend = document.createElement('legend');
-  legend.textContent = t('setup.winCondition');
-  win.append(legend);
-  const winInputs = (Object.keys(WIN_LABELS) as WinCondition[]).map((value) => {
-    const radio = input('winCondition', value, { type: 'radio' });
-    radio.checked = value === initial.winCondition;
-    const label = document.createElement('label');
-    label.className = 'setup-radio';
-    label.append(radio, t(WIN_LABELS[value]));
-    win.append(label);
-    return radio;
-  });
-  const maxRounds = input('maxRounds', initial.maxRounds, { inputmode: 'numeric' });
-  const maxRoundsLabel = labelled(t('setup.maxRounds'), maxRounds);
-  win.append(maxRoundsLabel);
+  const dayLimit = input('dayLimit', initial.dayLimit, { inputmode: 'numeric' });
 
   const advanced = document.createElement('details');
   const summary = document.createElement('summary');
@@ -120,11 +100,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     board: isBoardChoice(board.value) ? board.value : 'test-loop',
     playerCount: Number(count.value),
     names: nameInputs.map((n) => n.value),
-    winCondition:
-      winInputs.find((r) => r.checked)?.value === 'lastStanding'
-        ? 'lastStanding'
-        : 'richestAtRoundLimit',
-    maxRounds: maxRounds.value,
+    dayLimit: dayLimit.value,
     startingFunds: funds.value,
     seed: seed.value,
   });
@@ -132,10 +108,8 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
   const sync = () => {
     const values = read();
     nameLabels.forEach((label, seat) => (label.hidden = seat >= values.playerCount));
-    maxRoundsLabel.hidden = values.winCondition !== 'richestAtRoundLimit';
   };
   count.addEventListener('change', sync);
-  winInputs.forEach((r) => r.addEventListener('change', sync));
   sync();
 
   form.addEventListener('submit', (event) => {
@@ -161,7 +135,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     labelled(t('setup.board'), board),
     labelled(t('setup.playerCount'), count),
     ...nameLabels,
-    win,
+    labelled(t('setup.dayLimit'), dayLimit),
     advanced,
     errors,
     start,

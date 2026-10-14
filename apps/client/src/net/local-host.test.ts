@@ -17,7 +17,7 @@ function lastUpdate(messages: HostMessage[]) {
 
 describe('LocalGameHost', () => {
   it('reports createGame errors instead of throwing', () => {
-    const result = LocalGameHost.create(hotSeatSetup(1, 'richestAtRoundLimit', 1));
+    const result = LocalGameHost.create(hotSeatSetup(1, 'dayLimit', 1));
     expect(result.ok).toBe(false);
   });
 

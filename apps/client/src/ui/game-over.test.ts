@@ -24,9 +24,9 @@ const model: DisplayModel = {
 
 const ended: GameEvent = {
   type: 'GameEnded',
-  reason: 'roundLimit',
-  winners: ['p2', 'p3'],
-  totalAssets: { p1: 30000, p2: 52000, p3: 52000, p4: 0 },
+  reason: 'dayLimit',
+  winners: ['p2'],
+  netWorth: { p1: 30000, p2: 52000, p3: 52000, p4: 0 },
 };
 
 /** Stands in for the update an event arrived in; only its identity matters to the dialog. */
@@ -67,18 +67,18 @@ describe('GameOverDialog', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('shows winners, a ranking by total assets with shared ranks, and the seed', () => {
+  it('shows the winner, a ranking by net worth (ties by seat) and the seed', () => {
     const { root } = open();
     expect(root.hidden).toBe(false);
-    expect(root.querySelector('.game-over-winners')?.textContent).toBe('勝利：乙、丙');
+    expect(root.querySelector('.game-over-winners')?.textContent).toBe('勝利：乙');
     const rows = [...root.querySelectorAll('.game-over-ranking li')].map((li) => li.textContent);
     expect(rows).toEqual([
-      '第 1 名 乙總資產 52,000',
-      '第 1 名 丙總資產 52,000',
-      '第 3 名 甲總資產 30,000',
-      '第 4 名 丁總資產 0',
+      '第 1 名 乙淨值 52,000',
+      '第 2 名 丙淨值 52,000',
+      '第 3 名 甲淨值 30,000',
+      '第 4 名 丁淨值 0',
     ]);
-    expect(root.querySelectorAll('.is-winner')).toHaveLength(2);
+    expect(root.querySelectorAll('.is-winner')).toHaveLength(1);
     expect(root.querySelector('.game-over-seed')?.textContent).toBe('本局種子：77');
   });
 
@@ -87,7 +87,7 @@ describe('GameOverDialog', () => {
       type: 'GameEnded',
       reason: 'lastStanding',
       winners: ['p3'],
-      totalAssets: { p1: 0, p2: 0, p3: 1000, p4: 0 },
+      netWorth: { p1: 0, p2: 0, p3: 1000, p4: 0 },
     };
     // p4 first, then p1 and p2 in the same action.
     const { root } = open(lastStanding, [[bankrupt('p4')], [bankrupt('p1'), bankrupt('p2')]]);

@@ -1,7 +1,7 @@
 // Run statistics and the text the simulator prints. Output is plain ASCII English so it reads the
 // same in any Windows console code page.
 import type { Action } from '@richman/shared';
-import type { GameRecord, GameSpec } from './game';
+import type { EndReason, GameRecord, GameSpec } from './game';
 import type { ReplayFailure } from './replay';
 
 export interface Stats {
@@ -10,7 +10,7 @@ export interface Stats {
   unfinished: number;
   failed: number;
   /** noWinner counts the lastStanding endings with nobody left (also counted in lastStanding). */
-  reasons: { roundLimit: number; lastStanding: number; noWinner: number };
+  reasons: Record<EndReason, number> & { noWinner: number };
   /** Over finished games; null when none finished. */
   rounds: { mean: number; min: number; max: number } | null;
   /** Over games that did not fail; null when all failed. */
@@ -32,7 +32,7 @@ export function summarize(records: readonly GameRecord[], seats: number): Stats 
     finished: 0,
     unfinished: 0,
     failed: 0,
-    reasons: { roundLimit: 0, lastStanding: 0, noWinner: 0 },
+    reasons: { lastStanding: 0, dayLimit: 0, netWorthTarget: 0, noWinner: 0 },
     rounds: null,
     meanSteps: null,
     seatWins: Array.from({ length: seats }, () => 0),
@@ -154,8 +154,12 @@ export function formatActions(actions: readonly Action[]): string {
 
 /** Reruns one game through the random AI; same seed, same choices. */
 export function rerunCommand(spec: GameSpec): string {
-  const rounds = spec.maxRounds === null ? '' : ` --max-rounds ${spec.maxRounds}`;
-  return `pnpm -F sim sim -- --games 1 --seed ${spec.seed} --board ${spec.board} --win ${spec.win}${rounds} --max-steps ${spec.maxSteps}`;
+  const days = spec.dayLimit === null ? '' : ` --day-limit ${spec.dayLimit}`;
+  const target =
+    spec.netWorthTargetMultiple === null
+      ? ''
+      : ` --net-worth-target ${spec.netWorthTargetMultiple}`;
+  return `pnpm -F sim sim -- --games 1 --seed ${spec.seed} --board ${spec.board}${days}${target} --max-days ${spec.maxDays} --max-steps ${spec.maxSteps}`;
 }
 
 export function formatFailureDetail(
@@ -189,9 +193,10 @@ export function formatStats(stats: Stats, elapsedMs: number): string {
       ? 'rounds (finished games): n/a'
       : `rounds (finished games): mean ${rounds.mean.toFixed(1)}, min ${rounds.min}, max ${rounds.max}`,
     `steps (games that did not fail): ${stats.meanSteps === null ? 'n/a' : `mean ${stats.meanSteps.toFixed(1)}`}`,
-    `end reasons: roundLimit ${reasons.roundLimit} (${percent(reasons.roundLimit, games)}), ` +
-      `lastStanding ${reasons.lastStanding} (${percent(reasons.lastStanding, games)}, ` +
+    `end reasons: lastStanding ${reasons.lastStanding} (${percent(reasons.lastStanding, games)}, ` +
       `${reasons.noWinner} without a winner), ` +
+      `dayLimit ${reasons.dayLimit} (${percent(reasons.dayLimit, games)}), ` +
+      `netWorthTarget ${reasons.netWorthTarget} (${percent(reasons.netWorthTarget, games)}), ` +
       `unfinished ${stats.unfinished} (${percent(stats.unfinished, games)}), ` +
       `failed ${stats.failed} (${percent(stats.failed, games)})`,
     `seat win rate (ties split 1/k, out of ${finished} finished): ` +

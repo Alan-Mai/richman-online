@@ -88,7 +88,7 @@ function checkTiles({ config, board, players, tiles }: GameState): string[] {
 }
 
 function checkTurn(state: GameState): string[] {
-  const { config, players, turn } = state;
+  const { players, turn } = state;
   const errors: string[] = [];
   const current = players.find((p) => p.id === turn.current);
   if (current === undefined) {
@@ -96,8 +96,6 @@ function checkTurn(state: GameState): string[] {
   }
   if (!Number.isSafeInteger(turn.round) || turn.round < 1) {
     errors.push(`turn: round ${turn.round} is not a positive integer`);
-  } else if (config.maxRounds !== null && turn.round > config.maxRounds) {
-    errors.push(`turn: round ${turn.round} exceeds maxRounds ${config.maxRounds}`);
   }
   if (turn.phase.kind !== 'gameOver' && current?.bankrupt === true) {
     errors.push(`turn: current player ${current.id} is bankrupt`);

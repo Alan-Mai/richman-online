@@ -5,9 +5,10 @@ const DEFAULTS: RunOptions = {
   board: 'test-loop',
   games: 1000,
   seed: 1,
-  win: 'richestAtRoundLimit',
-  maxRounds: 100,
-  maxSteps: 10_000,
+  dayLimit: null,
+  netWorthTargetMultiple: null,
+  maxDays: 1000,
+  maxSteps: 20_000,
   maxFailureDetails: 5,
 };
 
@@ -28,8 +29,12 @@ describe('parseCommand', () => {
       '--games=20',
       '--seed',
       '4294967295',
-      '--max-rounds',
+      '--day-limit',
       '7',
+      '--net-worth-target',
+      '3',
+      '--max-days',
+      '9',
       '--max-steps',
       '50',
       '--max-failure-details',
@@ -43,8 +48,9 @@ describe('parseCommand', () => {
           board: 'test-loop',
           games: 20,
           seed: 4294967295,
-          win: 'richestAtRoundLimit',
-          maxRounds: 7,
+          dayLimit: 7,
+          netWorthTargetMultiple: 3,
+          maxDays: 9,
           maxSteps: 50,
           maxFailureDetails: 0,
         },
@@ -52,10 +58,10 @@ describe('parseCommand', () => {
     });
   });
 
-  it('runs lastStanding without a round limit', () => {
-    expect(parseCommand(['--win', 'lastStanding'])).toEqual({
+  it('scales the default step limit with the day cap', () => {
+    expect(parseCommand(['--max-days', '30'])).toEqual({
       ok: true,
-      command: { kind: 'run', options: { ...DEFAULTS, win: 'lastStanding', maxRounds: null } },
+      command: { kind: 'run', options: { ...DEFAULTS, maxDays: 30, maxSteps: 600 } },
     });
   });
 
@@ -88,17 +94,19 @@ describe('parseCommand', () => {
       ['--board', 'atlantis'],
       '--board must be test-loop or test-branch, got atlantis',
     ],
+    ['the removed --win', ['--win=lastStanding'], 'unknown option --win'],
+    ['zero day-limit', ['--day-limit', '0'], '--day-limit must be a positive integer, got 0'],
     [
-      'unknown win condition',
-      ['--win', 'richest'],
-      '--win must be richestAtRoundLimit or lastStanding, got richest',
+      'zero net-worth-target',
+      ['--net-worth-target', '0'],
+      '--net-worth-target must be a positive integer, got 0',
     ],
+    ['zero max-days', ['--max-days', '0'], '--max-days must be a positive integer, got 0'],
     [
-      'a round limit with lastStanding',
-      ['--win', 'lastStanding', '--max-rounds', '50'],
-      '--max-rounds cannot be used with --win lastStanding',
+      'a day limit beyond the day cap',
+      ['--day-limit', '50', '--max-days', '40'],
+      '--day-limit 50 exceeds --max-days 40',
     ],
-    ['zero max-rounds', ['--max-rounds', '0'], '--max-rounds must be a positive integer, got 0'],
     ['zero max-steps', ['--max-steps', '0'], '--max-steps must be a positive integer, got 0'],
     [
       'negative failure details',

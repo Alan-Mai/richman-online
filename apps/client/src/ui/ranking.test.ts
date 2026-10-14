@@ -11,17 +11,21 @@ function ended(reason: GameEnded['reason'], totals: number[], winners: string[] 
     type: 'GameEnded',
     reason,
     winners,
-    totalAssets: Object.fromEntries(seats.map((id, i) => [id, totals[i] ?? 0])),
+    netWorth: Object.fromEntries(seats.map((id, i) => [id, totals[i] ?? 0])),
   };
 }
 
 const ranks = (r: ReturnType<typeof rankPlayers>) => r.map((p) => `${p.id}:${p.rank}`);
 
-describe('rankPlayers, round limit', () => {
-  it('orders by total assets and shares ranks on ties', () => {
-    const result = rankPlayers(seats, ended('roundLimit', [30000, 52000, 52000, 0]), [['p4']]);
-    expect(ranks(result)).toEqual(['p2:1', 'p3:1', 'p1:3', 'p4:4']);
-    expect(result.find((p) => p.id === 'p4')?.bankrupt).toBe(true);
+describe('rankPlayers, day limit or net worth target', () => {
+  it('orders by net worth, equal amounts by seat without sharing ranks', () => {
+    const totals = [30000, 52000, 52000, 0];
+    for (const reason of ['dayLimit', 'netWorthTarget'] as const) {
+      const result = rankPlayers(seats, ended(reason, totals, ['p2']), [['p4']]);
+      expect(ranks(result)).toEqual(['p2:1', 'p3:2', 'p1:3', 'p4:4']);
+      expect(result.find((p) => p.id === 'p4')?.bankrupt).toBe(true);
+      expect(result.find((p) => p.id === 'p3')?.netWorth).toBe(52000);
+    }
   });
 });
 

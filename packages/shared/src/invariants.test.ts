@@ -152,18 +152,6 @@ describe('checkInvariants', () => {
       'turn: round 0 is not a positive integer',
     ],
     [
-      'round beyond maxRounds',
-      () =>
-        patchTurn(
-          newTestGame({
-            board: BOARD,
-            config: { winCondition: 'richestAtRoundLimit', maxRounds: 3 },
-          }),
-          { round: 4 },
-        ),
-      'turn: round 4 exceeds maxRounds 3',
-    ],
-    [
       'bankrupt current player before the game is over',
       () => patchPlayer(base(), 'p1', { bankrupt: true }),
       'turn: current player p1 is bankrupt',

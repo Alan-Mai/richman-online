@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Action } from './actions';
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from './config';
 import type { GameEvent } from './events';
-import { buyPrice, netWorth, rentFor, totalAssets, upgradeCost } from './money';
+import { buyPrice, netWorth, rentFor, upgradeCost } from './money';
 import type { GameState } from './state';
 import {
   applyOk,
@@ -253,11 +253,10 @@ describe('netWorth', () => {
     expect(netWorth(state, 'p1')).toBe(7 + 11 + 1000 + 2 * 300);
   });
 
-  it('does not multiply properties by the price index, unlike totalAssets', () => {
+  it('does not multiply properties by the price index', () => {
     let state = patchPlayer(newTestGame({ board: BOARD }), 'p1', { cash: 7, deposit: 11 });
     state = withIndex(patchTile(state, 1, { owner: 'p1', level: 2 }), 4);
     expect(netWorth(state, 'p1')).toBe(7 + 11 + 1000 + 2 * 300);
-    expect(totalAssets(state, 'p1')).toBe(7 + 11 + 4 * (1000 + 2 * 300));
   });
 });
 

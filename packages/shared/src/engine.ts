@@ -7,16 +7,7 @@ import type { RuleError } from './errors';
 import type { GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
-import {
-  buyPrice,
-  netWorth,
-  pay,
-  rentFor,
-  spend,
-  spendable,
-  totalAssets,
-  upgradeCost,
-} from './money';
+import { buyPrice, netWorth, pay, rentFor, spend, spendable, upgradeCost } from './money';
 import type { GameState, Phase, PhaseKind, PlayerState } from './state';
 import { at, chain, findPlayer, playerOf, updatePlayer, updateTile, type Step } from './update';
 
@@ -372,11 +363,11 @@ function awaitDecision(state: GameState, phase: Phase): Step {
 
 /**
  * Ends the current turn (docs/GAME_RULES.md §1): with at most one player left the game is over;
- * otherwise the next player who is not bankrupt moves. Wrapping past the last seat closes the round,
- * which ends a richestAtRoundLimit game at maxRounds or starts the next round.
+ * otherwise the next player who is not bankrupt moves. Wrapping past the last seat closes the round:
+ * a day goes by, which may end the game, before the next round starts.
  */
 function endTurn(state: GameState): Step {
-  const { players, config } = state;
+  const { players } = state;
   const standing = players.filter((p) => !p.bankrupt);
   if (standing.length <= 1) {
     return endGame(
@@ -396,38 +387,50 @@ function endTurn(state: GameState): Step {
     }
   }
   const wrapped = nextSeat <= seat;
-  if (
-    wrapped &&
-    config.winCondition === 'richestAtRoundLimit' &&
-    state.turn.round === config.maxRounds
-  ) {
-    const assets = standing.map((p) => totalAssets(state, p.id));
-    const best = Math.max(...assets);
-    return endGame(
-      state,
-      'roundLimit',
-      standing.filter((_, i) => assets[i] === best).map((p) => p.id),
-    );
-  }
-
   const next = at(players, nextSeat).id;
   if (!wrapped) {
     return startTurn(state, next, state.turn.round);
   }
-  return chain(advanceDay(state), (s) => startTurn(s, next, s.turn.round + 1));
+  return chain(advanceDay(state), (s) =>
+    s.turn.phase.kind === 'gameOver'
+      ? { state: s, events: [] }
+      : startTurn(s, next, s.turn.round + 1),
+  );
 }
 
 /**
- * One day goes by at the end of every round (docs/GAME_RULES.md §2), then the price index becomes
- * floor(average net worth of the players still in / starting funds) unless that is lower
+ * One day goes by at the end of every round (docs/GAME_RULES.md §2). The day limit and the net
+ * worth target are checked first (docs/GAME_RULES.md §1); if the game goes on, the price index
+ * becomes floor(average net worth of the players still in / starting funds) unless that is lower
  * (docs/GAME_RULES.md §3).
  */
 function advanceDay(state: GameState): Step {
+  const { config } = state;
   const day = state.day + 1;
   const standing = state.players.filter((p) => !p.bankrupt);
-  const sum = standing.reduce((total, p) => total + netWorth(state, p.id), 0);
+  const worths = standing.map((p) => netWorth(state, p.id));
+
+  // The first (lowest seat) of the richest wins alone.
+  const best = Math.max(...worths);
+  const richest = at(standing, worths.indexOf(best)).id;
+  const targetReached =
+    config.netWorthTargetMultiple !== null &&
+    best >= config.netWorthTargetMultiple * config.startingFunds;
+  const dayLimitReached = config.dayLimit !== null && day >= config.dayLimit && best > 0;
+  if (targetReached || dayLimitReached) {
+    const dated: Step = {
+      state: { ...state, day },
+      events: [{ type: 'DayAdvanced', day, priceIndex: state.priceIndex }],
+    };
+    // When both hold, the reason shown is the target; the outcome is the same either way.
+    return chain(dated, (s) =>
+      endGame(s, targetReached ? 'netWorthTarget' : 'dayLimit', [richest]),
+    );
+  }
+
+  const sum = worths.reduce((total, worth) => total + worth, 0);
   const average = Math.floor(sum / standing.length);
-  const priceIndex = Math.max(state.priceIndex, Math.floor(average / state.config.startingFunds));
+  const priceIndex = Math.max(state.priceIndex, Math.floor(average / config.startingFunds));
   return {
     state: { ...state, day, priceIndex },
     events: [{ type: 'DayAdvanced', day, priceIndex }],
@@ -496,12 +499,12 @@ function boardLocation(player: PlayerState): { tile: TileIndex; prev: TileIndex 
 
 function endGame(
   state: GameState,
-  reason: 'lastStanding' | 'roundLimit',
+  reason: 'lastStanding' | 'dayLimit' | 'netWorthTarget',
   winners: PlayerId[],
 ): Step {
-  const assets = Object.fromEntries(state.players.map((p) => [p.id, totalAssets(state, p.id)]));
+  const worth = Object.fromEntries(state.players.map((p) => [p.id, netWorth(state, p.id)]));
   return {
     state: { ...state, turn: { ...state.turn, phase: { kind: 'gameOver', winners } } },
-    events: [{ type: 'GameEnded', reason, winners, totalAssets: assets }],
+    events: [{ type: 'GameEnded', reason, winners, netWorth: worth }],
   };
 }

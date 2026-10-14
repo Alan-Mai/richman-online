@@ -129,9 +129,9 @@ describe('applyEventToDisplay', () => {
   it('GameEnded records the winners', () => {
     const next = apply({
       type: 'GameEnded',
-      reason: 'roundLimit',
+      reason: 'dayLimit',
       winners: ['b'],
-      totalAssets: {},
+      netWorth: {},
     });
     expect(next.winners).toEqual(['b']);
   });
@@ -177,7 +177,7 @@ function withConfig(setup: GameSetup, patch: Partial<RuleConfig>): GameSetup {
 // event does not carry enough information for the screen.
 describe('events reproduce the views', () => {
   const cases: [string, GameSetup][] = [
-    ['round limit', hotSeatSetup(21)],
+    ['day limit', hotSeatSetup(21)],
     ['last standing', hotSeatSetup(22, 'lastStanding')],
     ['low cash', withConfig(hotSeatSetup(24, 'lastStanding'), { startingFunds: 4000 })],
     ['two players', hotSeatSetup(27, 'lastStanding', 2)],

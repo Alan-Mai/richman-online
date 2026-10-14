@@ -11,8 +11,9 @@ describe('DEFAULT_RULE_CONFIG', () => {
   });
 
   it('uses the agreed defaults', () => {
-    expect(DEFAULT_RULE_CONFIG.winCondition).toBe('lastStanding');
-    expect(DEFAULT_RULE_CONFIG.maxRounds).toBeNull();
+    // The original's first option for both: no limit, no target.
+    expect(DEFAULT_RULE_CONFIG.dayLimit).toBeNull();
+    expect(DEFAULT_RULE_CONFIG.netWorthTargetMultiple).toBeNull();
   });
 });
 
@@ -45,19 +46,21 @@ describe('validateRuleConfig', () => {
     });
   });
 
-  it('ties maxRounds to the richestAtRoundLimit win condition', () => {
-    expect(validateRuleConfig(withConfig({ maxRounds: 50 }))).toContainEqual({
-      field: 'maxRounds',
-      reason: 'mustBeNullForLastStanding',
-    });
-    expect(
-      validateRuleConfig(withConfig({ winCondition: 'richestAtRoundLimit', maxRounds: null })),
-    ).toContainEqual({ field: 'maxRounds', reason: 'notPositiveInteger' });
-    expect(
-      validateRuleConfig(withConfig({ winCondition: 'richestAtRoundLimit', maxRounds: 0 })),
-    ).toContainEqual({ field: 'maxRounds', reason: 'notPositiveInteger' });
-    expect(
-      validateRuleConfig(withConfig({ winCondition: 'richestAtRoundLimit', maxRounds: 50 })),
-    ).toEqual([]);
+  it('takes null or a positive integer as the day limit and the net worth target', () => {
+    const valid = withConfig({ dayLimit: 50, netWorthTargetMultiple: 3 });
+    expect(validateRuleConfig(valid)).toEqual([]);
+    for (const bad of [0, -1, 1.5]) {
+      const errors = validateRuleConfig(withConfig({ dayLimit: bad, netWorthTargetMultiple: bad }));
+      expect(errors).toContainEqual({ field: 'dayLimit', reason: 'notPositiveInteger' });
+      expect(errors).toContainEqual({
+        field: 'netWorthTargetMultiple',
+        reason: 'notPositiveInteger',
+      });
+    }
+  });
+
+  it('no longer has the round limit win condition', () => {
+    expect(Object.keys(DEFAULT_RULE_CONFIG)).not.toContain('winCondition');
+    expect(Object.keys(DEFAULT_RULE_CONFIG)).not.toContain('maxRounds');
   });
 });

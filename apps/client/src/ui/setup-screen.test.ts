@@ -66,15 +66,13 @@ describe('setup screen', () => {
     expect(started[0]?.[0].players).toHaveLength(2);
   });
 
-  it('shows the round limit only for the round-limit condition', () => {
-    const limitLabel = field('maxRounds').closest('label')!;
-    expect(limitLabel.hidden).toBe(false);
-    const lastStanding = root.querySelector<HTMLInputElement>('[value="lastStanding"]')!;
-    lastStanding.checked = true;
-    lastStanding.dispatchEvent(new Event('change'));
-    expect(limitLabel.hidden).toBe(true);
+  it('takes a day limit, blank meaning none', () => {
+    expect(field<HTMLInputElement>('dayLimit').value).toBe('');
     submit();
-    expect(started[0]?.[0].config.winCondition).toBe('lastStanding');
+    expect(started[0]?.[0].config.dayLimit).toBeNull();
+    setValue('dayLimit', '30');
+    submit();
+    expect(started[1]?.[0].config.dayLimit).toBe(30);
   });
 
   it('lists errors instead of starting', () => {

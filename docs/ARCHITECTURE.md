@@ -91,8 +91,9 @@ createGame ──▶ 放置座位 0 → awaitRoll（座位 0）
                                                               ▼
      回合結束：未破產玩家 ≤ 1 → gameOver（lastStanding）
                下一位未破產玩家；繞回座位 0 時：
-                 ├ richestAtRoundLimit 且 round === maxRounds → gameOver（總資產最高，平手並列）
-                 └ 否則 round + 1
+                 日 + 1（DayAdvanced）：
+                 ├ 達到天數上限（最高淨值 > 0）或淨值目標 → gameOver（淨值最高者，同額座位較前者）
+                 └ 否則更新物價指數，round + 1
                → 尚未放置的玩家先隨機放置（PlayerPlaced）→ awaitRoll
 ```
 

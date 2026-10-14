@@ -39,9 +39,12 @@ export type GameEvent =
     }
   | {
       type: 'GameEnded';
-      reason: 'lastStanding' | 'roundLimit';
+      /** At most one player left, or checked as a day went by (docs/GAME_RULES.md §1). */
+      reason: 'lastStanding' | 'dayLimit' | 'netWorthTarget';
+      /** Empty only when nobody is left; at most one otherwise. */
       winners: readonly PlayerId[];
-      totalAssets: Readonly<Record<PlayerId, number>>;
+      /** Every player's net worth when the game ended. */
+      netWorth: Readonly<Record<PlayerId, number>>;
     };
 
 export type GameEventType = GameEvent['type'];

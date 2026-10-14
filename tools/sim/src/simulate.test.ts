@@ -26,9 +26,10 @@ const OPTIONS: RunOptions = {
   board: 'test-loop',
   games: 20,
   seed: 1,
-  win: 'richestAtRoundLimit',
-  maxRounds: 100,
-  maxSteps: 10_000,
+  dayLimit: 100,
+  netWorthTargetMultiple: null,
+  maxDays: 1000,
+  maxSteps: 20_000,
   maxFailureDetails: 5,
 };
 
@@ -46,10 +47,10 @@ describe('runCommand run', () => {
     expect(files.size).toBe(0);
   });
 
-  it('counts lastStanding games cut off by the step limit', () => {
+  it('counts games cut off by the safety cap on days as unfinished', () => {
     const { io, text } = fakeIO();
-    const options: RunOptions = { ...OPTIONS, games: 3, win: 'lastStanding', maxRounds: null };
-    expect(runCommand({ kind: 'run', options: { ...options, maxSteps: 5 } }, io)).toBe(0);
+    const options: RunOptions = { ...OPTIONS, games: 3, dayLimit: null, maxDays: 2 };
+    expect(runCommand({ kind: 'run', options }, io)).toBe(0);
     expect(text()).toContain('games: 3 (finished 0, unfinished 3, failed 0)');
   });
 

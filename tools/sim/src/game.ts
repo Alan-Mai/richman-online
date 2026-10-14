@@ -17,7 +17,6 @@ import {
   type GameState,
   type PlayerId,
   type RuleError,
-  type WinCondition,
 } from '@richman/shared';
 
 /** The engine functions the simulator calls; tests swap in broken ones. */
@@ -57,10 +56,20 @@ const ACTION_TYPES = Object.keys({
 export interface GameSpec {
   board: BoardName;
   seed: number;
-  win: WinCondition;
-  maxRounds: number | null;
+  /** RuleConfig.dayLimit; null for no limit. */
+  dayLimit: number | null;
+  /** RuleConfig.netWorthTargetMultiple; null for no target. */
+  netWorthTargetMultiple: number | null;
+  /**
+   * Simulator-only safety cap, not a rule: a game still going once this many days have gone by is
+   * recorded as unfinished.
+   */
+  maxDays: number;
+  /** Runaway guard: a game that needs more actions than this is a failure. */
   maxSteps: number;
 }
+
+export type EndReason = 'lastStanding' | 'dayLimit' | 'netWorthTarget';
 
 export type Failure =
   | { kind: 'createGame'; errors: CreateGameError[] }
@@ -78,7 +87,8 @@ export type Failure =
   | { kind: 'exception'; message: string; stack?: string };
 
 export type Outcome =
-  | { kind: 'finished'; reason: 'lastStanding' | 'roundLimit'; winnerSeats: number[] }
+  | { kind: 'finished'; reason: EndReason; winnerSeats: number[] }
+  /** Still going after GameSpec.maxDays. */
   | { kind: 'unfinished' }
   /** `step` = number of actions applied before the failure was found. */
   | { kind: 'failed'; step: number; failure: Failure };
@@ -101,9 +111,15 @@ export function chooserSeedFor(gameSeed: number): number {
   return (gameSeed ^ 0x5eed) >>> 0;
 }
 
-export function gameSetup(spec: Pick<GameSpec, 'board' | 'seed' | 'win' | 'maxRounds'>): GameSetup {
+export function gameSetup(
+  spec: Pick<GameSpec, 'board' | 'seed' | 'dayLimit' | 'netWorthTargetMultiple'>,
+): GameSetup {
   return {
-    config: { ...DEFAULT_RULE_CONFIG, winCondition: spec.win, maxRounds: spec.maxRounds },
+    config: {
+      ...DEFAULT_RULE_CONFIG,
+      dayLimit: spec.dayLimit,
+      netWorthTargetMultiple: spec.netWorthTargetMultiple,
+    },
     board: BOARDS[spec.board],
     players: Array.from({ length: PLAYER_COUNT }, (_, i) => ({
       id: `p${i + 1}`,
@@ -199,8 +215,7 @@ export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
     let state = created.state;
     let previous: GameState | null = null;
     let chooser = createRng(chooserSeedFor(spec.seed));
-    let ending: { reason: 'lastStanding' | 'roundLimit'; winners: readonly PlayerId[] } | null =
-      null;
+    let ending: { reason: EndReason; winners: readonly PlayerId[] } | null = null;
     for (;;) {
       rounds = state.turn.round;
       const failure = checkStep(engine, state, previous);
@@ -210,10 +225,11 @@ export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
       if (state.turn.phase.kind === 'gameOver') {
         break;
       }
+      if (state.day >= spec.maxDays) {
+        return record({ kind: 'unfinished' });
+      }
       if (actions.length >= spec.maxSteps) {
-        return spec.win === 'lastStanding'
-          ? record({ kind: 'unfinished' })
-          : fail({ kind: 'stepLimit', maxSteps: spec.maxSteps });
+        return fail({ kind: 'stepLimit', maxSteps: spec.maxSteps });
       }
 
       const legal = engine.legalActions(state, state.turn.current);

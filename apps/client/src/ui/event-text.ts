@@ -61,10 +61,6 @@ export function describeEvent(event: GameEvent, model: DisplayModel, board: Boar
       }
       return t('event.bankrupt', { name: name(event.playerId) });
     case 'GameEnded':
-      return t(
-        event.reason === 'lastStanding'
-          ? 'event.gameEnded.lastStanding'
-          : 'event.gameEnded.roundLimit',
-      );
+      return t(`event.gameEnded.${event.reason}`);
   }
 }

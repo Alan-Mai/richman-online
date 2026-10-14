@@ -80,21 +80,6 @@ export function netWorth(state: GameState, playerId: PlayerId): number {
   return total;
 }
 
-/**
- * Cash + deposit + what the player's properties would cost to buy now (price index included), as
- * used by richestAtRoundLimit (docs/GAME_RULES.md §1). Unlike netWorth.
- */
-export function totalAssets(state: GameState, playerId: PlayerId): number {
-  const player = playerOf(state, playerId);
-  let total = player.cash + player.deposit;
-  state.tiles.forEach((tile, i) => {
-    if (tile.owner === playerId && state.board.tiles[i]?.kind === 'property') {
-      total += buyPrice(state, i);
-    }
-  });
-  return total;
-}
-
 /** Money the player may spend voluntarily: buying and upgrading only use cash (§3). */
 export function spendable(player: PlayerState): number {
   return player.cash;

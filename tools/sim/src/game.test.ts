@@ -14,9 +14,10 @@ import {
 const RICHEST: GameSpec = {
   board: 'test-loop',
   seed: 1,
-  win: 'richestAtRoundLimit',
-  maxRounds: 100,
-  maxSteps: 10_000,
+  dayLimit: 100,
+  netWorthTargetMultiple: null,
+  maxDays: 1000,
+  maxSteps: 20_000,
 };
 
 function failureOf(record: GameRecord) {
@@ -57,9 +58,9 @@ describe('runGame', () => {
     expect(runGame({ ...RICHEST, seed: 2 }).actions).not.toEqual(runGame(RICHEST).actions);
   });
 
-  it('finishes richestAtRoundLimit games within the round limit', () => {
+  it('finishes day-limited games on the day limit', () => {
     for (let seed = 1; seed <= 10; seed++) {
-      const record = runGame({ ...RICHEST, seed, maxRounds: 5 });
+      const record = runGame({ ...RICHEST, seed, dayLimit: 5 });
       expect(record.outcome.kind).toBe('finished');
       expect(record.rounds).toBeLessThanOrEqual(5);
       expect(record.actions.length).toBeGreaterThan(0);
@@ -67,22 +68,27 @@ describe('runGame', () => {
   });
 
   it('reports the end reason, the winning seats and bankruptcies', () => {
-    const record = runGame({ ...RICHEST, maxRounds: 3 });
-    expect(record.outcome).toMatchObject({ kind: 'finished', reason: 'roundLimit' });
+    const record = runGame({ ...RICHEST, dayLimit: 3 });
+    expect(record.outcome).toMatchObject({ kind: 'finished', reason: 'dayLimit' });
     if (record.outcome.kind === 'finished') {
-      expect(record.outcome.winnerSeats.length).toBeGreaterThan(0);
+      expect(record.outcome.winnerSeats).toHaveLength(1);
       expect(record.outcome.winnerSeats.every((s) => s >= 0 && s < 4)).toBe(true);
     }
     expect(record.bankruptcies).toBe(0);
   });
 
-  it('leaves lastStanding games unfinished at the step limit', () => {
-    const record = runGame({ ...RICHEST, win: 'lastStanding', maxRounds: null, maxSteps: 10 });
-    expect(record.outcome).toEqual({ kind: 'unfinished' });
-    expect(record.actions).toHaveLength(10);
+  it('ends net worth target games by the target', () => {
+    const record = runGame({ ...RICHEST, dayLimit: null, netWorthTargetMultiple: 1 });
+    expect(record.outcome).toMatchObject({ kind: 'finished', reason: 'netWorthTarget' });
   });
 
-  it('fails richestAtRoundLimit games that hit the step limit', () => {
+  it('leaves games unfinished at the safety cap on days, which is not a failure', () => {
+    const record = runGame({ ...RICHEST, dayLimit: null, maxDays: 2 });
+    expect(record.outcome).toEqual({ kind: 'unfinished' });
+    expect(record.rounds).toBe(3);
+  });
+
+  it('fails games that hit the step limit', () => {
     const record = runGame({ ...RICHEST, maxSteps: 3 });
     expect(failureOf(record)).toEqual({
       kind: 'failed',
@@ -201,7 +207,7 @@ describe('runGame failure detection', () => {
           : result;
       },
     };
-    expect(failureOf(runGame({ ...RICHEST, maxRounds: 2 }, engine)).failure).toEqual({
+    expect(failureOf(runGame({ ...RICHEST, dayLimit: 2 }, engine)).failure).toEqual({
       kind: 'missingGameEnded',
     });
   });

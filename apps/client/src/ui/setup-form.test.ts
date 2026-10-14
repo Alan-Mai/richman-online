@@ -23,8 +23,9 @@ describe('buildSetup', () => {
   it('turns the default form into a setup createGame accepts', () => {
     const setup = ok(form());
     expect(setup.players).toHaveLength(DEFAULT_RULE_CONFIG.maxPlayers);
-    expect(setup.config.winCondition).toBe('richestAtRoundLimit');
-    expect(setup.config.maxRounds).toBe(20);
+    // The original default: no day limit, no net worth target.
+    expect(setup.config.dayLimit).toBeNull();
+    expect(setup.config.netWorthTargetMultiple).toBeNull();
     expect(setup.seed).toBe(1234);
     expect(createGame(setup).ok).toBe(true);
   });
@@ -62,13 +63,16 @@ describe('buildSetup', () => {
     ).toBe(true);
   });
 
-  it('needs a round limit only for the round-limit condition', () => {
-    expect(buildSetup(form({ maxRounds: '0' }), fixedSeed)).toMatchObject({
-      ok: false,
-      errors: [{ field: 'maxRounds' }],
-    });
-    const setup = ok(form({ winCondition: 'lastStanding', maxRounds: 'x' }));
-    expect(setup.config.maxRounds).toBeNull();
+  it('takes a day limit, or none when blank', () => {
+    for (const bad of ['0', '10000', 'x', '1.5']) {
+      expect(buildSetup(form({ dayLimit: bad }), fixedSeed)).toMatchObject({
+        ok: false,
+        errors: [{ field: 'dayLimit' }],
+      });
+    }
+    expect(ok(form({ dayLimit: ' 30 ' })).config.dayLimit).toBe(30);
+    const setup = ok(form({ dayLimit: '  ' }));
+    expect(setup.config.dayLimit).toBeNull();
     expect(createGame(setup).ok).toBe(true);
   });
 
@@ -95,14 +99,14 @@ describe('buildSetup', () => {
 
   it('reports every problem at once', () => {
     const result = buildSetup(
-      form({ names: ['甲', '甲'], maxRounds: '', startingFunds: 'x', seed: '-3' }),
+      form({ names: ['甲', '甲'], dayLimit: '0', startingFunds: 'x', seed: '-3' }),
       fixedSeed,
     );
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.errors.map((e) => e.field)).toEqual([
         'name',
-        'maxRounds',
+        'dayLimit',
         'startingFunds',
         'seed',
       ]);

@@ -1,15 +1,17 @@
 // Command-line parsing for the simulator. A small hand-written parser: node:util parseArgs refuses
 // values that start with "-", which hides the clearer range errors below.
-import type { WinCondition } from '@richman/shared';
 import { BOARD_NAMES, isBoardName, type BoardName } from './game';
 
 export interface RunOptions {
   board: BoardName;
   games: number;
   seed: number;
-  win: WinCondition;
-  /** null for lastStanding, which has no round limit. */
-  maxRounds: number | null;
+  /** null: no day limit (the default). */
+  dayLimit: number | null;
+  /** null: no net worth target (the default). */
+  netWorthTargetMultiple: number | null;
+  /** Simulator-only safety cap in days; see GameSpec.maxDays. */
+  maxDays: number;
   maxSteps: number;
   maxFailureDetails: number;
 }
@@ -20,16 +22,17 @@ export type ParseResult = { ok: true; command: Command } | { ok: false; errors: 
 
 export const USAGE = `usage:
   pnpm -F sim sim -- [--games 1000] [--seed 1] [--board test-loop|test-branch]
-                     [--win richestAtRoundLimit|lastStanding] [--max-rounds 100]
-                     [--max-steps 10000] [--max-failure-details 5]
+                     [--day-limit N] [--net-worth-target MULTIPLE] [--max-days 1000]
+                     [--max-steps 20 x max-days] [--max-failure-details 5]
   pnpm -F sim sim -- replay <failure.json>`;
 
 const OPTION_NAMES = [
   'board',
   'games',
   'seed',
-  'win',
-  'max-rounds',
+  'day-limit',
+  'net-worth-target',
+  'max-days',
   'max-steps',
   'max-failure-details',
 ] as const;
@@ -111,22 +114,16 @@ export function parseCommand(argv: readonly string[]): ParseResult {
     errors.push(`--board must be ${BOARD_NAMES.join(' or ')}, got ${boardRaw}`);
   }
 
-  const winRaw = values.get('win') ?? 'richestAtRoundLimit';
-  const win: WinCondition = winRaw === 'lastStanding' ? 'lastStanding' : 'richestAtRoundLimit';
-  if (winRaw !== 'lastStanding' && winRaw !== 'richestAtRoundLimit') {
-    errors.push(`--win must be richestAtRoundLimit or lastStanding, got ${winRaw}`);
+  const optionalPositive = (name: OptionName): number | null =>
+    values.has(name) ? readInt(name, 1, 1, Number.MAX_SAFE_INTEGER) : null;
+  const dayLimit = optionalPositive('day-limit');
+  const netWorthTargetMultiple = optionalPositive('net-worth-target');
+  const maxDays = readInt('max-days', 1000, 1, Number.MAX_SAFE_INTEGER);
+  if (dayLimit !== null && dayLimit > maxDays) {
+    errors.push(`--day-limit ${dayLimit} exceeds --max-days ${maxDays}`);
   }
-
-  let maxRounds: number | null = null;
-  if (win === 'lastStanding') {
-    if (values.has('max-rounds')) {
-      errors.push('--max-rounds cannot be used with --win lastStanding');
-    }
-  } else {
-    maxRounds = readInt('max-rounds', 100, 1, Number.MAX_SAFE_INTEGER);
-  }
-
-  const maxSteps = readInt('max-steps', 10_000, 1, Number.MAX_SAFE_INTEGER);
+  // At most two actions per turn, so 20 per day leaves room for up to ten players.
+  const maxSteps = readInt('max-steps', maxDays * 20, 1, Number.MAX_SAFE_INTEGER);
   const maxFailureDetails = readInt('max-failure-details', 5, 0, Number.MAX_SAFE_INTEGER);
 
   if (errors.length > 0) {
@@ -136,7 +133,16 @@ export function parseCommand(argv: readonly string[]): ParseResult {
     ok: true,
     command: {
       kind: 'run',
-      options: { board, games, seed, win, maxRounds, maxSteps, maxFailureDetails },
+      options: {
+        board,
+        games,
+        seed,
+        dayLimit,
+        netWorthTargetMultiple,
+        maxDays,
+        maxSteps,
+        maxFailureDetails,
+      },
     },
   };
 }
