@@ -291,8 +291,8 @@ describe('formatting', () => {
     );
     expect(text).toContain('lastStanding 2 (25.0%, 1 without a winner)');
     expect(text).toContain('dayLimitOrNetWorthTarget 2 (25.0%)');
-    expect(text).toContain('seat 1 25.0%');
-    expect(text).toContain('seat 2 12.5%');
+    expect(text).toContain('seat 0 25.0%');
+    expect(text).toContain('seat 1 12.5%');
     expect(text).toContain('tied games: 1');
     expect(text).toContain('2x invariant: player p#: cash # is not a non-negative integer');
     expect(text).toContain('elapsed: 2.5s');

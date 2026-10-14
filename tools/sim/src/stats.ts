@@ -310,7 +310,7 @@ export function formatStats(stats: Stats, elapsedMs: number): string {
       `unfinished ${stats.unfinished} (${percent(stats.unfinished, games)}), ` +
       `failed ${stats.failed} (${percent(stats.failed, games)})`,
     `seat win rate (ties split 1/k, out of ${finished} finished): ` +
-      stats.seatWins.map((wins, seat) => `seat ${seat + 1} ${percent(wins, finished)}`).join(', '),
+      stats.seatWins.map((wins, seat) => `seat ${seat} ${percent(wins, finished)}`).join(', '),
     `tied games: ${stats.tiedGames}`,
     `bankruptcies: ${stats.bankruptcies} (${games === 0 ? 'n/a' : (stats.bankruptcies / games).toFixed(2)} per game)` +
       `, first in round ${fixed(stats.firstBankruptcyRound)} on average`,

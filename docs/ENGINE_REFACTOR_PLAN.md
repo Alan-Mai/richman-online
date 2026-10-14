@@ -64,7 +64,7 @@
     - 拍賣 phase 加 `computerLimits`（隱藏）；不變量檢查「每位電腦參加者都有上限、人類沒有、上限是非負整數」。
     - `computerAction` 放在 `engine.ts`、出價邏輯在 `computer.ts`；購地與加蓋暫定「有提供就買、就蓋」，ROADMAP Phase 5 列為待逆向。
   - [x] D5。改用 `actorOf` 與帶參數動作的範例已在 D3 做掉，這裡做其餘部分：
-    - `--controllers random|computer|mixed`（mixed：座位 2、4 是電腦，1、3 隨機）；電腦座位照 `computerAction` 行動。
+    - `--controllers random|computer|mixed`（mixed：座位 1、3 是電腦，0、2 隨機；座位用程式的索引）；電腦座位照 `computerAction` 行動。
     - 每步檢查新增：電腦的選擇必須在 `legalActions` 內、人類座位的 `computerAction` 必須是 `null`（`computerActionNotLegal`）；每位玩家與旁觀者的 `viewFor` 序列化後不得含 `rngState`、`queue`、`computerLimits`、`lotteryPool` 等鍵（`viewLeak`）；單一拍賣超過 5000 個動作視為失敗（`auctionTooLong`）。
     - 統計新增：局長中位數與 p90、第一次破產的輪數、終局天數、物價指數（終值平均與最大、第一次大於 1 的輪數）、拍賣（塊數、有人可出價、成交、成交價 ÷ 起標價）、彩券獎池終值、岔路與死路掉頭次數。顆數分布等批次 E 再加。
     - `rerun` 指令帶 `--controllers`；失敗紀錄格式不變（`players` 已含 `controller`）。CLAUDE.md 指令段補上 `--controllers`。
@@ -81,7 +81,7 @@
     - 查證：人類座位數在開新局時算出、之後不變；破產者在檢查前就移出場上；檢查順序是「唯一的人類破產」→「場上沒有人類」→「只剩 1 人」，前兩者沒有勝者。顯示：前者原版開「遊戲結束、是否繼續」對話框（我們用結算框，沒有勝者），後者不開對話框直接回標題（我們直接回設定畫面）。
     - 設定畫面能否全部是電腦：限時查了設定對話框，「加入電腦」按鈕可以把座位都填成電腦，沒有看到人類數檢查（信心中），使用者決定照程式碼，允許 0 位人類；列入 ROADMAP 未解問題待原版確認。
     - `GameEnded.reason` 新增 `humanBankrupt`、`noHumansLeft`（`GameEndReason`）。
-    - 影響：全部電腦的局在第一次破產就結束，所以模擬器的 `computer` 模式改成座位 1 為隨機人類、其餘電腦（之後的 commit，使用者要求；模擬器設定，不是規則）；模擬器與引擎中需要「電腦局走到拍賣」的測試改用 `mixed` 或兩個人類座位。模擬器的結束原因統計加上這兩種。
+    - 影響：全部電腦的局在第一次破產就結束，所以模擬器的 `computer` 模式改成座位 0 為隨機人類、其餘電腦（之後的 commit，使用者要求；模擬器設定，不是規則）；模擬器與引擎中需要「電腦局走到拍賣」的測試改用 `mixed` 或兩個人類座位。模擬器的結束原因統計加上這兩種。
     - 連線版：斷線代打的座位仍算人類，記在 ROADMAP Phase 4。
 - [ ] E0、E、F
 
