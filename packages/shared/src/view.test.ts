@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { newTestGame, patchTile, withFixedDice } from './testing';
+import { newTestGame, patchTile, placePlayer, withFixedDice } from './testing';
 import { viewFor, type Viewer } from './view';
 
 const P1: Viewer = { kind: 'player', id: 'p1' };
@@ -31,6 +31,11 @@ describe('viewFor', () => {
       turn: state.turn,
     });
     expect(viewFor(state, SPECTATOR).viewer).toEqual({ kind: 'spectator' });
+  });
+
+  it('sends where each player came from', () => {
+    const state = placePlayer(newTestGame(), 'p1', 4, 5);
+    expect(viewFor(state, P1).players[0]).toMatchObject({ position: 4, prev: 5 });
   });
 
   it('keeps a player whose id is "spectator" distinct from a spectator', () => {

@@ -22,7 +22,7 @@ function property(price: number, rentTable?: number[]): PropertyTileDef {
     kind: 'property',
     name: 'P',
     price,
-    next: [0],
+    links: [],
     pos: { x: 0, y: 0 },
   };
   return rentTable === undefined ? tile : { ...tile, rentTable };
@@ -72,7 +72,7 @@ describe("landing on another player's property", () => {
 
   it('charges the rentTable value when the board defines one', () => {
     const tiles = BOARD.tiles.map((t, i) =>
-      i === 1 ? { ...property(PRICE, [7, 8, 9, 10, 11, 12]), next: t.next } : t,
+      i === 1 ? { ...property(PRICE, [7, 8, 9, 10, 11, 12]), links: t.links } : t,
     );
     const board = { ...BOARD, tiles };
     const { events } = applyOk(beforeLanding({ cash: 50, level: 3 }, { board }), roll);

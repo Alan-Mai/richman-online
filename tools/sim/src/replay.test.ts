@@ -100,7 +100,11 @@ describe('parseGameLog', () => {
   const invalid: [string, string, string][] = [
     ['broken JSON', '{', 'not valid JSON'],
     ['a non-object', '[]', 'not a game log object'],
-    ['another version', edit({ version: 2 }), 'unsupported log version 2'],
+    [
+      'an older version',
+      edit({ version: 1 }),
+      'unsupported log version 1 (expected 2; logs from older engines cannot be replayed)',
+    ],
     ['an unknown board', edit({ board: 'elsewhere' }), 'unknown board elsewhere'],
     ['a missing config', edit({ config: null }), 'config must be an object'],
     ['bad players', edit({ players: [{ id: 1 }] }), 'players must be {id, name} strings'],

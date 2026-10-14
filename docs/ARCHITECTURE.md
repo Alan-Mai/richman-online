@@ -54,15 +54,16 @@ type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 interface GameState {
   config: RuleConfig;        // GAME_RULES.md 標 ⚙️ 的參數
   board: Board;              // 地圖格子定義（來自轉檔資料或內建測試地圖）
-  players: PlayerState[];    // 座位順序；現金、存款、位置、方向、骰子數、是否破產
+  players: PlayerState[];    // 座位順序；現金、存款、位置、上一格、骰子數、是否破產
   tiles: TileState[];        // 與 board.tiles 平行：擁有者、房屋等級
   turn: { current: PlayerId; round: number; phase: Phase };
   rngState: RngState;        // 伺服器專用
 }
 
 interface Board { tiles: TileDef[]; start: TileIndex; /* id, name */ }
-// TileDef 為依 kind 區分的聯合型別（目前 'property' | 'blank'），每格有有向的 next（前進方向）。
-// 後退時走 next 的反方向；玩家的 direction 決定走哪一邊。
+// TileDef 為依 kind 區分的聯合型別（目前 'property' | 'blank'），每格有無向的 links（最多 4 個，
+// 兩端都要列出；可設 blocked = 不能從這一端走出去）。沒有前進方向：玩家記 prev（上一格），
+// 每步走「未封鎖且不是 prev」的相鄰格，多個時用 RNG 選，沒有時掉頭（GAME_RULES.md 第 2 節）。
 
 type Phase =
   | { kind: 'awaitRoll' }

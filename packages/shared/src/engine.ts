@@ -1,7 +1,7 @@
 // State transitions of the rule engine. Pure and deterministic: randomness only comes from
 // state.rngState (see CLAUDE.md and .claude/rules/shared-engine.md).
 import type { Action, ActionType } from './actions';
-import { prevOf, validateBoard, type Board, type BoardError } from './board';
+import { validateBoard, type Board, type BoardError } from './board';
 import { validateRuleConfig, type RuleConfig, type RuleConfigError } from './config';
 import type { RuleError } from './errors';
 import type { GameEvent } from './events';
@@ -74,24 +74,32 @@ export function createGame(setup: GameSetup): CreateGameResult {
   }
 
   const { config, board } = setup;
-  const players = setup.players.map(({ id, name }): PlayerState => ({
-    id,
-    name,
-    cash: config.startingCash,
-    deposit: config.startingDeposit,
-    points: config.startingPoints,
-    position: board.start,
-    direction: 'forward',
-    diceCount: config.defaultDiceCount,
-    bankrupt: false,
-  }));
+  // Each player starts facing away from a random neighbour of start, blocked or not
+  // (docs/GAME_RULES.md §1).
+  const startLinks = at(board.tiles, board.start).links;
+  let rng = createRng(setup.seed);
+  const players = setup.players.map(({ id, name }): PlayerState => {
+    const [pick, next] = nextInt(rng, startLinks.length);
+    rng = next;
+    return {
+      id,
+      name,
+      cash: config.startingCash,
+      deposit: config.startingDeposit,
+      points: config.startingPoints,
+      position: board.start,
+      prev: at(startLinks, pick).to,
+      diceCount: config.defaultDiceCount,
+      bankrupt: false,
+    };
+  });
   const state: GameState = {
     config,
     board,
     players,
     tiles: board.tiles.map(() => ({ owner: null, level: 0 })),
     turn: { current: first.id, round: 1, phase: { kind: 'awaitRoll' } },
-    rngState: createRng(setup.seed),
+    rngState: rng,
   };
   return { ok: true, state, events: [{ type: 'TurnStarted', playerId: first.id, round: 1 }] };
 }
@@ -246,23 +254,45 @@ function rollDice(state: GameState): Step {
 }
 
 /**
- * Walks `steps` tiles in the player's direction. Every tile passed (not the landing tile) gets its
- * pass trigger; when a trigger does something, the PlayerMoved path is split there so the client
- * can play the effect at the right spot.
+ * Where one step from `position` leads, having come from `prev` (docs/GAME_RULES.md §2): any link
+ * that is not blocked and does not lead back to prev; a random one of them at a fork; back to prev
+ * at a dead end. Only forks draw from the RNG.
+ */
+export function stepFrom(
+  board: Board,
+  position: TileIndex,
+  prev: TileIndex,
+  rng: RngState,
+): { to: TileIndex; rng: RngState } {
+  const candidates = at(board.tiles, position)
+    .links.filter((link) => link.blocked !== true && link.to !== prev)
+    .map((link) => link.to);
+  if (candidates.length === 0) {
+    return { to: prev, rng };
+  }
+  if (candidates.length === 1) {
+    return { to: at(candidates, 0), rng };
+  }
+  const [pick, next] = nextInt(rng, candidates.length);
+  return { to: at(candidates, pick), rng: next };
+}
+
+/**
+ * Walks `steps` tiles. Every tile passed (not the landing tile) gets its pass trigger; when a
+ * trigger does something, the PlayerMoved path is split there so the client can play the effect at
+ * the right spot.
  */
 function advance(state: GameState, playerId: PlayerId, steps: number): Step {
-  const { board } = state;
   const player = playerOf(state, playerId);
-  const prev = player.direction === 'backward' ? prevOf(board) : null;
-  const stepFrom = (tile: TileIndex): TileIndex =>
-    at(prev === null ? at(board.tiles, tile).next : at(prev, tile), 0);
-
   let current = state;
   const events: GameEvent[] = [];
   let segment: TileIndex[] = [];
-  let position = player.position;
+  let { position, prev } = player;
   for (let step = 1; step <= steps; step++) {
-    position = stepFrom(position);
+    const next = stepFrom(state.board, position, prev, current.rngState);
+    current = { ...current, rngState: next.rng };
+    prev = position;
+    position = next.to;
     segment.push(position);
     if (step === steps) {
       break;
@@ -277,7 +307,7 @@ function advance(state: GameState, playerId: PlayerId, steps: number): Step {
   if (segment.length > 0) {
     events.push({ type: 'PlayerMoved', playerId, path: segment });
   }
-  return { state: updatePlayer(current, playerId, () => ({ position })), events };
+  return { state: updatePlayer(current, playerId, () => ({ position, prev })), events };
 }
 
 /** Effect of walking over a tile without stopping. Phase 2: only the optional start bonus. */

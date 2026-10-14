@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Action } from './actions';
+import type { Board, TileDef, TileLink } from './board';
 import { applyAction, legalActions } from './engine';
 import type { GameState } from './state';
 import {
@@ -9,6 +10,8 @@ import {
   newTestGame,
   patchPlayer,
   patchTurn,
+  placePlayer,
+  scriptedRng,
   withFixedDice,
 } from './testing';
 
@@ -64,20 +67,10 @@ describe('rollDice', () => {
   });
 
   it('wraps around the loop', () => {
-    const start = withFixedDice(patchPlayer(game(), 'p1', { position: 18 }), [4]);
+    const start = withFixedDice(placePlayer(game(), 'p1', 18), [4]);
     const { state, events } = applyOk(start, roll('p1'));
     expect(events[1]).toEqual({ type: 'PlayerMoved', playerId: 'p1', path: [19, 0, 1, 2] });
     expect(getPlayer(state, 'p1').position).toBe(2);
-  });
-
-  it('walks against next when facing backward', () => {
-    const start = withFixedDice(
-      patchPlayer(game(), 'p1', { position: 1, direction: 'backward' }),
-      [3],
-    );
-    const { state, events } = applyOk(start, roll('p1'));
-    expect(events[1]).toEqual({ type: 'PlayerMoved', playerId: 'p1', path: [0, 19, 18] });
-    expect(getPlayer(state, 'p1').position).toBe(18);
   });
 
   it('does not change the input state', () => {
@@ -90,7 +83,7 @@ describe('rollDice', () => {
 
 describe('pass triggers', () => {
   it('gives nothing for passing start when passStartBonus is 0', () => {
-    const start = withFixedDice(patchPlayer(game(), 'p1', { position: 18 }), [4]);
+    const start = withFixedDice(placePlayer(game(), 'p1', 18), [4]);
     const { state, events } = applyOk(start, roll('p1'));
     expect(events.map((e) => e.type)).toEqual(['DiceRolled', 'PlayerMoved', 'TurnStarted']);
     expect(getPlayer(state, 'p1').cash).toBe(getPlayer(start, 'p1').cash);
@@ -98,7 +91,7 @@ describe('pass triggers', () => {
 
   it('splits the move at the start tile and pays passStartBonus', () => {
     const base = game({ config: { passStartBonus: 500 } });
-    const start = withFixedDice(patchPlayer(base, 'p1', { position: 18 }), [4]);
+    const start = withFixedDice(placePlayer(base, 'p1', 18), [4]);
     const { state, events } = applyOk(start, roll('p1'));
     expect(events).toEqual([
       { type: 'DiceRolled', playerId: 'p1', dice: [4], total: 4 },
@@ -112,7 +105,7 @@ describe('pass triggers', () => {
 
   it('gives no bonus for landing exactly on start', () => {
     const base = game({ config: { passStartBonus: 500 } });
-    const start = withFixedDice(patchPlayer(base, 'p1', { position: 17 }), [3]);
+    const start = withFixedDice(placePlayer(base, 'p1', 17), [3]);
     const { state, events } = applyOk(start, roll('p1'));
     expect(events.map((e) => e.type)).toEqual(['DiceRolled', 'PlayerMoved', 'TurnStarted']);
     expect(getPlayer(state, 'p1').position).toBe(0);
@@ -139,20 +132,6 @@ describe('pass triggers', () => {
       { type: 'PlayerMoved', playerId: 'p1', path: [1] },
     ]);
     expect(getPlayer(state, 'p1').cash).toBe(getPlayer(start, 'p1').cash + 200);
-  });
-
-  it('triggers on the start tile when walking backward too', () => {
-    const base = game({ config: { passStartBonus: 50 } });
-    const start = withFixedDice(
-      patchPlayer(base, 'p1', { position: 2, direction: 'backward' }),
-      [4],
-    );
-    const { events } = applyOk(start, roll('p1'));
-    expect(events.slice(1, 4)).toEqual([
-      { type: 'PlayerMoved', playerId: 'p1', path: [1, 0] },
-      { type: 'PassBonusReceived', playerId: 'p1', tile: 0, amount: 50 },
-      { type: 'PlayerMoved', playerId: 'p1', path: [19, 18] },
-    ]);
   });
 });
 
@@ -282,5 +261,96 @@ describe('legalActions for awaitRoll', () => {
   it('offers nothing once the game is over', () => {
     const over = patchTurn(game(), { phase: { kind: 'gameOver', winners: ['p1'] } });
     expect(legalActions(over, 'p1')).toEqual([]);
+  });
+});
+
+/**
+ * A loop 0-1-2-3 with spurs: 0-6-7, 1-4-5 and 1-8 (5, 7 and 8 are dead ends). Leaving 2 towards 3
+ * is blocked; entering 2 from 3 is not. All tiles are blank.
+ */
+const BRANCH_BOARD: Board = (() => {
+  const spec: (number | TileLink)[][] = [
+    [1, 3, 6],
+    [2, 0, 4, 8],
+    [{ to: 3, blocked: true }, 1],
+    [0, 2],
+    [1, 5],
+    [4],
+    [0, 7],
+    [6],
+    [1],
+  ];
+  const tiles = spec.map((links, i): TileDef => ({
+    kind: 'blank',
+    name: `T${i}`,
+    links: links.map((link) => (typeof link === 'number' ? { to: link } : link)),
+    pos: { x: i, y: 0 },
+  }));
+  return { id: 'branch', name: 'branch', tiles, start: 0 };
+})();
+
+/** p1 at `tile` having come from `prev`, with the RNG scripted to `values` (die values are 0-based). */
+function onBranch(tile: number, prev: number, values: number[]): GameState {
+  const state = placePlayer(newTestGame({ board: BRANCH_BOARD }), 'p1', tile, prev);
+  return { ...state, rngState: scriptedRng(values) };
+}
+
+function moveOf(state: GameState) {
+  const { state: after, events } = applyOk(state, roll('p1'));
+  const p1 = getPlayer(after, 'p1');
+  const path = events.flatMap((e) => (e.type === 'PlayerMoved' ? e.path : []));
+  return { path, position: p1.position, prev: p1.prev, rng: after.rngState };
+}
+
+describe('movement', () => {
+  it('follows the only way forward without drawing from the RNG', () => {
+    expect(moveOf(onBranch(3, 0, [1]))).toEqual({
+      path: [2, 1],
+      position: 1,
+      prev: 2,
+      rng: { kind: 'scripted', values: [] },
+    });
+  });
+
+  it('never steps straight back to prev except at a dead end', () => {
+    // From 4 having come from 1: 5 is the only way; then 5 is a dead end, so back to 4 and 1.
+    expect(moveOf(onBranch(4, 1, [2]))).toMatchObject({ path: [5, 4, 1], position: 1, prev: 4 });
+  });
+
+  it('turns around at a dead end', () => {
+    expect(moveOf(onBranch(5, 4, [0]))).toMatchObject({ path: [4], position: 4, prev: 5 });
+  });
+
+  it('picks a random candidate at a two-way fork', () => {
+    // From 0 having come from 3, the candidates are 1 and 6 in link order.
+    expect(moveOf(onBranch(0, 3, [0, 0]))).toMatchObject({ path: [1], prev: 0 });
+    expect(moveOf(onBranch(0, 3, [0, 1]))).toMatchObject({ path: [6], prev: 0 });
+  });
+
+  it('picks a random candidate at a three-way fork', () => {
+    // From 1 having come from 0, the candidates are 2, 4 and 8.
+    expect(moveOf(onBranch(1, 0, [0, 0])).path).toEqual([2]);
+    expect(moveOf(onBranch(1, 0, [0, 1])).path).toEqual([4]);
+    expect(moveOf(onBranch(1, 0, [0, 2])).path).toEqual([8]);
+  });
+
+  it('draws once per fork and not on other steps', () => {
+    // 1 -(fork: 8)-> 8 (dead end) -> 1 -(fork from 8: 2, 0, 4)-> 0 -(fork from 1: 3, 6)-> 6.
+    expect(moveOf(onBranch(1, 0, [3, 2, 1, 1]))).toEqual({
+      path: [8, 1, 0, 6],
+      position: 6,
+      prev: 0,
+      rng: { kind: 'scripted', values: [] },
+    });
+  });
+
+  it('cannot leave through a blocked link', () => {
+    // From 2 having come from 1, the only other link (to 3) is blocked: a dead end. Back at 1,
+    // the fork (0, 4, 8) picks 0.
+    expect(moveOf(onBranch(2, 1, [1, 0]))).toMatchObject({ path: [1, 0], position: 0 });
+  });
+
+  it('can enter through a link blocked from the other end', () => {
+    expect(moveOf(onBranch(3, 0, [0]))).toMatchObject({ path: [2], position: 2, prev: 3 });
   });
 });

@@ -7,14 +7,27 @@ export interface Point {
   y: number;
 }
 
+/**
+ * One neighbour slot. Links are undirected: the board lists every link from both ends
+ * (docs/GAME_RULES.md §2).
+ */
+export interface TileLink {
+  to: TileIndex;
+  /** One-way block: a player may not leave through this link, but may enter from the other end. */
+  blocked?: boolean;
+}
+
+/** Original maps have four neighbour slots per tile. */
+export const MAX_LINKS = 4;
+
 interface TileBase {
   /** Map content, not UI text, so it is not routed through i18n. */
   name: string;
   /**
-   * Directed successors: where a player facing 'forward' moves next. Walking 'backward' uses the
-   * inverse (prevOf). More than one entry is a fork; Phase 2 boards must not have forks.
+   * Neighbours, all of equal standing; there is no forward direction. Players remember the tile
+   * they came from and never step straight back unless they hit a dead end.
    */
-  next: readonly TileIndex[];
+  links: readonly TileLink[];
   pos: Point;
 }
 
@@ -48,12 +61,13 @@ export type BoardError =
   | { reason: 'startOutOfRange' }
   | {
       reason:
-        | 'nextOutOfRange'
-        | 'deadEnd'
-        | 'fork'
-        | 'noPredecessor'
-        | 'multiplePredecessors'
-        | 'unreachable'
+        | 'linkOutOfRange'
+        | 'selfLink'
+        | 'duplicateLink'
+        | 'tooManyLinks'
+        | 'asymmetricLink'
+        | 'noExit'
+        | 'disconnected'
         | 'invalidPrice'
         | 'rentTableLength'
         | 'invalidRentTable';
@@ -68,20 +82,15 @@ function isNonNegativeInteger(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0;
 }
 
-/** Predecessors of every tile (the inverse of next); used to walk backward. */
-export function prevOf(board: Board): TileIndex[][] {
-  const prev: TileIndex[][] = board.tiles.map(() => []);
-  board.tiles.forEach((tile, from) => {
-    for (const to of tile.next) {
-      prev[to]?.push(from);
-    }
-  });
-  return prev;
+/** Whether `from` lists `to` as a neighbour (blocked or not). */
+export function isLinked(board: Board, from: TileIndex, to: TileIndex): boolean {
+  return board.tiles[from]?.links.some((link) => link.to === to) ?? false;
 }
 
 /**
- * Phase 2 board rules: every tile has exactly one successor and one predecessor, and they form a
- * single loop through start (no forks). Returns every problem found; empty means valid.
+ * Board rules (docs/GAME_RULES.md §2): links are symmetric, at most MAX_LINKS per tile, every tile
+ * can be left through at least one unblocked link, and every tile is connected to start. Returns
+ * every problem found; empty means valid.
  */
 export function validateBoard(board: Board, config: RuleConfig): BoardError[] {
   const { tiles } = board;
@@ -95,13 +104,26 @@ export function validateBoard(board: Board, config: RuleConfig): BoardError[] {
   }
 
   tiles.forEach((tile, i) => {
-    if (tile.next.length === 0) {
-      errors.push({ reason: 'deadEnd', tile: i });
-    } else if (tile.next.length > 1) {
-      errors.push({ reason: 'fork', tile: i });
+    const targets = tile.links.map((link) => link.to);
+    if (tile.links.length > MAX_LINKS) {
+      errors.push({ reason: 'tooManyLinks', tile: i });
     }
-    if (!tile.next.every((to) => isTileIndex(to, tiles.length))) {
-      errors.push({ reason: 'nextOutOfRange', tile: i });
+    if (!targets.every((to) => isTileIndex(to, tiles.length))) {
+      errors.push({ reason: 'linkOutOfRange', tile: i });
+    }
+    if (targets.includes(i)) {
+      errors.push({ reason: 'selfLink', tile: i });
+    }
+    if (new Set(targets).size !== targets.length) {
+      errors.push({ reason: 'duplicateLink', tile: i });
+    }
+    if (
+      targets.some((to) => to !== i && isTileIndex(to, tiles.length) && !isLinked(board, to, i))
+    ) {
+      errors.push({ reason: 'asymmetricLink', tile: i });
+    }
+    if (!tile.links.some((link) => link.blocked !== true)) {
+      errors.push({ reason: 'noExit', tile: i });
     }
     if (tile.kind === 'property') {
       if (!Number.isSafeInteger(tile.price) || tile.price <= 0) {
@@ -118,26 +140,22 @@ export function validateBoard(board: Board, config: RuleConfig): BoardError[] {
     }
   });
 
-  prevOf(board).forEach((prev, i) => {
-    if (prev.length === 0) {
-      errors.push({ reason: 'noPredecessor', tile: i });
-    } else if (prev.length > 1) {
-      errors.push({ reason: 'multiplePredecessors', tile: i });
-    }
-  });
-
-  // With one successor and one predecessor everywhere, the tiles form disjoint cycles;
-  // only the cycle through start is playable.
-  if (errors.length === 0) {
-    const onLoop = new Set<TileIndex>();
-    let current = board.start;
-    while (!onLoop.has(current)) {
-      onLoop.add(current);
-      current = tiles[current]?.next[0] ?? board.start;
+  // Connectivity ignores blocks: a blocked link can still be walked from the other end, and dead
+  // ends turn players around.
+  if (isTileIndex(board.start, tiles.length)) {
+    const seen = new Set<TileIndex>([board.start]);
+    const queue: TileIndex[] = [board.start];
+    for (let tile = queue.pop(); tile !== undefined; tile = queue.pop()) {
+      for (const { to } of tiles[tile]?.links ?? []) {
+        if (isTileIndex(to, tiles.length) && !seen.has(to)) {
+          seen.add(to);
+          queue.push(to);
+        }
+      }
     }
     tiles.forEach((_, i) => {
-      if (!onLoop.has(i)) {
-        errors.push({ reason: 'unreachable', tile: i });
+      if (!seen.has(i)) {
+        errors.push({ reason: 'disconnected', tile: i });
       }
     });
   }

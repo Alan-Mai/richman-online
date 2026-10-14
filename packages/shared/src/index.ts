@@ -3,13 +3,15 @@ export const ENGINE_VERSION = '0.0.0';
 
 export type { Action, ActionType } from './actions';
 export {
-  prevOf,
+  MAX_LINKS,
+  isLinked,
   validateBoard,
   type BlankTileDef,
   type Board,
   type BoardError,
   type Point,
   type PropertyTileDef,
+  type TileLink,
   type TileDef,
 } from './board';
 export { TEST_LOOP_BOARD } from './maps/test-loop';
@@ -46,12 +48,4 @@ export {
   type ParseRngResult,
   type RngState,
 } from './rng';
-export type {
-  Direction,
-  GameState,
-  Phase,
-  PhaseKind,
-  PlayerState,
-  TileState,
-  TurnState,
-} from './state';
+export type { GameState, Phase, PhaseKind, PlayerState, TileState, TurnState } from './state';

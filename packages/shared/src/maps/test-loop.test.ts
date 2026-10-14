@@ -4,7 +4,7 @@ import { DEFAULT_RULE_CONFIG } from '../config';
 import { TEST_LOOP_BOARD } from './test-loop';
 
 describe('TEST_LOOP_BOARD', () => {
-  it('is a valid Phase 2 board', () => {
+  it('is a valid board', () => {
     expect(validateBoard(TEST_LOOP_BOARD, DEFAULT_RULE_CONFIG)).toEqual([]);
   });
 
@@ -18,11 +18,12 @@ describe('TEST_LOOP_BOARD', () => {
     }
   });
 
-  it('walks forward clockwise around the 6x6 grid edge', () => {
+  it('links each tile to its clockwise neighbour first, then the one behind', () => {
     const { tiles } = TEST_LOOP_BOARD;
+    const n = tiles.length;
     tiles.forEach((tile, i) => {
-      expect(tile.next).toEqual([(i + 1) % tiles.length]);
-      const nextTile = tiles[(i + 1) % tiles.length];
+      expect(tile.links).toEqual([{ to: (i + 1) % n }, { to: (i + n - 1) % n }]);
+      const nextTile = tiles[(i + 1) % n];
       const step =
         Math.abs(tile.pos.x - (nextTile?.pos.x ?? NaN)) +
         Math.abs(tile.pos.y - (nextTile?.pos.y ?? NaN));

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { checkInvariants } from './invariants';
 import type { GameState, Phase } from './state';
-import { loopBoard, newTestGame, patchPlayer, patchTile, patchTurn } from './testing';
+import { loopBoard, newTestGame, patchPlayer, patchTile, patchTurn, placePlayer } from './testing';
 
 /** Tiles 0 and 3 are blank; tile 1 costs 1000 (upgrade 500 at the default 50%), tile 2 costs 2000. */
 const BOARD = loopBoard([null, 1000, 2000, null]);
@@ -10,8 +10,7 @@ const BOARD = loopBoard([null, 1000, 2000, null]);
 const base = (): GameState => newTestGame({ board: BOARD });
 
 /** p1 standing on tile 1 while the game waits for `phase`. */
-const deciding = (phase: Phase): GameState =>
-  patchTurn(patchPlayer(base(), 'p1', { position: 1 }), { phase });
+const deciding = (phase: Phase): GameState => patchTurn(placePlayer(base(), 'p1', 1), { phase });
 
 const buy = (patch: Partial<{ tile: number; price: number }> = {}): Phase => ({
   kind: 'awaitBuyDecision',
@@ -64,6 +63,11 @@ describe('checkInvariants', () => {
       'position off the board',
       () => patchPlayer(base(), 'p2', { position: 4 }),
       'player p2: position 4 is not on the board',
+    ],
+    [
+      'prev not a neighbour of position',
+      () => patchPlayer(base(), 'p1', { prev: 2 }),
+      'player p1: prev 2 is not a neighbour of position 0',
     ],
     [
       'bankrupt player owning land',

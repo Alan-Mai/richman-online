@@ -3,6 +3,7 @@ import type { Board } from './board';
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from './config';
 import { createGame, type GameSetup } from './engine';
 import { TEST_LOOP_BOARD } from './maps/test-loop';
+import { createRng, nextInt, type RngState } from './rng';
 
 const PLAYERS = [
   { id: 'p1', name: '甲' },
@@ -24,6 +25,23 @@ function withConfig(patch: Partial<RuleConfig>): RuleConfig {
   return { ...DEFAULT_RULE_CONFIG, ...patch };
 }
 
+/** Where each of `count` players faces from on TEST_LOOP_BOARD: links of start are [1, 19]. */
+function startPrevs(seed: number, count: number): number[] {
+  let rng = createRng(seed);
+  return Array.from({ length: count }, () => {
+    const [pick, next] = nextInt(rng, 2);
+    rng = next;
+    return pick === 0 ? 1 : 19;
+  });
+}
+
+/** The RNG state after `count` draws of nextInt(range) from `seed`. */
+function afterDraws(seed: number, count: number, range: number): RngState {
+  let rng = createRng(seed);
+  for (let i = 0; i < count; i++) [, rng] = nextInt(rng, range);
+  return rng;
+}
+
 function players(count: number) {
   return Array.from({ length: count }, (_, i) => ({ id: `p${i}`, name: `玩家${i}` }));
 }
@@ -37,14 +55,14 @@ describe('createGame', () => {
     expect(state.config).toBe(DEFAULT_RULE_CONFIG);
     expect(state.board).toBe(TEST_LOOP_BOARD);
     expect(state.players).toEqual(
-      PLAYERS.map(({ id, name }) => ({
+      PLAYERS.map(({ id, name }, seat) => ({
         id,
         name,
         cash: DEFAULT_RULE_CONFIG.startingCash,
         deposit: DEFAULT_RULE_CONFIG.startingDeposit,
         points: DEFAULT_RULE_CONFIG.startingPoints,
         position: TEST_LOOP_BOARD.start,
-        direction: 'forward',
+        prev: startPrevs(42, PLAYERS.length)[seat],
         diceCount: DEFAULT_RULE_CONFIG.defaultDiceCount,
         bankrupt: false,
       })),
@@ -52,7 +70,8 @@ describe('createGame', () => {
     expect(state.tiles).toHaveLength(TEST_LOOP_BOARD.tiles.length);
     for (const tile of state.tiles) expect(tile).toEqual({ owner: null, level: 0 });
     expect(state.turn).toEqual({ current: 'p1', round: 1, phase: { kind: 'awaitRoll' } });
-    expect(state.rngState).toEqual({ kind: 'mulberry32', state: 42 });
+    // One draw per player for the starting direction (start has two neighbours).
+    expect(state.rngState).toEqual(afterDraws(42, PLAYERS.length, 2));
   });
 
   it('uses the configured starting values', () => {
@@ -72,6 +91,19 @@ describe('createGame', () => {
     const result = createGame(setup({ board }));
     if (!result.ok) throw new Error('expected ok');
     for (const player of result.state.players) expect(player.position).toBe(5);
+  });
+
+  it('faces each player from a random neighbour of start', () => {
+    const prevs = new Set<number>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const result = createGame(setup({ seed }));
+      if (!result.ok) throw new Error('expected ok');
+      for (const player of result.state.players) {
+        expect([1, 19]).toContain(player.prev);
+        prevs.add(player.prev);
+      }
+    }
+    expect([...prevs].sort((a, b) => a - b)).toEqual([1, 19]);
   });
 
   it('starts the first turn with a TurnStarted event', () => {
@@ -97,12 +129,15 @@ describe('createGame', () => {
 
   it('reports board errors', () => {
     const tiles = TEST_LOOP_BOARD.tiles.map((tile, i) =>
-      i === 3 ? { ...tile, next: [4, 5] } : tile,
+      i === 3 ? { ...tile, links: [...tile.links, { to: 5 }] } : tile,
     );
-    const fork = createGame(setup({ board: { ...TEST_LOOP_BOARD, tiles } }));
-    expect(fork.ok).toBe(false);
-    if (fork.ok) return;
-    expect(fork.errors).toContainEqual({ reason: 'board', error: { reason: 'fork', tile: 3 } });
+    const oneSided = createGame(setup({ board: { ...TEST_LOOP_BOARD, tiles } }));
+    expect(oneSided.ok).toBe(false);
+    if (oneSided.ok) return;
+    expect(oneSided.errors).toContainEqual({
+      reason: 'board',
+      error: { reason: 'asymmetricLink', tile: 3 },
+    });
 
     const empty = createGame(setup({ board: { ...TEST_LOOP_BOARD, tiles: [] } }));
     expect(empty).toEqual({ ok: false, errors: [{ reason: 'board', error: { reason: 'empty' } }] });
@@ -153,7 +188,7 @@ describe('createGame', () => {
     expect(createGame(setup({ seed: 0 })).ok).toBe(true);
     const max = createGame(setup({ seed: 2 ** 32 - 1 }));
     if (!max.ok) throw new Error('expected ok');
-    expect(max.state.rngState).toEqual({ kind: 'mulberry32', state: 2 ** 32 - 1 });
+    expect(max.state.rngState).toEqual(afterDraws(2 ** 32 - 1, PLAYERS.length, 2));
   });
 
   it('rejects seeds that are not uint32 without throwing', () => {

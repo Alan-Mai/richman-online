@@ -37,14 +37,15 @@ function buildTiles(): TileDef[] {
   for (let i = 0; i < TILE_COUNT; i++) {
     const side = Math.floor(i / SIDE);
     const offset = i % SIDE;
-    const next = [(i + 1) % TILE_COUNT];
+    // Clockwise neighbour first, then the one behind (testing helpers rely on that order).
+    const links = [{ to: (i + 1) % TILE_COUNT }, { to: (i + TILE_COUNT - 1) % TILE_COUNT }];
     const pos = gridPos(i);
     if (offset === 0) {
-      tiles.push({ kind: 'blank', name: CORNER_NAMES[side] ?? '', next, pos });
+      tiles.push({ kind: 'blank', name: CORNER_NAMES[side] ?? '', links, pos });
     } else {
       propertyNumber += 1;
       const price = PRICES[side]?.[offset - 1] ?? 0;
-      tiles.push({ kind: 'property', name: `測試路 ${propertyNumber}`, price, next, pos });
+      tiles.push({ kind: 'property', name: `測試路 ${propertyNumber}`, price, links, pos });
     }
   }
   return tiles;

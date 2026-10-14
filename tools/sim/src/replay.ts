@@ -20,8 +20,14 @@ import {
   type Outcome,
 } from './game';
 
+/**
+ * Bumped whenever the engine changes how a game unfolds from the same seed and actions; older logs
+ * cannot be replayed.
+ */
+export const LOG_VERSION = 2;
+
 export interface GameLog {
-  version: 1;
+  version: typeof LOG_VERSION;
   engineVersion: string;
   /** Board id; only the built-in test board is supported. */
   board: string;
@@ -43,7 +49,7 @@ export type ReplayResult =
 export function toGameLog(spec: GameSpec, record: GameRecord): GameLog {
   const { config, board, players, seed } = gameSetup(spec);
   return {
-    version: 1,
+    version: LOG_VERSION,
     engineVersion: ENGINE_VERSION,
     board: board.id,
     config,
@@ -71,8 +77,13 @@ export function parseGameLog(
   if (!isObject(data)) {
     return { ok: false, errors: ['not a game log object'] };
   }
-  if (data.version !== 1) {
-    return { ok: false, errors: [`unsupported log version ${String(data.version)}`] };
+  if (data.version !== LOG_VERSION) {
+    return {
+      ok: false,
+      errors: [
+        `unsupported log version ${String(data.version)} (expected ${LOG_VERSION}; logs from older engines cannot be replayed)`,
+      ],
+    };
   }
 
   const errors: string[] = [];

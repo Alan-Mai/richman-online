@@ -40,28 +40,59 @@ export interface TestGameOptions {
   seed?: number;
 }
 
-/** A started game on TEST_LOOP_BOARD (unless given); throws if the setup is invalid. */
+/**
+ * The neighbour helpers treat as "behind" a tile: the last link. loopBoard and TEST_LOOP_BOARD list
+ * the forward neighbour first, so this is the previous tile of the loop.
+ */
+export function behind(board: Board, tile: TileIndex): TileIndex {
+  const link = board.tiles[tile]?.links.at(-1);
+  if (link === undefined) throw new Error(`tile ${tile} has no links`);
+  return link.to;
+}
+
+/**
+ * A started game on TEST_LOOP_BOARD (unless given); throws if the setup is invalid. Every player
+ * faces away from behind(start), so on a loop board they walk 0 -> 1 -> 2 -> ...
+ */
 export function newTestGame(options: TestGameOptions = {}): GameState {
   const count = options.playerCount ?? 2;
+  const board = options.board ?? TEST_LOOP_BOARD;
   const result = createGame({
     config: { ...DEFAULT_RULE_CONFIG, ...options.config },
-    board: options.board ?? TEST_LOOP_BOARD,
+    board,
     players: Array.from({ length: count }, (_, i) => ({ id: `p${i + 1}`, name: `玩家${i + 1}` })),
     seed: options.seed ?? TEST_SEED,
   });
   if (!result.ok) {
     throw new Error(`invalid test game: ${JSON.stringify(result.errors)}`);
   }
-  return result.state;
+  const prev = behind(board, board.start);
+  return {
+    ...result.state,
+    players: result.state.players.map((p) => ({ ...p, prev })),
+  };
+}
+
+/** Puts a player on `tile`, having come from `prev` (default: behind(tile)). */
+export function placePlayer(
+  state: GameState,
+  id: PlayerId,
+  tile: TileIndex,
+  prev: TileIndex = behind(state.board, tile),
+): GameState {
+  return patchPlayer(state, id, { position: tile, prev });
 }
 
 /**
  * A loop 0 -> 1 -> ... -> 0 starting at tile 0. Each entry is a property price, or null for a
- * blank tile. Names are placeholders.
+ * blank tile. Names are placeholders. Links list the forward neighbour first (see behind).
  */
 export function loopBoard(spec: readonly (number | null)[]): Board {
+  const n = spec.length;
+  if (n < 3) throw new RangeError(`a loop needs at least 3 tiles, got ${n}`);
   const tiles = spec.map((price, i): TileDef => {
-    const base = { name: `T${i}`, next: [(i + 1) % spec.length], pos: { x: i, y: 0 } };
+    const links = [{ to: (i + 1) % n }, { to: (i + n - 1) % n }];
+    const base = { name: `T${i}`, links, pos: { x: i, y: 0 } };
     return price === null ? { kind: 'blank', ...base } : { kind: 'property', price, ...base };
   });
   return { id: 'test', name: 'test', tiles, start: 0 };

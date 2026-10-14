@@ -1,5 +1,6 @@
 // Consistency checks on a GameState, shared by tests, tools/sim and a future server debug mode.
 // Total money is deliberately not checked: payouts and bonuses create money (docs/DECISIONS.md).
+import { isLinked } from './board';
 import type { GameState, PlayerState } from './state';
 import { upgradeCost } from './money';
 
@@ -14,7 +15,7 @@ export function checkInvariants(state: GameState): string[] {
 
 function checkPlayers({ board, players, tiles }: GameState): string[] {
   const errors: string[] = [];
-  for (const { id, cash, deposit, position, bankrupt } of players) {
+  for (const { id, cash, deposit, position, prev, bankrupt } of players) {
     if (!isNonNegativeInteger(cash)) {
       errors.push(`player ${id}: cash ${cash} is not a non-negative integer`);
     }
@@ -23,6 +24,8 @@ function checkPlayers({ board, players, tiles }: GameState): string[] {
     }
     if (!Number.isInteger(position) || position < 0 || position >= board.tiles.length) {
       errors.push(`player ${id}: position ${position} is not on the board`);
+    } else if (!isLinked(board, position, prev)) {
+      errors.push(`player ${id}: prev ${prev} is not a neighbour of position ${position}`);
     }
     const owned = tiles.flatMap((tile, i) => (tile.owner === id ? [i] : []));
     if (bankrupt && owned.length > 0) {

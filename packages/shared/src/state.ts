@@ -3,8 +3,6 @@ import type { RuleConfig } from './config';
 import type { PlayerId, TileIndex } from './ids';
 import type { RngState } from './rng';
 
-export type Direction = 'forward' | 'backward';
-
 export interface PlayerState {
   id: PlayerId;
   name: string;
@@ -12,8 +10,11 @@ export interface PlayerState {
   deposit: number;
   points: number;
   position: TileIndex;
-  /** Always 'forward' in Phase 2; turn-around effects only change this field. */
-  direction: Direction;
+  /**
+   * The tile the player came from, always a neighbour of position. It is the only notion of
+   * direction: the next step never goes back here unless the player is at a dead end.
+   */
+  prev: TileIndex;
   diceCount: number;
   bankrupt: boolean;
 }
