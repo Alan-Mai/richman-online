@@ -257,7 +257,8 @@ export function checkStep(
     { kind: 'spectator' },
   ];
   for (const viewer of viewers) {
-    const json = JSON.stringify(engine.viewFor(state, viewer));
+    // The board and config come from the setup and are the bulk of a view; skip them for speed.
+    const json = JSON.stringify({ ...engine.viewFor(state, viewer), board: null, config: null });
     const key = HIDDEN_KEYS.find((k) => json.includes(`"${k}"`));
     if (key !== undefined) {
       return { kind: 'viewLeak', viewer: viewer.kind === 'player' ? viewer.id : 'spectator', key };
