@@ -39,8 +39,11 @@ export type GameEvent =
     }
   | {
       type: 'GameEnded';
-      /** At most one player left, or checked as a day went by (docs/GAME_RULES.md §1). */
-      reason: 'lastStanding' | 'dayLimit' | 'netWorthTarget';
+      /**
+       * At most one player left, or the day limit or net worth target was reached as a day went
+       * by. Like the original, which of the two is not told apart (docs/GAME_RULES.md §1).
+       */
+      reason: 'lastStanding' | 'dayLimitOrNetWorthTarget';
       /** Empty only when nobody is left; at most one otherwise. */
       winners: readonly PlayerId[];
       /** Every player's net worth when the game ended. */

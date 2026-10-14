@@ -24,8 +24,8 @@ const finished = (reason: EndReason, winnerSeats: number[]): Outcome => ({
 });
 
 const RECORDS: GameRecord[] = [
-  record(1, finished('dayLimit', [0]), 100, 400, 1),
-  record(2, finished('netWorthTarget', [1, 2]), 100, 400),
+  record(1, finished('dayLimitOrNetWorthTarget', [0]), 100, 400, 1),
+  record(2, finished('dayLimitOrNetWorthTarget', [1, 2]), 100, 400),
   record(3, finished('lastStanding', [3]), 40, 150, 3),
   record(4, finished('lastStanding', []), 30, 50, 4),
   record(5, { kind: 'unfinished' }, 500, 1000, 2),
@@ -75,7 +75,7 @@ describe('summarize', () => {
       finished: 4,
       unfinished: 1,
       failed: 3,
-      reasons: { lastStanding: 2, dayLimit: 1, netWorthTarget: 1, noWinner: 1 },
+      reasons: { lastStanding: 2, dayLimitOrNetWorthTarget: 2, noWinner: 1 },
       bankruptcies: 10,
       tiedGames: 1,
     });
@@ -179,8 +179,7 @@ describe('formatting', () => {
     expect(text).toContain('games: 8 (finished 4, unfinished 1, failed 3)');
     expect(text).toContain('rounds (finished games): mean 67.5, min 30, max 100');
     expect(text).toContain('lastStanding 2 (25.0%, 1 without a winner)');
-    expect(text).toContain('dayLimit 1 (12.5%)');
-    expect(text).toContain('netWorthTarget 1 (12.5%)');
+    expect(text).toContain('dayLimitOrNetWorthTarget 2 (25.0%)');
     expect(text).toContain('seat 1 25.0%');
     expect(text).toContain('seat 2 12.5%');
     expect(text).toContain('tied games: 1');

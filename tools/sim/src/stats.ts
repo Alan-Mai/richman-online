@@ -32,7 +32,7 @@ export function summarize(records: readonly GameRecord[], seats: number): Stats 
     finished: 0,
     unfinished: 0,
     failed: 0,
-    reasons: { lastStanding: 0, dayLimit: 0, netWorthTarget: 0, noWinner: 0 },
+    reasons: { lastStanding: 0, dayLimitOrNetWorthTarget: 0, noWinner: 0 },
     rounds: null,
     meanSteps: null,
     seatWins: Array.from({ length: seats }, () => 0),
@@ -195,8 +195,8 @@ export function formatStats(stats: Stats, elapsedMs: number): string {
     `steps (games that did not fail): ${stats.meanSteps === null ? 'n/a' : `mean ${stats.meanSteps.toFixed(1)}`}`,
     `end reasons: lastStanding ${reasons.lastStanding} (${percent(reasons.lastStanding, games)}, ` +
       `${reasons.noWinner} without a winner), ` +
-      `dayLimit ${reasons.dayLimit} (${percent(reasons.dayLimit, games)}), ` +
-      `netWorthTarget ${reasons.netWorthTarget} (${percent(reasons.netWorthTarget, games)}), ` +
+      `dayLimitOrNetWorthTarget ${reasons.dayLimitOrNetWorthTarget} ` +
+      `(${percent(reasons.dayLimitOrNetWorthTarget, games)}), ` +
       `unfinished ${stats.unfinished} (${percent(stats.unfinished, games)}), ` +
       `failed ${stats.failed} (${percent(stats.failed, games)})`,
     `seat win rate (ties split 1/k, out of ${finished} finished): ` +

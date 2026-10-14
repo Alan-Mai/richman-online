@@ -18,7 +18,7 @@
     - 已破產的玩家是否佔格：B1 先寫成不佔格；依使用者要求對照逆向的放置與破產函式，原版是**仍佔著破產時所在的格**（`GAME_RULES.md` 🔍），修正於 `ace0cd4`。
     - 模擬器（1000 局 × 兩張圖 × 兩種勝負條件，種子 1）沒有失敗。
   - [x] B2（使用者試玩確認，清單全部符合）：HUD「尚未出發」、`PlayerPlaced` 出現動畫（棋子從上方落到起點格，`DURATIONS.placed` 500 ms，非原版；E0a 時查原版出場表現）、未放置者的回合開始不做脈動。和計畫的差異：設定畫面新增「地圖」選項（環狀／分岔測試圖），因為試玩需要分岔圖。
-- [ ] 批次 C：
+- [x] 批次 C：
   - [x] C0。`spendable` 不再收 config；`GAME_RULES.md` 第 3 節「引擎現況」刪掉兩列、第 8 節改寫；client 設定畫面沒有用到這些選項，只改 `display.test`。
   - [x] C1。價格 helper 收 `PriceView = Pick<GameState, 'board' | 'tiles'>`（C4 加 `priceIndex`），client HUD 用 display model 的 tiles 呼叫；HUD 的 `config` 欄位已不需要而移除。購地時保留既有等級（D1 之前只有測試會構造帶等級的無主地）。測試地圖的加蓋費 = 地價 ÷ 2、過路費用兩組自編百分比範本（依邊交替）；`testing.ts` 的 `loopBoard` 只給價格時用 `testProperty` 的自編數值。
   - [x] C2。無主地的 `rentFor` 只算自己那格；引擎只在有地主時收費，HUD 也只對有地主的地顯示過路費。`loopBoard` 的地產規格可指定 `name`（街名）。
@@ -43,6 +43,9 @@
     - 事件紀錄：`DayAdvanced`「過了一天（已過 N 天），物價指數 ×K」；過路費與破產償債寫明存入收款者的存款。
     - 設定畫面加「淨值目標」（起始資金的倍數，1–999，留空為無目標）。
     - 發現：目前引擎沒有任何收入來源（銀行利息、股票、卡片等都在 Phase 5），平均淨值不會超過起始資金，所以 coef 永遠是 1（隨機 AI 2–4 人各 300 局，最大 coef 都是 1）。試玩時用暫時的除錯掛勾 `richmanDebug.setPriceIndex(n)`（`TEMP-DEBUG`，只在 dev）把 coef 調高來看價格變化，確認後已移除。
+  - [x] C5 之後的修正（使用者要求依寫作慣例查證，逆向步驟 8b，筆記在 `local-assets/ghidra/notes.md`）：
+    - 天數上限與淨值目標在原版是同一個判斷、同一段結束流程，不記錄是哪一個條件 → `GameEnded.reason` 合併成 `dayLimitOrNetWorthTarget`（取代 C4b 自訂的「同時成立時顯示淨值目標」）；模擬器的結束原因統計一併合併。
+    - 原版沒有結算排名畫面 → 天數上限／淨值目標結束時，結算框只顯示原因、勝者與種子；`rankPlayers` 只剩 `lastStanding` 用（仍是非原版，原版破產淘汰結束也沒有排名，是否保留待使用者決定）。
 - [ ] D、E0、E、F
 
 實作中發現的待補項目，直接寫進對應批次的條目。

@@ -1,7 +1,7 @@
 // Result dialog, opened when the GameEnded event has played.
 import type { GameEvent, PlayerId, ServerUpdate } from '@richman/shared';
 import type { ControllerSink } from '../game-controller';
-import { formatMoney, t } from '../i18n';
+import { t } from '../i18n';
 import type { DisplayModel } from '../model/display';
 import { rankPlayers } from './ranking';
 
@@ -49,23 +49,24 @@ export class GameOverDialog implements ControllerSink {
         ? t('gameOver.winners', { names: event.winners.map(name).join('、') })
         : t('gameOver.noWinner');
 
-    const ranked = rankPlayers(
-      model.players.map((p) => p.id),
-      event,
-      this.bankruptcies,
-    );
+    // Like the original, a day limit or net worth ending shows only the winner; the ranking of a
+    // last-standing game is this project's own.
     const table = document.createElement('ol');
     table.className = 'game-over-ranking';
+    const ranked =
+      event.reason === 'lastStanding'
+        ? rankPlayers(
+            model.players.map((p) => p.id),
+            this.bankruptcies,
+          )
+        : [];
     for (const p of ranked) {
       const item = document.createElement('li');
       if (event.winners.includes(p.id)) item.classList.add('is-winner');
       const label = document.createElement('span');
       label.textContent = `${t('gameOver.rank', { rank: p.rank })} ${name(p.id)}`;
       const detail = document.createElement('span');
-      detail.textContent =
-        event.reason === 'lastStanding'
-          ? t(p.bankrupt ? 'hud.bankrupt' : 'gameOver.survived')
-          : `${t('gameOver.netWorth')} ${formatMoney(p.netWorth)}`;
+      detail.textContent = t(p.bankrupt ? 'hud.bankrupt' : 'gameOver.survived');
       item.append(label, detail);
       table.append(item);
     }
@@ -80,7 +81,7 @@ export class GameOverDialog implements ControllerSink {
     again.textContent = t('gameOver.again');
     again.addEventListener('click', () => this.options.onAgain());
 
-    dialog.append(title, reason, winners, table, seed, again);
+    dialog.append(title, reason, winners, ...(ranked.length > 0 ? [table] : []), seed, again);
     this.root.replaceChildren(dialog);
     this.root.hidden = false;
     again.focus();

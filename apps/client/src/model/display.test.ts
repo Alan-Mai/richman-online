@@ -129,7 +129,7 @@ describe('applyEventToDisplay', () => {
   it('GameEnded records the winners', () => {
     const next = apply({
       type: 'GameEnded',
-      reason: 'dayLimit',
+      reason: 'dayLimitOrNetWorthTarget',
       winners: ['b'],
       netWorth: {},
     });

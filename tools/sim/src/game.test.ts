@@ -69,7 +69,7 @@ describe('runGame', () => {
 
   it('reports the end reason, the winning seats and bankruptcies', () => {
     const record = runGame({ ...RICHEST, dayLimit: 3 });
-    expect(record.outcome).toMatchObject({ kind: 'finished', reason: 'dayLimit' });
+    expect(record.outcome).toMatchObject({ kind: 'finished', reason: 'dayLimitOrNetWorthTarget' });
     if (record.outcome.kind === 'finished') {
       expect(record.outcome.winnerSeats).toHaveLength(1);
       expect(record.outcome.winnerSeats.every((s) => s >= 0 && s < 4)).toBe(true);
@@ -79,7 +79,7 @@ describe('runGame', () => {
 
   it('ends net worth target games by the target', () => {
     const record = runGame({ ...RICHEST, dayLimit: null, netWorthTargetMultiple: 1 });
-    expect(record.outcome).toMatchObject({ kind: 'finished', reason: 'netWorthTarget' });
+    expect(record.outcome).toMatchObject({ kind: 'finished', reason: 'dayLimitOrNetWorthTarget' });
   });
 
   it('leaves games unfinished at the safety cap on days, which is not a failure', () => {

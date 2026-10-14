@@ -24,7 +24,7 @@ const model: DisplayModel = {
 
 const ended: GameEvent = {
   type: 'GameEnded',
-  reason: 'dayLimit',
+  reason: 'dayLimitOrNetWorthTarget',
   winners: ['p2'],
   netWorth: { p1: 30000, p2: 52000, p3: 52000, p4: 0 },
 };
@@ -67,18 +67,13 @@ describe('GameOverDialog', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('shows the winner, a ranking by net worth (ties by seat) and the seed', () => {
+  it('shows only the reason, the winner and the seed for a day limit or net worth ending', () => {
     const { root } = open();
     expect(root.hidden).toBe(false);
+    expect(root.textContent).toContain('遊戲結束：已達天數上限或淨值目標');
     expect(root.querySelector('.game-over-winners')?.textContent).toBe('勝利：乙');
-    const rows = [...root.querySelectorAll('.game-over-ranking li')].map((li) => li.textContent);
-    expect(rows).toEqual([
-      '第 1 名 乙淨值 52,000',
-      '第 2 名 丙淨值 52,000',
-      '第 3 名 甲淨值 30,000',
-      '第 4 名 丁淨值 0',
-    ]);
-    expect(root.querySelectorAll('.is-winner')).toHaveLength(1);
+    // The original shows no ranking for this ending.
+    expect(root.querySelector('.game-over-ranking')).toBeNull();
     expect(root.querySelector('.game-over-seed')?.textContent).toBe('本局種子：77');
   });
 

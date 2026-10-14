@@ -54,7 +54,6 @@ export const zhTW = {
   'gameOver.winners': '勝利：{names}',
   'gameOver.noWinner': '沒有勝利者',
   'gameOver.rank': '第 {rank} 名',
-  'gameOver.netWorth': '淨值',
   'gameOver.survived': '存活',
   'gameOver.seed': '本局種子：{seed}',
   'gameOver.again': '回到設定',
@@ -102,6 +101,5 @@ export const zhTW = {
   'event.bankruptRent':
     '{name} 付不起 {tile} 的過路費 {amount}，破產了；{creditor} 的存款收到 {paid}',
   'event.gameEnded.lastStanding': '遊戲結束：只剩一位玩家',
-  'event.gameEnded.dayLimit': '遊戲結束：已達天數上限',
-  'event.gameEnded.netWorthTarget': '遊戲結束：有玩家達到淨值目標',
+  'event.gameEnded.dayLimitOrNetWorthTarget': '遊戲結束：已達天數上限或淨值目標',
 } as const satisfies Record<string, string>;

@@ -422,10 +422,8 @@ function advanceDay(state: GameState): Step {
       state: { ...state, day },
       events: [{ type: 'DayAdvanced', day, priceIndex: state.priceIndex }],
     };
-    // When both hold, the reason shown is the target; the outcome is the same either way.
-    return chain(dated, (s) =>
-      endGame(s, targetReached ? 'netWorthTarget' : 'dayLimit', [richest]),
-    );
+    // The original takes the same path for both conditions and records neither.
+    return chain(dated, (s) => endGame(s, 'dayLimitOrNetWorthTarget', [richest]));
   }
 
   const sum = worths.reduce((total, worth) => total + worth, 0);
@@ -499,7 +497,7 @@ function boardLocation(player: PlayerState): { tile: TileIndex; prev: TileIndex 
 
 function endGame(
   state: GameState,
-  reason: 'lastStanding' | 'dayLimit' | 'netWorthTarget',
+  reason: 'lastStanding' | 'dayLimitOrNetWorthTarget',
   winners: PlayerId[],
 ): Step {
   const worth = Object.fromEntries(state.players.map((p) => [p.id, netWorth(state, p.id)]));

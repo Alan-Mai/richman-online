@@ -69,7 +69,7 @@ export interface GameSpec {
   maxSteps: number;
 }
 
-export type EndReason = 'lastStanding' | 'dayLimit' | 'netWorthTarget';
+export type EndReason = 'lastStanding' | 'dayLimitOrNetWorthTarget';
 
 export type Failure =
   | { kind: 'createGame'; errors: CreateGameError[] }

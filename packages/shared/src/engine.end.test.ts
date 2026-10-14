@@ -150,7 +150,7 @@ describe('day limit', () => {
     state = rollOne(state).state;
     const { state: after, events } = rollOne(state);
     expect(events.slice(-2).map((e) => e.type)).toEqual(['DayAdvanced', 'GameEnded']);
-    expect(gameEnded(events).reason).toBe('dayLimit');
+    expect(gameEnded(events).reason).toBe('dayLimitOrNetWorthTarget');
     expect(events.map((e) => e.type)).not.toContain('TurnStarted');
     expect(after).toMatchObject({ day: 2, turn: { round: 2, phase: { kind: 'gameOver' } } });
   });
@@ -158,7 +158,10 @@ describe('day limit', () => {
   it('gives the win to the highest net worth only', () => {
     const cash = { p1: 5, p2: 6, p3: 4 };
     const { state, events } = rollOne(endOfDay({ playerCount: 3, config: { dayLimit: 1 }, cash }));
-    expect(gameEnded(events)).toMatchObject({ reason: 'dayLimit', winners: ['p2'] });
+    expect(gameEnded(events)).toMatchObject({
+      reason: 'dayLimitOrNetWorthTarget',
+      winners: ['p2'],
+    });
     expect(state.turn.phase).toEqual({ kind: 'gameOver', winners: ['p2'] });
   });
 
@@ -193,7 +196,10 @@ describe('day limit', () => {
     expect(state).toMatchObject({ day: 1, turn: { current: 'p1', phase: { kind: 'awaitRoll' } } });
     // A later day ends it once someone is worth anything.
     const later = endOfDay({ config: { dayLimit: 1 }, cash: { p1: 0, p2: 1 }, day: 1 });
-    expect(gameEnded(rollOne(later).events)).toMatchObject({ reason: 'dayLimit', winners: ['p2'] });
+    expect(gameEnded(rollOne(later).events)).toMatchObject({
+      reason: 'dayLimitOrNetWorthTarget',
+      winners: ['p2'],
+    });
   });
 
   it('ends before the price index is updated', () => {
@@ -206,7 +212,7 @@ describe('day limit', () => {
       priceIndex: 1,
     });
     expect(state.priceIndex).toBe(1);
-    expect(gameEnded(events).reason).toBe('dayLimit');
+    expect(gameEnded(events).reason).toBe('dayLimitOrNetWorthTarget');
   });
 });
 
@@ -217,7 +223,7 @@ describe('net worth target', () => {
     const { state, events } = rollOne(endOfDay({ config, cash: { p1: 20_000, p2: 5 } }));
     expect(gameEnded(events)).toEqual({
       type: 'GameEnded',
-      reason: 'netWorthTarget',
+      reason: 'dayLimitOrNetWorthTarget',
       winners: ['p1'],
       netWorth: { p1: 20_000, p2: 5 },
     });
@@ -235,7 +241,10 @@ describe('net worth target', () => {
     start = patchTile(start, 1, { owner: 'p1', level: 0 });
     // 15,000 + 4000 + 1001 = 20,001.
     const { events } = lastSeatRollsThree(start);
-    expect(gameEnded(events)).toMatchObject({ reason: 'netWorthTarget', winners: ['p1'] });
+    expect(gameEnded(events)).toMatchObject({
+      reason: 'dayLimitOrNetWorthTarget',
+      winners: ['p1'],
+    });
   });
 
   it('is only checked as a day goes by, not mid-round', () => {
@@ -246,7 +255,7 @@ describe('net worth target', () => {
     const afterP2 = rollOne(afterP1.state);
     expect(endedBy(afterP2.events)).toBeUndefined();
     expect(gameEnded(rollOne(afterP2.state).events)).toMatchObject({
-      reason: 'netWorthTarget',
+      reason: 'dayLimitOrNetWorthTarget',
       winners: ['p1'],
     });
   });
@@ -254,7 +263,16 @@ describe('net worth target', () => {
   it('ends the game before a day limit is reached', () => {
     const both = { ...config, dayLimit: 99 };
     const { events } = rollOne(endOfDay({ config: both, cash: { p1: 20_000, p2: 5 } }));
-    expect(gameEnded(events).reason).toBe('netWorthTarget');
+    expect(gameEnded(events).reason).toBe('dayLimitOrNetWorthTarget');
+  });
+
+  it('cannot tell which condition ended the game when both hold the same day', () => {
+    const cash = { p1: 20_000, p2: 5 };
+    const ended = (limits: Partial<RuleConfig>) =>
+      gameEnded(rollOne(endOfDay({ config: limits, cash })).events);
+    const both = ended({ ...config, dayLimit: 1 });
+    expect(both).toEqual(ended(config));
+    expect(both).toEqual(ended({ dayLimit: 1 }));
   });
 });
 
