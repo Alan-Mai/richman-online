@@ -57,7 +57,7 @@ pnpm typecheck
 
 1. 動手前先讀相關文件：架構看 `docs/ARCHITECTURE.md`，目前進度看 `docs/ROADMAP.md`，規則細節看 `docs/GAME_RULES.md`，檔案格式看 `docs/ASSET_FORMATS.md`。
 2. 非小改動先提出計畫，等我確認再寫。跨多個 session 的分批計畫核准後存成 `docs/` 內的檔案，在 ROADMAP 對應項目註明位置；進度、與計畫的差異、實作中發現的待補項寫回該檔對應批次。分批計畫全部完成後，在收尾 commit 刪除該計畫檔，或在檔頭標「已完成，僅供歷史參考」，並移除 ROADMAP 的指向。計畫中標明需要我目視確認的 commit，做到該處先停下、不要 commit，確認後把我的回饋併進同一個 commit。要修正未推送、但不在最上面的 commit 時，優先新增一個修正 commit；只有我要求改寫歷史時，才用暫時分支 amend 再 cherry-pick 的方式（不用 `git rebase -i`），完成後確認新舊頂端的 diff 只有預期改動。
-3. 規則引擎採測試先行：先寫測試並實際跑一次，確認它因為功能未實作而**斷言失敗**（空殼回傳空值或預設值，不要 throw；import 錯誤或測試檔載入失敗不算；空殼若會讓流程走到既有的內部錯誤 throw，就在測試中先加前置斷言，讓失敗出現在斷言上），再寫實作。若實作已先寫好，就暫時把實作改壞，確認測試會失敗後再改回；改壞後仍通過的測試代表斷言太弱，要補強或記成待補項。
+3. 規則引擎採測試先行：先寫測試並實際跑一次，確認它因為功能未實作而**斷言失敗**（空殼回傳空值或預設值，不要 throw；import 錯誤或測試檔載入失敗不算；空殼若會讓流程走到既有的內部錯誤 throw，就在測試中先加前置斷言，讓失敗出現在斷言上；測試 helper 檢查前提時也先用 `expect`，不要直接 throw），再寫實作。若實作已先寫好，就暫時把實作改壞，確認測試會失敗後再改回；改壞後仍通過的測試代表斷言太弱，要補強或記成待補項。
 4. **每個 commit 前**執行 `pnpm test && pnpm lint && pnpm typecheck`（先跑 `pnpm format`），全部通過才 commit；任務完成時再整體跑一次。用管線過濾輸出（`| grep`、`| tail`）時先 `set -o pipefail`，否則失敗的 exit code 會被吃掉。
 5. 每次 commit 只做一件事，訊息用 Conventional Commits（`feat(shared): ...`）。
 6. 重要技術決策寫進 `docs/DECISIONS.md`；完成路線圖項目時，在同一個 commit 內更新 `docs/ROADMAP.md` 的勾選。

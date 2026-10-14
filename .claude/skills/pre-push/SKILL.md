@@ -23,6 +23,7 @@ disable-model-invocation: true
      - `.env` 或 `.env.*`（`.env.example` 除外）
      - `local-assets/` 底下的任何檔案
      - 超過 1 MB（1,048,576 bytes）的檔案
+   - 對每個 commit 執行 `git grep -n TEMP-DEBUG <commit>`，結果必須為空（暫時除錯程式不得推送）。
    - 列出每個 commit 的檔案數與最大檔，作為佐證。
    - 這一步輸出很長，交給 subagent 執行，只回報結論與違規項目。
 

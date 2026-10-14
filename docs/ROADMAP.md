@@ -55,7 +55,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 **Phase 3 前置**（Phase 3 開始前完成）：
 - [x] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**（已完成：LZ + 動態 Huffman，見 `ASSET_FORMATS.md`「MKF 壓縮」；462 個壓縮子檔全部通過驗證，`jump.mkf` 子檔 9–44 縮圖經使用者目視確認。）
 
-**下一步**：引擎改造批次 D（`docs/ENGINE_REFACTOR_PLAN.md`「批次 D」），D1：破產時地產全部變無主、保留建築等級。批次 A、B0、B、C 已完成。
+**下一步**：引擎改造 D1（`docs/ENGINE_REFACTOR_PLAN.md`「批次 D」）：破產時地產全部變無主、**保留建築等級**（先不拍賣）。測試先行：釋出的地保留等級、之後購地價含建築（`buyPrice` 已支援）、`PlayerBankrupt.releasedTiles`；不變量刪掉「無主地等級必為 0」；client `display.ts` 的 `PlayerBankrupt` 不再清等級、`PropertyBought` 保留原等級（C1 待補），同一個 commit 修。批次 A、B0、B、C 已完成。
 
 **未解問題**：
 - 壓縮子檔中沒有已知 magic 的 308 個（`Data.mkf` 302、`Panel.mkf` 6）格式未知，需另外分析（可用 `decompressMkf` 解壓後再看）。
@@ -73,7 +73,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 - 執行檔內疑似股票資料（每張地圖一組 12 筆，新局時複製到玩家持股旁的表）：列為 Phase 5「股票市場」的線索，之後分析時找出規則，不原樣複製表；需要表內數值時，比照「執行檔資料表匯出」由 `tools/extract` 匯出到 `local-assets/`。
 - GitHub 的 `ubuntu-latest` 自 2026-10-19 起改為 Ubuntu 26，留意 CI 結果。
 - 擲骰動畫的幀數存在動畫檔中（不在執行檔），不分析；客戶端用自訂長度。
-- 遊戲節奏：暫定數值下破產很少（`richestAtRoundLimit` 每局 0.63 次、`lastStanding` 平均 198 輪），待 `GAME_RULES.md` 填入原版數值後用模擬器重新比較。
+- 遊戲節奏（批次 C 之後，見 `GAME_RULES.md`「模擬器觀察」）：過路費進存款後錢留在場上，不限天數時約三分之一的局 1000 日內不結束；目前沒有任何收入來源（銀行利息、股票等屬 Phase 5），物價指數永遠是 1。待收入系統加入、原版數值匯入後再用模擬器比較。
 
 - [x] Phaser 場景載入地圖（原版轉檔或佔位圖）（可玩棋局用內建地圖與佔位圖；原版地圖為唯讀預覽，經使用者目視確認地圖 0、3、5 對齊且像素銳利）
 - [x] 事件佇列與動畫：擲骰、移動、買地、付款
