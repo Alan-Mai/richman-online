@@ -3,6 +3,7 @@ import { parseCommand, type RunOptions } from './args';
 
 const DEFAULTS: RunOptions = {
   board: 'test-loop',
+  controllers: 'random',
   games: 1000,
   seed: 1,
   dayLimit: null,
@@ -27,6 +28,8 @@ describe('parseCommand', () => {
   it('reads every run option', () => {
     const argv = [
       '--games=20',
+      '--controllers',
+      'mixed',
       '--seed',
       '4294967295',
       '--day-limit',
@@ -46,6 +49,7 @@ describe('parseCommand', () => {
         kind: 'run',
         options: {
           board: 'test-loop',
+          controllers: 'mixed',
           games: 20,
           seed: 4294967295,
           dayLimit: 7,
@@ -62,6 +66,19 @@ describe('parseCommand', () => {
     expect(parseCommand(['--max-days', '30'])).toEqual({
       ok: true,
       command: { kind: 'run', options: { ...DEFAULTS, maxDays: 30, maxSteps: 600 } },
+    });
+  });
+
+  it('picks who plays the seats', () => {
+    for (const controllers of ['random', 'computer', 'mixed'] as const) {
+      expect(parseCommand(['--controllers', controllers])).toEqual({
+        ok: true,
+        command: { kind: 'run', options: { ...DEFAULTS, controllers } },
+      });
+    }
+    expect(parseCommand(['--controllers', 'robots'])).toEqual({
+      ok: false,
+      errors: ['--controllers must be random, computer, mixed, got robots'],
     });
   });
 

@@ -14,6 +14,7 @@ import {
   exceptionFailure,
   gameSetup,
   isBoardName,
+  sameAction,
   type BoardName,
   type Engine,
   type Failure,
@@ -122,8 +123,6 @@ export function parseGameLog(
   }
   return errors.length > 0 ? { ok: false, errors } : { ok: true, log: data as unknown as GameLog };
 }
-
-const sameAction = (a: Action, b: Action): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 /**
  * Applies the logged actions one by one with the same per-step checks as the simulator, plus a

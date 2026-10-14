@@ -24,6 +24,7 @@ function fakeIO() {
 
 const OPTIONS: RunOptions = {
   board: 'test-loop',
+  controllers: 'random',
   games: 20,
   seed: 1,
   dayLimit: 100,

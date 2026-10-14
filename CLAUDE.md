@@ -44,7 +44,7 @@ pnpm -F client exec vite preview --host 127.0.0.1  # 檢查正式版（素材只
 pnpm -F extract cli <cmd> # 素材工具（啟動時驗證 RICHMAN4_DIR）
 pnpm -F extract cli map [n ...]  # 匯出地圖背景 PNG + JSON 到 local-assets/maps/
 pnpm -F extract cli view [port]  # 地圖檢視器，只綁 127.0.0.1（預設 5180）
-pnpm -F sim sim -- --games 1000 [--seed 1] [--board test-branch] [--day-limit N] [--net-worth-target M] [--max-days 1000]  # 終端機模擬器
+pnpm -F sim sim -- --games 1000 [--seed 1] [--board test-branch] [--controllers random|computer|mixed] [--day-limit N] [--net-worth-target M] [--max-days 1000]  # 終端機模擬器
 pnpm -F sim sim -- replay out/failure-<seed>.json                 # 重播失敗紀錄
 pnpm lint                 # ESLint + Prettier 檢查
 pnpm format               # Prettier 自動格式化（不含 *.md）

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { EndReason, GameRecord, GameSpec, Outcome } from './game';
+import {
+  emptyMetrics,
+  type EndReason,
+  type GameMetrics,
+  type GameRecord,
+  type GameSpec,
+  type Outcome,
+} from './game';
 import {
   failureKeys,
   formatActions,
@@ -9,12 +16,26 @@ import {
   summarize,
 } from './stats';
 
-function record(seed: number, outcome: Outcome, rounds: number, steps = 10, bankruptcies = 0) {
+function record(
+  seed: number,
+  outcome: Outcome,
+  rounds: number,
+  steps = 10,
+  bankruptcies = 0,
+  metrics: Partial<GameMetrics> = {},
+) {
   const actions = Array.from({ length: steps }, () => ({
     type: 'rollDice' as const,
     playerId: 'p1',
   }));
-  return { seed, actions, rounds, bankruptcies, outcome } satisfies GameRecord;
+  return {
+    seed,
+    actions,
+    rounds,
+    bankruptcies,
+    metrics: { ...emptyMetrics(), ...metrics },
+    outcome,
+  } satisfies GameRecord;
 }
 
 const finished = (reason: EndReason, winnerSeats: number[]): Outcome => ({
@@ -82,7 +103,7 @@ describe('summarize', () => {
   });
 
   it('averages rounds over finished games and steps over games that did not fail', () => {
-    expect(stats.rounds).toEqual({ mean: 67.5, min: 30, max: 100 });
+    expect(stats.rounds).toEqual({ mean: 67.5, median: 40, p90: 100, min: 30, max: 100 });
     expect(stats.meanSteps).toBe(400);
   });
 
@@ -96,6 +117,56 @@ describe('summarize', () => {
       { key: 'invariant: tile #: level # is outside #..#', count: 1, seed: 11 },
       { key: 'exception: index # out of range', count: 1, seed: 13 },
     ]);
+  });
+
+  it('summarizes bankruptcies, days, the price index, auctions, the lottery pool and moves', () => {
+    const games = [
+      record(1, finished('lastStanding', [0]), 50, 10, 2, {
+        firstBankruptcyRound: 10,
+        finalDay: 49,
+        finalPriceIndex: 3,
+        priceIndexRiseRound: 20,
+        lotteryPool: 9000,
+        auctions: 3,
+        auctionsWithBidders: 2,
+        auctionsSold: 2,
+        saleRatioSum: 3,
+        forks: 10,
+        deadEnds: 1,
+      }),
+      record(2, { kind: 'unfinished' }, 30, 10, 1, {
+        firstBankruptcyRound: 20,
+        finalDay: 29,
+        lotteryPool: 1000,
+        auctions: 1,
+        forks: 20,
+        deadEnds: 3,
+      }),
+      // Failed games count only for the first bankruptcy.
+      record(3, { kind: 'failed', step: 1, failure: { kind: 'missingGameEnded' } }, 1, 1, 1, {
+        firstBankruptcyRound: 3,
+        finalDay: 999,
+        auctions: 99,
+      }),
+    ];
+    const summary = summarize(games, 4);
+    expect(summary.firstBankruptcyRound).toBe(11);
+    expect(summary.finalDay).toBe(39);
+    expect(summary.priceIndex).toEqual({ meanFinal: 2, maxFinal: 3, risen: 1, meanRiseRound: 20 });
+    expect(summary.auctions).toEqual({ total: 4, withBidders: 2, sold: 2, meanSaleRatio: 1.5 });
+    expect(summary.meanLotteryPool).toBe(5000);
+    expect(summary.forksPerGame).toBe(15);
+    expect(summary.deadEndsPerGame).toBe(2);
+
+    const text = formatStats(summary, 0);
+    expect(text).toContain('first in round 11.0 on average');
+    expect(text).toContain('final day (games that did not fail): mean 39.0');
+    expect(text).toContain('price index at the end: mean 2.00, max 3; above 1 in 1 games');
+    expect(text).toContain(
+      'auctions: 4 properties, 2 with bidders (50.0%), sold 2 (50.0%), unsold 2; sale / start price mean 1.50',
+    );
+    expect(text).toContain('lottery pool at the end: mean 5000.0');
+    expect(text).toContain('moves per game: forks 15.0, dead-end turnarounds 2.0');
   });
 
   it('handles a run without finished games', () => {
@@ -124,6 +195,18 @@ describe('failureKeys', () => {
       'createGame: invalidSeed',
     ]);
     expect(failureKeys({ kind: 'notOffered', action })).toEqual(['notOffered: buyProperty']);
+    expect(failureKeys({ kind: 'computerActionNotLegal', playerId: 'p3', action })).toEqual([
+      'computerActionNotLegal: buyProperty',
+    ]);
+    expect(failureKeys({ kind: 'computerActionNotLegal', playerId: 'p3', action: null })).toEqual([
+      'computerActionNotLegal: null',
+    ]);
+    expect(failureKeys({ kind: 'viewLeak', viewer: 'p1', key: 'rngState' })).toEqual([
+      'viewLeak: rngState',
+    ]);
+    expect(failureKeys({ kind: 'auctionTooLong', tile: 4, actions: 5000 })).toEqual([
+      'auctionTooLong',
+    ]);
   });
 
   it('counts a repeated violation once per game', () => {
@@ -139,6 +222,7 @@ describe('failureKeys', () => {
 describe('formatting', () => {
   const spec: GameSpec = {
     board: 'test-loop',
+    controllers: 'mixed',
     seed: 12,
     dayLimit: 100,
     netWorthTargetMultiple: null,
@@ -157,10 +241,10 @@ describe('formatting', () => {
 
   it('builds a rerun command for one game', () => {
     expect(rerunCommand(spec)).toBe(
-      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --day-limit 100 --max-days 1000 --max-steps 20000',
+      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --controllers mixed --day-limit 100 --max-days 1000 --max-steps 20000',
     );
     expect(rerunCommand({ ...spec, dayLimit: null, netWorthTargetMultiple: 3 })).toBe(
-      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --net-worth-target 3 --max-days 1000 --max-steps 20000',
+      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --controllers mixed --net-worth-target 3 --max-days 1000 --max-steps 20000',
     );
   });
 
@@ -177,7 +261,9 @@ describe('formatting', () => {
   it('prints the summary', () => {
     const text = formatStats(summarize(RECORDS, 4), 2500);
     expect(text).toContain('games: 8 (finished 4, unfinished 1, failed 3)');
-    expect(text).toContain('rounds (finished games): mean 67.5, min 30, max 100');
+    expect(text).toContain(
+      'rounds (finished games): mean 67.5, median 40, p90 100, min 30, max 100',
+    );
     expect(text).toContain('lastStanding 2 (25.0%, 1 without a winner)');
     expect(text).toContain('dayLimitOrNetWorthTarget 2 (25.0%)');
     expect(text).toContain('seat 1 25.0%');

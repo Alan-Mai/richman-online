@@ -1,9 +1,17 @@
 // Command-line parsing for the simulator. A small hand-written parser: node:util parseArgs refuses
 // values that start with "-", which hides the clearer range errors below.
-import { BOARD_NAMES, isBoardName, type BoardName } from './game';
+import {
+  BOARD_NAMES,
+  CONTROLLER_MODES,
+  isBoardName,
+  isControllerMode,
+  type BoardName,
+  type ControllerMode,
+} from './game';
 
 export interface RunOptions {
   board: BoardName;
+  controllers: ControllerMode;
   games: number;
   seed: number;
   /** null: no day limit (the default). */
@@ -22,12 +30,14 @@ export type ParseResult = { ok: true; command: Command } | { ok: false; errors: 
 
 export const USAGE = `usage:
   pnpm -F sim sim -- [--games 1000] [--seed 1] [--board test-loop|test-branch]
+                     [--controllers random|computer|mixed]
                      [--day-limit N] [--net-worth-target MULTIPLE] [--max-days 1000]
                      [--max-steps 20 x max-days] [--max-failure-details 5]
   pnpm -F sim sim -- replay <failure.json>`;
 
 const OPTION_NAMES = [
   'board',
+  'controllers',
   'games',
   'seed',
   'day-limit',
@@ -114,6 +124,12 @@ export function parseCommand(argv: readonly string[]): ParseResult {
     errors.push(`--board must be ${BOARD_NAMES.join(' or ')}, got ${boardRaw}`);
   }
 
+  const controllersRaw = values.get('controllers') ?? 'random';
+  const controllers: ControllerMode = isControllerMode(controllersRaw) ? controllersRaw : 'random';
+  if (!isControllerMode(controllersRaw)) {
+    errors.push(`--controllers must be ${CONTROLLER_MODES.join(', ')}, got ${controllersRaw}`);
+  }
+
   const optionalPositive = (name: OptionName): number | null =>
     values.has(name) ? readInt(name, 1, 1, Number.MAX_SAFE_INTEGER) : null;
   const dayLimit = optionalPositive('day-limit');
@@ -135,6 +151,7 @@ export function parseCommand(argv: readonly string[]): ParseResult {
       kind: 'run',
       options: {
         board,
+        controllers,
         games,
         seed,
         dayLimit,

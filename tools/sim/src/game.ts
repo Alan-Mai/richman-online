@@ -6,18 +6,24 @@ import {
   actorOf,
   applyAction,
   checkInvariants,
+  computerAction,
   createGame,
   createRng,
   legalActions,
   nextInt,
+  viewFor,
   type Action,
   type ActionType,
   type Board,
+  type Controller,
   type CreateGameError,
+  type GameEvent,
   type GameSetup,
   type GameState,
   type PlayerId,
   type RuleError,
+  type TileIndex,
+  type Viewer,
 } from '@richman/shared';
 
 /** The engine functions the simulator calls; tests swap in broken ones. */
@@ -26,12 +32,56 @@ export interface Engine {
   actorOf: typeof actorOf;
   applyAction: typeof applyAction;
   legalActions: typeof legalActions;
+  computerAction: typeof computerAction;
+  viewFor: typeof viewFor;
   checkInvariants: typeof checkInvariants;
 }
 
-export const ENGINE: Engine = { createGame, actorOf, applyAction, legalActions, checkInvariants };
+export const ENGINE: Engine = {
+  createGame,
+  actorOf,
+  applyAction,
+  legalActions,
+  computerAction,
+  viewFor,
+  checkInvariants,
+};
 
 export const PLAYER_COUNT = 4;
+
+/**
+ * Who plays the seats: random legal choices (players marked human), the engine's computerAction
+ * for every seat, or computers in seats 2 and 4 and random choices in seats 1 and 3.
+ */
+export const CONTROLLER_MODES = ['random', 'computer', 'mixed'] as const;
+
+export type ControllerMode = (typeof CONTROLLER_MODES)[number];
+
+export function isControllerMode(mode: unknown): mode is ControllerMode {
+  return (CONTROLLER_MODES as readonly unknown[]).includes(mode);
+}
+
+export function controllersFor(mode: ControllerMode): Controller[] {
+  return Array.from({ length: PLAYER_COUNT }, (_, seat): Controller => {
+    switch (mode) {
+      case 'random':
+        return 'human';
+      case 'computer':
+        return 'computer';
+      case 'mixed':
+        return seat % 2 === 1 ? 'computer' : 'human';
+    }
+  });
+}
+
+/**
+ * Actions one auction may take before it counts as runaway bidding. Raises are at least 100 and
+ * bounded by cash, so a real auction ends far sooner.
+ */
+export const MAX_AUCTION_ACTIONS = 5000;
+
+/** Hidden state that must never appear in a view, as JSON keys. */
+const HIDDEN_KEYS = ['rngState', 'queue', 'computerLimits', 'lotteryPool'] as const;
 
 /** Built-in boards the simulator can play, by Board.id. */
 export const BOARDS = {
@@ -63,6 +113,7 @@ const EXAMPLE_ACTIONS: Record<ActionType, (playerId: PlayerId) => Action> = {
 
 export interface GameSpec {
   board: BoardName;
+  controllers: ControllerMode;
   seed: number;
   /** RuleConfig.dayLimit; null for no limit. */
   dayLimit: number | null;
@@ -87,6 +138,11 @@ export type Failure =
   | { kind: 'noLegalActions'; playerId: PlayerId }
   /** Someone other than actorOf (the player the game waits for; nobody after game over) was offered actions. */
   | { kind: 'offeredOutOfTurn'; playerId: PlayerId; actions: Action[] }
+  /** computerAction picked an unoffered action, nothing for a computer, or something for a human. */
+  | { kind: 'computerActionNotLegal'; playerId: PlayerId; action: Action | null }
+  /** A view sent hidden state (HIDDEN_KEYS). */
+  | { kind: 'viewLeak'; viewer: string; key: string }
+  | { kind: 'auctionTooLong'; tile: TileIndex; actions: number }
   | { kind: 'legalActionRejected'; action: Action; error: RuleError }
   /** An action type missing from legalActions was not refused with wrongPhase. */
   | { kind: 'unofferedNotRefused'; action: Action; outcome: string }
@@ -101,11 +157,50 @@ export type Outcome =
   /** `step` = number of actions applied before the failure was found. */
   | { kind: 'failed'; step: number; failure: Failure };
 
+/** What one game looked like, for the run statistics (docs/ENGINE_REFACTOR_PLAN.md, question 4). */
+export interface GameMetrics {
+  /** null when nobody went bankrupt. */
+  firstBankruptcyRound: number | null;
+  finalDay: number;
+  finalPriceIndex: number;
+  /** The round in which the price index first went above 1; null if it never did. */
+  priceIndexRiseRound: number | null;
+  /** The lottery pool at the end: auction proceeds and system debts. */
+  lotteryPool: number;
+  /** Properties put up for auction. */
+  auctions: number;
+  auctionsWithBidders: number;
+  auctionsSold: number;
+  /** Sum of sale price ÷ start price over the properties sold. */
+  saleRatioSum: number;
+  /** Steps taken at a fork (more than one way on). */
+  forks: number;
+  /** Steps that turned back at a dead end. */
+  deadEnds: number;
+}
+
+export function emptyMetrics(): GameMetrics {
+  return {
+    firstBankruptcyRound: null,
+    finalDay: 0,
+    finalPriceIndex: 1,
+    priceIndexRiseRound: null,
+    lotteryPool: 0,
+    auctions: 0,
+    auctionsWithBidders: 0,
+    auctionsSold: 0,
+    saleRatioSum: 0,
+    forks: 0,
+    deadEnds: 0,
+  };
+}
+
 export interface GameRecord {
   seed: number;
   actions: Action[];
   rounds: number;
   bankruptcies: number;
+  metrics: GameMetrics;
   outcome: Outcome;
 }
 
@@ -120,8 +215,9 @@ export function chooserSeedFor(gameSeed: number): number {
 }
 
 export function gameSetup(
-  spec: Pick<GameSpec, 'board' | 'seed' | 'dayLimit' | 'netWorthTargetMultiple'>,
+  spec: Pick<GameSpec, 'board' | 'controllers' | 'seed' | 'dayLimit' | 'netWorthTargetMultiple'>,
 ): GameSetup {
+  const controllers = controllersFor(spec.controllers);
   return {
     config: {
       ...DEFAULT_RULE_CONFIG,
@@ -132,7 +228,7 @@ export function gameSetup(
     players: Array.from({ length: PLAYER_COUNT }, (_, i) => ({
       id: `p${i + 1}`,
       name: `AI ${i + 1}`,
-      controller: 'human',
+      controller: controllers[i] ?? 'human',
     })),
     seed: spec.seed,
   };
@@ -155,6 +251,17 @@ export function checkStep(
   const violations = engine.checkInvariants(state);
   if (violations.length > 0) {
     return { kind: 'invariant', violations };
+  }
+  const viewers: Viewer[] = [
+    ...state.players.map(({ id }): Viewer => ({ kind: 'player', id })),
+    { kind: 'spectator' },
+  ];
+  for (const viewer of viewers) {
+    const json = JSON.stringify(engine.viewFor(state, viewer));
+    const key = HIDDEN_KEYS.find((k) => json.includes(`"${k}"`));
+    if (key !== undefined) {
+      return { kind: 'viewLeak', viewer: viewer.kind === 'player' ? viewer.id : 'spectator', key };
+    }
   }
   const actor = engine.actorOf(state);
   for (const { id } of state.players) {
@@ -179,6 +286,12 @@ export function checkStep(
       return { kind: 'legalActionRejected', action, error: result.error };
     }
   }
+  const computer = state.players.find((p) => p.id === actor)?.controller === 'computer';
+  const picked = engine.computerAction(state, actor);
+  const pickedLegal = picked !== null && legal.some((a) => sameAction(a, picked));
+  if (computer ? !pickedLegal : picked !== null) {
+    return { kind: 'computerActionNotLegal', playerId: actor, action: picked };
+  }
   for (const [type, example] of Object.entries(EXAMPLE_ACTIONS)) {
     if (!legal.some((a) => a.type === type)) {
       const action = example(actor);
@@ -195,22 +308,30 @@ export function checkStep(
   return null;
 }
 
+export const sameAction = (a: Action, b: Action): boolean =>
+  JSON.stringify(a) === JSON.stringify(b);
+
 export function exceptionFailure(error: unknown): Failure {
   return error instanceof Error
     ? { kind: 'exception', message: error.message, ...(error.stack ? { stack: error.stack } : {}) }
     : { kind: 'exception', message: String(error) };
 }
 
-/** Plays one game with uniformly random legal actions. Never throws: problems become failures. */
+/**
+ * Plays one game: computer seats through computerAction, the others with uniformly random legal
+ * actions. Never throws: problems become failures.
+ */
 export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
   const actions: Action[] = [];
   let rounds = 0;
   let bankruptcies = 0;
+  const metrics = emptyMetrics();
   const record = (outcome: Outcome): GameRecord => ({
     seed: spec.seed,
     actions,
     rounds,
     bankruptcies,
+    metrics,
     outcome,
   });
   const fail = (failure: Failure) => record({ kind: 'failed', step: actions.length, failure });
@@ -224,8 +345,17 @@ export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
     let previous: GameState | null = null;
     let chooser = createRng(chooserSeedFor(spec.seed));
     let ending: { reason: EndReason; winners: readonly PlayerId[] } | null = null;
+    let auction: { tile: TileIndex; actions: number } | null = null;
     for (;;) {
       rounds = state.turn.round;
+      Object.assign(metrics, {
+        finalDay: state.day,
+        finalPriceIndex: state.priceIndex,
+        lotteryPool: state.lotteryPool,
+      });
+      if (metrics.priceIndexRiseRound === null && state.priceIndex > 1) {
+        metrics.priceIndexRiseRound = state.turn.round;
+      }
       const failure = checkStep(engine, state, previous);
       if (failure !== null) {
         return fail(failure);
@@ -239,25 +369,56 @@ export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
       if (actions.length >= spec.maxSteps) {
         return fail({ kind: 'stepLimit', maxSteps: spec.maxSteps });
       }
+      if (auction !== null && auction.actions >= MAX_AUCTION_ACTIONS) {
+        return fail({ kind: 'auctionTooLong', ...auction });
+      }
 
-      const legal = engine.legalActions(state, engine.actorOf(state) ?? '');
-      const [pick, next] = nextInt(chooser, legal.length);
-      chooser = next;
-      const action = legal[pick];
-      if (action === undefined) {
-        throw new Error(`picked ${pick} of ${legal.length} actions`);
+      const actor = engine.actorOf(state) ?? '';
+      let action = engine.computerAction(state, actor);
+      if (action === null) {
+        const legal = engine.legalActions(state, actor);
+        const [pick, next] = nextInt(chooser, legal.length);
+        chooser = next;
+        action = legal[pick] ?? null;
+        if (action === null) {
+          throw new Error(`picked ${pick} of ${legal.length} actions`);
+        }
       }
       const result = engine.applyAction(state, action);
       if (!result.ok) {
         return fail({ kind: 'legalActionRejected', action, error: result.error });
       }
       actions.push(action);
+      if (auction !== null) auction.actions++;
+      countTurns(state, result.events, metrics);
+      for (const event of result.events) {
+        switch (event.type) {
+          case 'PlayerBankrupt':
+            bankruptcies++;
+            metrics.firstBankruptcyRound ??= state.turn.round;
+            break;
+          case 'AuctionStarted':
+            metrics.auctions++;
+            if (event.bidders.length > 0) metrics.auctionsWithBidders++;
+            auction = { tile: event.tile, actions: 0 };
+            break;
+          case 'AuctionWon':
+            metrics.auctionsSold++;
+            metrics.saleRatioSum += event.price / startPriceOf(state, result.state, event.tile);
+            auction = null;
+            break;
+          case 'AuctionUnsold':
+            auction = null;
+            break;
+          case 'GameEnded':
+            ending = { reason: event.reason, winners: event.winners };
+            break;
+          default:
+            break;
+        }
+      }
       previous = state;
       state = result.state;
-      for (const event of result.events) {
-        if (event.type === 'PlayerBankrupt') bankruptcies++;
-        if (event.type === 'GameEnded') ending = { reason: event.reason, winners: event.winners };
-      }
     }
 
     if (ending === null) {
@@ -271,5 +432,38 @@ export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
     });
   } catch (error) {
     return fail(exceptionFailure(error));
+  }
+}
+
+/** The start price of the auction that sold `tile`: the phase before or after the action has it. */
+function startPriceOf(before: GameState, after: GameState, tile: TileIndex): number {
+  for (const { phase } of [before.turn, after.turn]) {
+    if (phase.kind === 'auction' && phase.tile === tile) return phase.startPrice;
+  }
+  throw new Error(`no auction of tile ${tile} around the sale`);
+}
+
+/**
+ * Counts forks and dead-end turnarounds along every PlayerMoved path, starting from where the mover
+ * stood before the action.
+ */
+function countTurns(before: GameState, events: readonly GameEvent[], metrics: GameMetrics): void {
+  const at = new Map<PlayerId, { tile: TileIndex; prev: TileIndex }>();
+  for (const { id, location } of before.players) {
+    if (location.kind === 'onBoard') at.set(id, { tile: location.tile, prev: location.prev });
+  }
+  for (const event of events) {
+    if (event.type !== 'PlayerMoved') continue;
+    const where = at.get(event.playerId);
+    if (where === undefined) continue;
+    for (const to of event.path) {
+      const ways = (before.board.tiles[where.tile]?.links ?? []).filter(
+        (link) => link.blocked !== true && link.to !== where.prev,
+      ).length;
+      if (ways > 1) metrics.forks++;
+      if (ways === 0) metrics.deadEnds++;
+      where.prev = where.tile;
+      where.tile = to;
+    }
   }
 }

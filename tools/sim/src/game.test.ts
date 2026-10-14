@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   BOARDS,
   ENGINE,
+  MAX_AUCTION_ACTIONS,
   chooserSeedFor,
+  gameSetup,
   gameSeedFor,
   runGame,
   type Engine,
@@ -13,6 +15,7 @@ import {
 
 const RICHEST: GameSpec = {
   board: 'test-loop',
+  controllers: 'random',
   seed: 1,
   dayLimit: 100,
   netWorthTargetMultiple: null,
@@ -223,5 +226,155 @@ describe('BOARDS', () => {
       const record = runGame({ ...RICHEST, board: 'test-branch', seed });
       expect(record.outcome.kind).toBe('finished');
     }
+  });
+});
+
+/** The real engine, but every game starts with seat 1 poor and the others rich, each owning 4. */
+function auctionEngine(): Engine {
+  return {
+    ...ENGINE,
+    createGame: (setup) => {
+      const created = ENGINE.createGame(setup);
+      if (!created.ok) return created;
+      const { state } = created;
+      const properties = state.board.tiles.flatMap((t, i) => (t.kind === 'property' ? [i] : []));
+      const players = state.players.map((p, seat) => ({
+        ...p,
+        cash: seat === 0 ? 3000 : 40_000,
+        deposit: 0,
+      }));
+      const tiles = state.tiles.map((tile, i) => {
+        const k = properties.indexOf(i);
+        return k >= 0 && k < 16 ? { owner: players[k % 4]!.id, level: 3 } : tile;
+      });
+      return { ...created, state: { ...state, players, tiles } };
+    },
+  };
+}
+
+describe('runGame players', () => {
+  it('seats computers as the controller mode says', () => {
+    const controllers = (mode: GameSpec['controllers']) =>
+      gameSetup({ ...RICHEST, controllers: mode }).players.map((p) => p.controller);
+    expect(controllers('random')).toEqual(['human', 'human', 'human', 'human']);
+    expect(controllers('computer')).toEqual(['computer', 'computer', 'computer', 'computer']);
+    expect(controllers('mixed')).toEqual(['human', 'computer', 'human', 'computer']);
+  });
+
+  it("plays computer seats with computerAction's choice", () => {
+    const spec: GameSpec = { ...RICHEST, controllers: 'mixed', dayLimit: 20 };
+    const record = runGame(spec);
+    expect(record.outcome.kind).toBe('finished');
+    const created = ENGINE.createGame(gameSetup(spec));
+    if (!created.ok) throw new Error('setup rejected');
+    let state = created.state;
+    let computerMoves = 0;
+    for (const action of record.actions) {
+      const picked = ENGINE.computerAction(state, action.playerId);
+      if (picked !== null) {
+        expect(action).toEqual(picked);
+        computerMoves++;
+      }
+      const result = ENGINE.applyAction(state, action);
+      if (!result.ok) throw new Error('logged action rejected');
+      state = result.state;
+    }
+    expect(computerMoves).toBeGreaterThan(10);
+  });
+
+  it('records auctions, the lottery pool and the price index', () => {
+    let auctions = 0;
+    let sold = 0;
+    for (let seed = 1; seed <= 5; seed++) {
+      const spec: GameSpec = { ...RICHEST, seed, controllers: 'computer', dayLimit: null };
+      const record = runGame(spec, auctionEngine());
+      expect(record.outcome.kind).not.toBe('failed');
+      const { metrics } = record;
+      auctions += metrics.auctions;
+      sold += metrics.auctionsSold;
+      expect(metrics.auctionsWithBidders).toBeLessThanOrEqual(metrics.auctions);
+      expect(metrics.auctionsSold).toBeLessThanOrEqual(metrics.auctionsWithBidders);
+      if (metrics.auctionsSold > 0) {
+        expect(metrics.lotteryPool).toBeGreaterThan(0);
+        expect(metrics.saleRatioSum).toBeGreaterThanOrEqual(metrics.auctionsSold);
+      }
+      expect(metrics.firstBankruptcyRound).not.toBeNull();
+    }
+    expect(auctions).toBeGreaterThan(0);
+    expect(sold).toBeGreaterThan(0);
+  });
+
+  it('counts forks and dead-end turnarounds on the branch board', () => {
+    let forks = 0;
+    let deadEnds = 0;
+    for (let seed = 1; seed <= 5; seed++) {
+      const { metrics } = runGame({ ...RICHEST, board: 'test-branch', seed, dayLimit: 30 });
+      forks += metrics.forks;
+      deadEnds += metrics.deadEnds;
+    }
+    expect(forks).toBeGreaterThan(0);
+    expect(deadEnds).toBeGreaterThan(0);
+    expect(runGame({ ...RICHEST, dayLimit: 30 }).metrics).toMatchObject({ forks: 0, deadEnds: 0 });
+  });
+});
+
+describe('runGame checks on computers, views and auctions', () => {
+  it('reports a computer choice that is not offered', () => {
+    const engine: Engine = {
+      ...ENGINE,
+      computerAction: (state, playerId) =>
+        ENGINE.computerAction(state, playerId) === null ? null : { type: 'decline', playerId },
+    };
+    expect(failureOf(runGame({ ...RICHEST, controllers: 'computer' }, engine)).failure).toEqual({
+      kind: 'computerActionNotLegal',
+      playerId: 'p1',
+      action: { type: 'decline', playerId: 'p1' },
+    });
+  });
+
+  it('reports a computer choice for a human seat', () => {
+    const engine: Engine = {
+      ...ENGINE,
+      computerAction: (state, playerId) => ENGINE.legalActions(state, playerId)[0] ?? null,
+    };
+    expect(failureOf(runGame(RICHEST, engine)).failure).toEqual({
+      kind: 'computerActionNotLegal',
+      playerId: 'p1',
+      action: { type: 'rollDice', playerId: 'p1' },
+    });
+  });
+
+  it('reports hidden state in a view', () => {
+    const engine: Engine = {
+      ...ENGINE,
+      viewFor: (state, viewer) => ({ ...ENGINE.viewFor(state, viewer), lotteryPool: 0 }),
+    };
+    expect(failureOf(runGame(RICHEST, engine)).failure).toEqual({
+      kind: 'viewLeak',
+      viewer: 'p1',
+      key: 'lotteryPool',
+    });
+  });
+
+  it('reports an auction that never ends', () => {
+    const base = auctionEngine();
+    const engine: Engine = {
+      ...base,
+      // Passing is accepted but changes nothing, so the computers keep being asked.
+      applyAction: (state, action) =>
+        action.type === 'passRound' && state.turn.phase.kind === 'auction'
+          ? { ok: true, state, events: [] }
+          : base.applyAction(state, action),
+    };
+    let found = false;
+    for (let seed = 1; seed <= 10 && !found; seed++) {
+      const spec: GameSpec = { ...RICHEST, seed, controllers: 'computer', dayLimit: null };
+      const { outcome } = runGame({ ...spec, maxSteps: 1_000_000 }, engine);
+      if (outcome.kind === 'failed' && outcome.failure.kind === 'auctionTooLong') {
+        expect(outcome.failure.actions).toBe(MAX_AUCTION_ACTIONS);
+        found = true;
+      }
+    }
+    expect(found).toBe(true);
   });
 });

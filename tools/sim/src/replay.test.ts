@@ -4,6 +4,7 @@ import { parseGameLog, replay, reproduces, toGameLog, type GameLog } from './rep
 
 const RICHEST: GameSpec = {
   board: 'test-loop',
+  controllers: 'random',
   seed: 7,
   dayLimit: 10,
   netWorthTargetMultiple: null,

@@ -63,6 +63,11 @@
     - 電腦出價的常數放在 `RuleConfig.computerBid`（原版常數，`GAME_RULES.md` 已寫），因為引擎規則要求數值不寫死。
     - 拍賣 phase 加 `computerLimits`（隱藏）；不變量檢查「每位電腦參加者都有上限、人類沒有、上限是非負整數」。
     - `computerAction` 放在 `engine.ts`、出價邏輯在 `computer.ts`；購地與加蓋暫定「有提供就買、就蓋」，ROADMAP Phase 5 列為待逆向。
+  - [x] D5。改用 `actorOf` 與帶參數動作的範例已在 D3 做掉，這裡做其餘部分：
+    - `--controllers random|computer|mixed`（mixed：座位 2、4 是電腦，1、3 隨機）；電腦座位照 `computerAction` 行動。
+    - 每步檢查新增：電腦的選擇必須在 `legalActions` 內、人類座位的 `computerAction` 必須是 `null`（`computerActionNotLegal`）；每位玩家與旁觀者的 `viewFor` 序列化後不得含 `rngState`、`queue`、`computerLimits`、`lotteryPool` 等鍵（`viewLeak`）；單一拍賣超過 5000 個動作視為失敗（`auctionTooLong`）。
+    - 統計新增：局長中位數與 p90、第一次破產的輪數、終局天數、物價指數（終值平均與最大、第一次大於 1 的輪數）、拍賣（塊數、有人可出價、成交、成交價 ÷ 起標價）、彩券獎池終值、岔路與死路掉頭次數。顆數分布等批次 E 再加。
+    - `rerun` 指令帶 `--controllers`；失敗紀錄格式不變（`players` 已含 `controller`）。CLAUDE.md 指令段補上 `--controllers`。
 - [ ] E0、E、F
 
 實作中發現的待補項目，直接寫進對應批次的條目。
