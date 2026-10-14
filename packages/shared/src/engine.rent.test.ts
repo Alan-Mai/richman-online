@@ -176,7 +176,7 @@ describe("landing on another player's property", () => {
       { type: 'TurnStarted', playerId: 'p2', round: 1 },
     ]);
     expect(getPlayer(state, 'p1')).toMatchObject({ cash: 0, deposit: 0, bankrupt: true });
-    expect(state.tiles[4]).toEqual({ owner: null, level: 0 });
+    expect(state.tiles[4]).toEqual({ owner: null, level: 1 });
   });
 
   it('records a zero rent without bankrupting anyone', () => {
@@ -198,16 +198,19 @@ describe("landing on another player's property", () => {
     expect(getPlayer(state, 'p1').bankrupt).toBe(false);
   });
 
-  it('lets the next visitor buy a tile released by bankruptcy', () => {
+  it('lets the next visitor buy a tile released by bankruptcy, buildings included', () => {
     let start = beforeLanding({ cash: 0 }, { playerCount: 3 });
     start = patchTile(start, 1, { owner: 'p3' });
     start = patchTile(start, 2, { owner: 'p1', level: 4 });
     const afterBankruptcy = applyOk(start, roll).state;
-    expect(afterBankruptcy.tiles[2]).toEqual({ owner: null, level: 0 });
+    expect(afterBankruptcy.tiles[2]).toEqual({ owner: null, level: 4 });
 
-    const p2Turn = withFixedDice(patchPlayer(afterBankruptcy, 'p2', { cash: 5000 }), [2]);
+    // Tile 2: price 2000, upgrade cost 1000 (testProperty).
+    const p2Turn = withFixedDice(patchPlayer(afterBankruptcy, 'p2', { cash: 9000 }), [2]);
     const { state } = applyOk(p2Turn, { type: 'rollDice', playerId: 'p2' });
-    expect(state.turn.phase).toEqual({ kind: 'awaitBuyDecision', tile: 2, price: 2000 });
+    expect(state.turn.phase).toEqual({ kind: 'awaitBuyDecision', tile: 2, price: 6000 });
+    const bought = applyOk(state, { type: 'buyProperty', playerId: 'p2' }).state;
+    expect(bought.tiles[2]).toEqual({ owner: 'p2', level: 4 });
   });
 
   it('charges nothing for passing over the property', () => {

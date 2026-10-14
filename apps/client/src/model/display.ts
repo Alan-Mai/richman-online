@@ -91,7 +91,9 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
       }));
     case 'PropertyBought': {
       const paid = updatePlayer(model, event.playerId, (p) => ({ cash: p.cash - event.price }));
-      return updateTile(paid, event.tile, { owner: event.playerId, level: 0 });
+      // A tile released by a bankruptcy keeps its buildings when bought.
+      const level = paid.tiles[event.tile]?.level ?? 0;
+      return updateTile(paid, event.tile, { owner: event.playerId, level });
     }
     case 'PropertyUpgraded': {
       const paid = updatePlayer(model, event.playerId, (p) => ({ cash: p.cash - event.cost }));
@@ -110,7 +112,7 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
       }));
       next = {
         ...next,
-        tiles: next.tiles.map((t, i) => (released.has(i) ? { owner: null, level: 0 } : t)),
+        tiles: next.tiles.map((t, i) => (released.has(i) ? { ...t, owner: null } : t)),
       };
       const { creditor } = event;
       return creditor === null

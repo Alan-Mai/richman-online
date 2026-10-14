@@ -30,7 +30,10 @@ export interface PlayerState {
   bankrupt: boolean;
 }
 
-/** Parallel to Board.tiles. Non-property tiles always have owner null and level 0. */
+/**
+ * Parallel to Board.tiles. Non-property tiles always have owner null and level 0; an unowned
+ * property may keep the buildings of a bankrupt owner (docs/GAME_RULES.md §8).
+ */
 export interface TileState {
   owner: PlayerId | null;
   level: number;

@@ -49,6 +49,13 @@ describe('checkInvariants', () => {
     expect(checkInvariants(over)).toEqual([]);
   });
 
+  it('accepts unowned properties with buildings left by a bankruptcy', () => {
+    const state = patchTile(base(), 1, { level: 2 });
+    expect(checkInvariants(state)).toEqual([]);
+    const buying = patchTile(deciding(buy({ price: 1000 + 2 * 500 })), 1, { level: 2 });
+    expect(checkInvariants(buying)).toEqual([]);
+  });
+
   const cases: [string, () => GameState, string][] = [
     ['negative day', () => ({ ...base(), day: -1 }), 'day -1 is not a non-negative integer'],
     ['fractional day', () => ({ ...base(), day: 0.5 }), 'day 0.5 is not a non-negative integer'],
@@ -130,11 +137,6 @@ describe('checkInvariants', () => {
       'built non-property tile',
       () => patchTile(base(), 3, { level: 1 }),
       'tile 3: not a property but has owner null and level 1',
-    ],
-    [
-      'unowned property with houses',
-      () => patchTile(base(), 1, { level: 2 }),
-      'tile 1: unowned but level 2',
     ],
     [
       'tile states not parallel to the board',
@@ -227,12 +229,12 @@ describe('checkInvariants', () => {
 
   it('reports every violation at once', () => {
     let state = patchPlayer(base(), 'p1', { cash: -1, deposit: -2 });
-    state = patchTile(state, 1, { level: 3 });
+    state = patchTile(state, 1, { level: 6 });
     state = patchTurn(state, { round: 0 });
     expect(checkInvariants(state)).toEqual([
       'player p1: cash -1 is not a non-negative integer',
       'player p1: deposit -2 is not a non-negative integer',
-      'tile 1: unowned but level 3',
+      'tile 1: level 6 is outside 0..5',
       'turn: round 0 is not a positive integer',
     ]);
   });

@@ -99,7 +99,7 @@ describe('pay when the debtor cannot cover it', () => {
     expect(getPlayer(result.state, 'p2')).toMatchObject({ cash: 1000, deposit: 1000 });
   });
 
-  it('releases every tile the debtor owned and clears houses', () => {
+  it('releases every tile the debtor owned and keeps their buildings', () => {
     let state = game({ cash: 0, deposit: 0 });
     state = patchTile(state, 4, { owner: 'p1', level: 3 });
     state = patchTile(state, 1, { owner: 'p1', level: 0 });
@@ -112,7 +112,7 @@ describe('pay when the debtor cannot cover it', () => {
       { owner: null, level: 0 },
       { owner: 'p3', level: 2 },
       { owner: 'p2', level: 1 },
-      { owner: null, level: 0 },
+      { owner: null, level: 3 },
       { owner: null, level: 0 },
     ]);
   });

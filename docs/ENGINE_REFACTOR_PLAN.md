@@ -47,7 +47,10 @@
     - 天數上限與淨值目標在原版是同一個判斷、同一段結束流程，不記錄是哪一個條件 → `GameEnded.reason` 合併成 `dayLimitOrNetWorthTarget`（取代 C4b 自訂的「同時成立時顯示淨值目標」）；模擬器的結束原因統計一併合併。
     - 原版沒有結算排名畫面 → 天數上限／淨值目標結束時，結算框只顯示原因、勝者與種子。
     - 使用者決定 `lastStanding` 也照原版：移除 `rankPlayers`（`ui/ranking.ts`）與結算框的名次表，三種結束都只顯示原因、勝者與種子。模擬器的破產統計本來就直接數 `PlayerBankrupt` 事件，不依賴排名，不需修改。結束後的地圖過關進度與「是否繼續」流程列入 ROADMAP「待辦/想法」。
-- [ ] D、E0、E、F
+- [ ] 批次 D：
+  - [x] D1。client `display.ts`：`PlayerBankrupt` 只清擁有者、`PropertyBought` 保留原等級。模擬器 `stats.test` 用到舊不變量訊息當範例字串，改成另一則訊息。
+    - D6 待補：棋盤的 `drawOwnership` 只畫有地主的地，無主地的保留建築目前看不到（HUD 格子資訊有等級與含建築的購地價）。D6 時一併畫出，列入試玩清單。
+- [ ] E0、E、F
 
 實作中發現的待補項目，直接寫進對應批次的條目。
 

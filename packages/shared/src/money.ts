@@ -119,8 +119,8 @@ export interface PayResult extends Step {
 
 /**
  * Forced payment (docs/GAME_RULES.md §8): cash first, then the deposit. If both together fall short
- * the debtor goes bankrupt: money is zeroed, every owned tile returns to the bank without houses,
- * and a player creditor receives everything the debtor had left. Bankruptcy emits only
+ * the debtor goes bankrupt: money is zeroed, every owned tile becomes unowned and keeps its
+ * buildings, and a player creditor receives everything the debtor had left. Bankruptcy emits only
  * PlayerBankrupt.
  */
 export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult {
@@ -148,7 +148,7 @@ export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult
   const releasedTiles = state.tiles.flatMap((tile, i) => (tile.owner === debtorId ? [i] : []));
   let next: GameState = {
     ...updatePlayer(state, debtorId, () => ({ cash: 0, deposit: 0, bankrupt: true })),
-    tiles: state.tiles.map((tile) => (tile.owner === debtorId ? { owner: null, level: 0 } : tile)),
+    tiles: state.tiles.map((tile) => (tile.owner === debtorId ? { ...tile, owner: null } : tile)),
   };
   if (creditor !== null) {
     next = receive(next, creditor, paidToCreditor);

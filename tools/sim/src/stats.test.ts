@@ -38,7 +38,7 @@ const RECORDS: GameRecord[] = [
         kind: 'invariant',
         violations: [
           'player p1: cash -1 is not a non-negative integer',
-          'tile 3: unowned but level 2',
+          'tile 3: level 7 is outside 0..5',
         ],
       },
     },
@@ -93,7 +93,7 @@ describe('summarize', () => {
   it('groups failures by normalized reason with one example seed each', () => {
     expect(stats.failureGroups).toEqual([
       { key: 'invariant: player p#: cash # is not a non-negative integer', count: 2, seed: 11 },
-      { key: 'invariant: tile #: unowned but level #', count: 1, seed: 11 },
+      { key: 'invariant: tile #: level # is outside #..#', count: 1, seed: 11 },
       { key: 'exception: index # out of range', count: 1, seed: 13 },
     ]);
   });
@@ -130,9 +130,9 @@ describe('failureKeys', () => {
     expect(
       failureKeys({
         kind: 'invariant',
-        violations: ['tile 1: unowned but level 2', 'tile 4: unowned but level 1'],
+        violations: ['tile 1: level 7 is outside 0..5', 'tile 4: level 6 is outside 0..5'],
       }),
-    ).toEqual(['invariant: tile #: unowned but level #']);
+    ).toEqual(['invariant: tile #: level # is outside #..#']);
   });
 });
 

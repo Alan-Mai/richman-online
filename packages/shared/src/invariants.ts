@@ -76,12 +76,9 @@ function checkTiles({ config, board, players, tiles }: GameState): string[] {
     if (owner !== null && !ids.has(owner)) {
       errors.push(`tile ${i}: owner ${owner} is not a player`);
     }
-    if (board.tiles[i]?.kind !== 'property') {
-      if (owner !== null || level !== 0) {
-        errors.push(`tile ${i}: not a property but has owner ${owner} and level ${level}`);
-      }
-    } else if (owner === null && level !== 0) {
-      errors.push(`tile ${i}: unowned but level ${level}`);
+    // Unowned properties may have buildings: a bankruptcy releases tiles with them.
+    if (board.tiles[i]?.kind !== 'property' && (owner !== null || level !== 0)) {
+      errors.push(`tile ${i}: not a property but has owner ${owner} and level ${level}`);
     }
   });
   return errors;

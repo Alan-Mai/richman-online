@@ -100,7 +100,21 @@ describe('applyEventToDisplay', () => {
     expect(next.players[1]).toMatchObject({ cash: 750, deposit: 500 });
   });
 
-  it("PlayerBankrupt zeroes money, releases tiles and pays into the creditor's deposit", () => {
+  it('PropertyBought keeps the buildings of a released tile', () => {
+    const before: DisplayModel = {
+      ...model(),
+      tiles: [...model().tiles.slice(0, 2), { owner: null, level: 3 }],
+    };
+    const next = applyEventToDisplay(before, {
+      type: 'PropertyBought',
+      playerId: 'b',
+      tile: 2,
+      price: 700,
+    });
+    expect(next.tiles[2]).toEqual({ owner: 'b', level: 3 });
+  });
+
+  it("PlayerBankrupt zeroes money, releases tiles with their buildings and pays into the creditor's deposit", () => {
     const next = apply({
       type: 'PlayerBankrupt',
       playerId: 'a',
@@ -111,7 +125,7 @@ describe('applyEventToDisplay', () => {
     });
     expect(next.players[0]).toMatchObject({ cash: 0, deposit: 0, bankrupt: true });
     expect(next.players[1]).toMatchObject({ cash: 1000, deposit: 2000 });
-    expect(next.tiles[2]).toEqual({ owner: null, level: 0 });
+    expect(next.tiles[2]).toEqual({ owner: null, level: 2 });
   });
 
   it('PlayerBankrupt owed to the system pays nobody', () => {

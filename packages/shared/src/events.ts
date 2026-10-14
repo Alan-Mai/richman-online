@@ -34,6 +34,7 @@ export type GameEvent =
       creditor: PlayerId | null;
       /** Goes into the creditor's deposit, like rent. */
       paidToCreditor: number;
+      /** Every tile the player owned, now unowned with its building level kept. */
       releasedTiles: readonly TileIndex[];
       cause: BankruptcyCause;
     }
