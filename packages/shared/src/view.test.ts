@@ -47,6 +47,17 @@ describe('viewFor', () => {
     expect(view.players[0]?.location).not.toBe(state.players[0]?.location);
   });
 
+  it("sends each player's controller", () => {
+    const state = newTestGame({ playerCount: 3, controllers: ['computer', 'human', 'computer'] });
+    for (const viewer of [P1, SPECTATOR]) {
+      expect(viewFor(state, viewer).players.map((p) => p.controller)).toEqual([
+        'computer',
+        'human',
+        'computer',
+      ]);
+    }
+  });
+
   it('keeps a player whose id is "spectator" distinct from a spectator', () => {
     const state = newTestGame();
     expect(viewFor(state, { kind: 'player', id: 'spectator' }).viewer).toEqual({

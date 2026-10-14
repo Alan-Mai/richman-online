@@ -8,7 +8,7 @@ import type { GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
 import { buyPrice, netWorth, pay, rentFor, spend, spendable, upgradeCost } from './money';
-import type { GameState, Phase, PhaseKind, PlayerState } from './state';
+import type { Controller, GameState, Phase, PhaseKind, PlayerState } from './state';
 import { at, chain, findPlayer, playerOf, updatePlayer, updateTile, type Step } from './update';
 
 type BuyDecision = Extract<Phase, { kind: 'awaitBuyDecision' }>;
@@ -17,6 +17,7 @@ type UpgradeDecision = Extract<Phase, { kind: 'awaitUpgradeDecision' }>;
 export interface PlayerSetup {
   id: PlayerId;
   name: string;
+  controller: Controller;
 }
 
 export interface GameSetup {
@@ -34,10 +35,13 @@ export type CreateGameError =
   | { reason: 'playerCount'; count: number }
   | { reason: 'emptyPlayerId'; seat: number }
   | { reason: 'duplicatePlayerId'; playerId: PlayerId }
+  | { reason: 'invalidController'; seat: number }
   | { reason: 'invalidSeed' };
 
 export type CreateGameResult =
   { ok: true; state: GameState; events: GameEvent[] } | { ok: false; errors: CreateGameError[] };
+
+const CONTROLLERS: ReadonlySet<string> = new Set<Controller>(['human', 'computer']);
 
 function validateSetup(setup: GameSetup): CreateGameError[] {
   const { config, board, players, seed } = setup;
@@ -50,7 +54,10 @@ function validateSetup(setup: GameSetup): CreateGameError[] {
     errors.push({ reason: 'playerCount', count: players.length });
   }
   const seen = new Set<PlayerId>();
-  players.forEach(({ id }, seat) => {
+  players.forEach(({ id, controller }, seat) => {
+    if (!CONTROLLERS.has(controller)) {
+      errors.push({ reason: 'invalidController', seat });
+    }
     if (id === '') {
       errors.push({ reason: 'emptyPlayerId', seat });
     } else if (seen.has(id)) {
@@ -81,9 +88,10 @@ export function createGame(setup: GameSetup): CreateGameResult {
   // players will split by their character's ratio once that table is exported (non-original until
   // then).
   const dealt = Math.floor(config.startingFunds / 2);
-  const players = setup.players.map(({ id, name }): PlayerState => ({
+  const players = setup.players.map(({ id, name, controller }): PlayerState => ({
     id,
     name,
+    controller,
     cash: dealt,
     deposit: dealt,
     points: config.startingPoints,
@@ -155,7 +163,7 @@ export function applyAction(state: GameState, rawAction: Action): Result {
   if (findPlayer(state, action.playerId) === undefined) {
     return reject({ code: 'unknownPlayer' });
   }
-  if (action.playerId !== state.turn.current) {
+  if (action.playerId !== actorOf(state)) {
     return reject({ code: 'notYourTurn' });
   }
 
@@ -175,9 +183,17 @@ export function applyAction(state: GameState, rawAction: Action): Result {
   }
 }
 
+/**
+ * Who the game is waiting for, or null once it is over. Usually turn.current; during an auction
+ * (docs/GAME_RULES.md §8) it will be the bidder whose turn it is. Only one player acts at a time.
+ */
+export function actorOf(state: GameState): PlayerId | null {
+  return state.turn.phase.kind === 'gameOver' ? null : state.turn.current;
+}
+
 /** Server-only: the actions playerId may send now. Empty unless it is their turn. */
 export function legalActions(state: GameState, playerId: PlayerId): Action[] {
-  if (playerId !== state.turn.current) {
+  if (playerId !== actorOf(state)) {
     return [];
   }
   switch (state.turn.phase.kind) {

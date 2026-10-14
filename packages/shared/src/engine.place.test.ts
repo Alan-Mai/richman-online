@@ -210,8 +210,8 @@ describe('first-turn placement', () => {
         config: DEFAULT_RULE_CONFIG,
         board: TEST_LOOP_BOARD,
         players: [
-          { id: 'a', name: 'A' },
-          { id: 'b', name: 'B' },
+          { id: 'a', name: 'A', controller: 'human' as const },
+          { id: 'b', name: 'B', controller: 'human' as const },
         ],
         seed,
       };

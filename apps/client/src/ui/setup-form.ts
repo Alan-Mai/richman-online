@@ -121,7 +121,7 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
         startingFunds,
       },
       board: BOARDS[form.board],
-      players: names.map((name, seat) => ({ id: `p${seat + 1}`, name })),
+      players: names.map((name, seat) => ({ id: `p${seat + 1}`, name, controller: 'human' })),
       seed,
     },
   };

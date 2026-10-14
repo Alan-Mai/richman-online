@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { TileDef } from './board';
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from './config';
-import { createGame, type GameSetup } from './engine';
+import { createGame, type GameSetup, type PlayerSetup } from './engine';
 import { TEST_LOOP_BOARD } from './maps/test-loop';
 import { createRng, nextInt, type RngState } from './rng';
 
 const PLAYERS = [
-  { id: 'p1', name: '甲' },
-  { id: 'p2', name: '乙' },
-  { id: 'p3', name: '丙' },
+  { id: 'p1', name: '甲', controller: 'human' as const },
+  { id: 'p2', name: '乙', controller: 'computer' as const },
+  { id: 'p3', name: '丙', controller: 'human' as const },
 ];
 
 function setup(patch: Partial<GameSetup> = {}): GameSetup {
@@ -38,7 +38,11 @@ function afterDraws(seed: number, ranges: readonly number[]): RngState {
 const PLACEMENT_DRAWS = [20, 2];
 
 function players(count: number) {
-  return Array.from({ length: count }, (_, i) => ({ id: `p${i}`, name: `玩家${i}` }));
+  return Array.from({ length: count }, (_, i) => ({
+    id: `p${i}`,
+    name: `玩家${i}`,
+    controller: 'human' as const,
+  }));
 }
 
 describe('createGame', () => {
@@ -51,9 +55,10 @@ describe('createGame', () => {
     expect(state.board).toBe(TEST_LOOP_BOARD);
     // Only seat 0 is placed; the rest wait for their first turn (engine.place.test.ts).
     expect(state.players).toEqual(
-      PLAYERS.map(({ id, name }, seat) => ({
+      PLAYERS.map(({ id, name, controller }, seat) => ({
         id,
         name,
+        controller,
         cash: DEFAULT_RULE_CONFIG.startingFunds / 2,
         deposit: DEFAULT_RULE_CONFIG.startingFunds / 2,
         points: DEFAULT_RULE_CONFIG.startingPoints,
@@ -78,6 +83,22 @@ describe('createGame', () => {
     const result = createGame(setup({ config }));
     if (!result.ok) throw new Error('expected ok');
     expect(result.state.players[0]).toMatchObject({ cash: 8, deposit: 8, points: 9, diceCount: 2 });
+  });
+
+  it('splits starting funds the same way for computer players (provisional, non-original)', () => {
+    // The original splits by a character ratio from an executable table not exported yet.
+    const result = createGame(setup({ config: withConfig({ startingFunds: 15 }) }));
+    if (!result.ok) throw new Error('expected ok');
+    const [human, computer] = result.state.players;
+    expect(computer?.controller).toBe('computer');
+    expect(computer).toMatchObject({ cash: 7, deposit: 7 });
+    expect(human).toMatchObject({ cash: 7, deposit: 7 });
+  });
+
+  it('rejects an unknown controller', () => {
+    const robot = { id: 'p2', name: 'b', controller: 'robot' } as unknown as PlayerSetup;
+    const result = createGame(setup({ players: [PLAYERS[0] as PlayerSetup, robot] }));
+    expect(result).toEqual({ ok: false, errors: [{ reason: 'invalidController', seat: 1 }] });
   });
 
   it('starts the first turn with TurnStarted, then places seat 0', () => {
@@ -137,8 +158,8 @@ describe('createGame', () => {
     const duplicate = createGame(
       setup({
         players: [
-          { id: 'p1', name: 'a' },
-          { id: 'p1', name: 'b' },
+          { id: 'p1', name: 'a', controller: 'human' },
+          { id: 'p1', name: 'b', controller: 'human' },
         ],
       }),
     );
@@ -150,8 +171,8 @@ describe('createGame', () => {
     const empty = createGame(
       setup({
         players: [
-          { id: '', name: 'a' },
-          { id: 'p2', name: 'b' },
+          { id: '', name: 'a', controller: 'human' },
+          { id: 'p2', name: 'b', controller: 'human' },
         ],
       }),
     );

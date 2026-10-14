@@ -50,6 +50,7 @@
 - [ ] 批次 D：
   - [x] D1。client `display.ts`：`PlayerBankrupt` 只清擁有者、`PropertyBought` 保留原等級。模擬器 `stats.test` 用到舊不變量訊息當範例字串，改成另一則訊息。
     - D6 待補：棋盤的 `drawOwnership` 只畫有地主的地，無主地的保留建築目前看不到（HUD 格子資訊有等級與含建築的購地價）。D6 時一併畫出，列入試玩清單。
+  - [x] D2。`controller` 在 `PlayerSetup` 為必填（`createGame` 對未知值回傳 `invalidController`）；`actorOf` 在 `gameOver` 時回傳 `null`。補上 C4 延後的「電腦與人類拆法相同（暫定）」測試。client 設定畫面與模擬器暫時全部設成 `human`（D5、D6 再開放）；模擬器的失敗紀錄 `players` 多了 `controller`，`LOG_VERSION` 改成 4。
 - [ ] E0、E、F
 
 實作中發現的待補項目，直接寫進對應批次的條目。

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Action, ActionType } from './actions';
 import type { RuleConfig } from './config';
-import { applyAction, legalActions } from './engine';
+import { actorOf, applyAction, legalActions } from './engine';
 import { checkInvariants } from './invariants';
 import { createRng, nextInt, type RngState } from './rng';
-import { newTestGame } from './testing';
+import { applyOk, newTestGame, patchTurn } from './testing';
 
 const ACTION_TYPES: readonly ActionType[] = [
   'rollDice',
@@ -81,5 +81,37 @@ describe('legalActions completeness', () => {
       if (end.turn.phase.kind === 'gameOver') finished++;
     }
     expect(finished).toBeGreaterThan(0);
+  });
+});
+
+describe('actorOf', () => {
+  it('is the current player outside auctions', () => {
+    const state = patchTurn(newTestGame({ playerCount: 3 }), { current: 'p2' });
+    expect(actorOf(state)).toBe('p2');
+    const buying = patchTurn(state, { phase: { kind: 'awaitBuyDecision', tile: 1, price: 1 } });
+    expect(actorOf(buying)).toBe('p2');
+    const upgrading = patchTurn(state, {
+      phase: { kind: 'awaitUpgradeDecision', tile: 1, cost: 1 },
+    });
+    expect(actorOf(upgrading)).toBe('p2');
+  });
+
+  it('is nobody once the game is over', () => {
+    const state = patchTurn(newTestGame(), { phase: { kind: 'gameOver', winners: ['p1'] } });
+    expect(actorOf(state)).toBeNull();
+  });
+
+  it('is the only player offered actions in random games', () => {
+    let state = newTestGame({ playerCount: 3, controllers: ['human', 'computer', 'human'] });
+    for (let step = 0; step < 200 && state.turn.phase.kind !== 'gameOver'; step++) {
+      const actor = actorOf(state);
+      expect(actor).not.toBeNull();
+      for (const player of state.players) {
+        expect(legalActions(state, player.id).length > 0).toBe(player.id === actor);
+      }
+      const [action] = legalActions(state, actor ?? '');
+      if (action === undefined) break;
+      state = applyOk(state, action).state;
+    }
   });
 });

@@ -7,7 +7,14 @@ import type { GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { TEST_LOOP_BOARD } from './maps/test-loop';
 import type { RngState } from './rng';
-import type { GameState, PlayerLocation, PlayerState, TileState, TurnState } from './state';
+import type {
+  Controller,
+  GameState,
+  PlayerLocation,
+  PlayerState,
+  TileState,
+  TurnState,
+} from './state';
 
 /** An RNG whose nextInt calls return `values` in order (each must be < the requested range). */
 export function scriptedRng(values: readonly number[]): RngState {
@@ -43,6 +50,8 @@ export interface TestGameOptions {
    * they walk 0 -> 1 -> 2 -> ...; 'engine' keeps the engine's first-turn placement.
    */
   placement?: 'fixed' | 'engine';
+  /** Seat by seat; missing seats are human. */
+  controllers?: readonly Controller[];
 }
 
 /**
@@ -65,7 +74,11 @@ export function newTestGame(options: TestGameOptions = {}): GameState {
   const result = createGame({
     config: { ...DEFAULT_RULE_CONFIG, ...options.config },
     board,
-    players: Array.from({ length: count }, (_, i) => ({ id: `p${i + 1}`, name: `玩家${i + 1}` })),
+    players: Array.from({ length: count }, (_, i) => ({
+      id: `p${i + 1}`,
+      name: `玩家${i + 1}`,
+      controller: options.controllers?.[i] ?? 'human',
+    })),
     seed: options.seed ?? TEST_SEED,
   });
   if (!result.ok) {

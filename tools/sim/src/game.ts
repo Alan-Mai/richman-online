@@ -124,6 +124,7 @@ export function gameSetup(
     players: Array.from({ length: PLAYER_COUNT }, (_, i) => ({
       id: `p${i + 1}`,
       name: `AI ${i + 1}`,
+      controller: 'human',
     })),
     seed: spec.seed,
   };

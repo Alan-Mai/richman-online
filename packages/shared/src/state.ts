@@ -19,9 +19,16 @@ export type PlayerLocation =
       prev: TileIndex;
     };
 
+/**
+ * Who makes a player's decisions. Computer players' moves come from computerAction, run by the
+ * server or simulator, and still go through applyAction.
+ */
+export type Controller = 'human' | 'computer';
+
 export interface PlayerState {
   id: PlayerId;
   name: string;
+  controller: Controller;
   cash: number;
   deposit: number;
   points: number;

@@ -119,11 +119,15 @@ describe('parseGameLog', () => {
     [
       'an older version',
       edit({ version: 1 }),
-      'unsupported log version 1 (expected 3; logs from older engines cannot be replayed)',
+      'unsupported log version 1 (expected 4; logs from older engines cannot be replayed)',
     ],
     ['an unknown board', edit({ board: 'elsewhere' }), 'unknown board elsewhere'],
     ['a missing config', edit({ config: null }), 'config must be an object'],
-    ['bad players', edit({ players: [{ id: 1 }] }), 'players must be {id, name} strings'],
+    [
+      'bad players',
+      edit({ players: [{ id: 1 }] }),
+      'players must be {id, name, controller} strings',
+    ],
     ['a non-numeric seed', edit({ seed: '7' }), 'seed must be a number'],
     ['missing actions', edit({ actions: 'none' }), 'actions must be an array of objects'],
   ];

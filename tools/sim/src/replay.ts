@@ -26,7 +26,7 @@ import {
  * Bumped whenever the engine changes how a game unfolds from the same seed and actions; older logs
  * cannot be replayed.
  */
-export const LOG_VERSION = 3;
+export const LOG_VERSION = 4;
 
 export interface GameLog {
   version: typeof LOG_VERSION;
@@ -98,9 +98,15 @@ export function parseGameLog(
   const players = data.players;
   if (
     !Array.isArray(players) ||
-    !players.every((p) => isObject(p) && typeof p.id === 'string' && typeof p.name === 'string')
+    !players.every(
+      (p) =>
+        isObject(p) &&
+        typeof p.id === 'string' &&
+        typeof p.name === 'string' &&
+        typeof p.controller === 'string',
+    )
   ) {
-    errors.push('players must be {id, name} strings');
+    errors.push('players must be {id, name, controller} strings');
   }
   if (typeof data.seed !== 'number') {
     errors.push('seed must be a number');

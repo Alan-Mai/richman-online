@@ -26,6 +26,7 @@ export {
   type RuleConfigErrorReason,
 } from './config';
 export {
+  actorOf,
   applyAction,
   createGame,
   legalActions,
@@ -58,6 +59,7 @@ export {
   type RngState,
 } from './rng';
 export type {
+  Controller,
   GameState,
   Phase,
   PhaseKind,

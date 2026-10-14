@@ -21,6 +21,7 @@ export function hotSeatSetup(
     players: Array.from({ length: playerCount }, (_, i) => ({
       id: `p${i + 1}`,
       name: `玩家${i + 1}`,
+      controller: 'human',
     })),
     seed,
   };
