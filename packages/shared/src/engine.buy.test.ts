@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Action } from './actions';
 import type { RuleConfig } from './config';
 import { applyAction, legalActions } from './engine';
+import { buyPrice } from './money';
 import type { GameState } from './state';
 import {
   applyOk,
@@ -9,13 +10,34 @@ import {
   loopBoard,
   newTestGame,
   patchPlayer,
+  patchTile,
   patchTurn,
   withFixedDice,
 } from './testing';
 
 const PRICE = 1000;
+const UPGRADE_COST = 370;
 /** Tile 1 is an unowned property; tile 2 is blank. */
-const BOARD = loopBoard([null, PRICE, null, null, null, null]);
+const BOARD = loopBoard([
+  null,
+  { price: PRICE, upgradeCost: UPGRADE_COST, rents: [1, 2, 3, 4, 5, 6] },
+  null,
+  null,
+  null,
+  null,
+]);
+
+describe('buyPrice', () => {
+  it('is the land price for an unbuilt tile', () => {
+    expect(buyPrice(newTestGame({ board: BOARD }), 1)).toBe(PRICE);
+  });
+
+  it('adds the upgrade cost of every level already built', () => {
+    const state = newTestGame({ board: BOARD });
+    expect(buyPrice(patchTile(state, 1, { level: 1 }), 1)).toBe(PRICE + UPGRADE_COST);
+    expect(buyPrice(patchTile(state, 1, { level: 3 }), 1)).toBe(PRICE + 3 * UPGRADE_COST);
+  });
+});
 
 /** p1 about to roll a 1 onto tile 1 with the given money. */
 function beforeLanding(
@@ -42,6 +64,16 @@ describe('landing on an unowned property', () => {
       phase: { kind: 'awaitBuyDecision', tile: 1, price: PRICE },
     });
     expect(events.map((e) => e.type)).toEqual(['DiceRolled', 'PlayerMoved']);
+  });
+
+  it('asks for the buildings too on an unowned tile that has some', () => {
+    const start = patchTile(beforeLanding({ cash: 1e6 }), 1, { level: 2 });
+    const { state } = applyOk(start, { type: 'rollDice', playerId: 'p1' });
+    const price = PRICE + 2 * UPGRADE_COST;
+    expect(state.turn.phase).toEqual({ kind: 'awaitBuyDecision', tile: 1, price });
+    const bought = applyOk(state, buy).state;
+    expect(getPlayer(bought, 'p1').cash).toBe(1e6 - price);
+    expect(bought.tiles[1]).toEqual({ owner: 'p1', level: 2 });
   });
 
   it('offers the purchase when cash is exactly the price', () => {

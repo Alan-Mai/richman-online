@@ -7,7 +7,7 @@ import type { RuleError } from './errors';
 import type { GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
-import { pay, rentFor, spend, spendable, totalAssets, upgradeCost } from './money';
+import { buyPrice, pay, rentFor, spend, spendable, totalAssets, upgradeCost } from './money';
 import type { GameState, Phase, PhaseKind, PlayerState } from './state';
 import { at, chain, findPlayer, playerOf, updatePlayer, updateTile, type Step } from './update';
 
@@ -199,7 +199,7 @@ function buyProperty(state: GameState, phase: BuyDecision): Result {
   }
   const paid = spend(state, playerId, phase.price);
   const bought: Step = {
-    state: updateTile(paid.state, phase.tile, { owner: playerId, level: 0 }),
+    state: updateTile(paid.state, phase.tile, { owner: playerId }),
     events: [
       ...paid.events,
       { type: 'PropertyBought', playerId, tile: phase.tile, price: phase.price },
@@ -328,16 +328,17 @@ function resolveLanding(state: GameState): Step {
   const { owner, level } = at(state.tiles, index);
   const funds = spendable(player);
   if (owner === null) {
-    if (funds >= tile.price) {
-      return awaitDecision(state, { kind: 'awaitBuyDecision', tile: index, price: tile.price });
+    const price = buyPrice(state, index);
+    if (funds >= price) {
+      return awaitDecision(state, { kind: 'awaitBuyDecision', tile: index, price });
     }
   } else if (owner === player.id) {
-    const cost = upgradeCost(tile.price, config);
+    const cost = upgradeCost(state, index);
     if (level < config.maxLevel && funds >= cost) {
       return awaitDecision(state, { kind: 'awaitUpgradeDecision', tile: index, cost });
     }
   } else {
-    const amount = rentFor(tile, level, config);
+    const amount = rentFor(state, index);
     const paid = pay(state, player.id, { kind: 'rent', tile: index, creditor: owner, amount });
     const events: GameEvent[] = paid.bankrupt
       ? paid.events

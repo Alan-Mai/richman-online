@@ -1,36 +1,56 @@
 // Money movement: voluntary spending (buy, upgrade) and forced payments (rent, system debts).
 import type { PropertyTileDef } from './board';
-import type { RuleConfig } from './config';
 import type { BankruptcyCause, GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import type { GameState, PlayerState } from './state';
 import { playerOf, updatePlayer, type Step } from './update';
 
-/** Rent at `level`: the tile's own rentTable when present, otherwise a percentage of the price. */
-export function rentFor(tile: PropertyTileDef, level: number, config: RuleConfig): number {
-  const fromTable = tile.rentTable?.[level];
-  if (fromTable !== undefined) {
-    return fromTable;
+/**
+ * What the price helpers read. GameState and PlayerView both have it, so the server and the client
+ * show the same prices.
+ */
+export type PriceView = Pick<GameState, 'board' | 'tiles'>;
+
+/** The property at `tile` and its level; anything else is a caller bug. */
+function propertyAt(view: PriceView, tile: TileIndex): { def: PropertyTileDef; level: number } {
+  const def = view.board.tiles[tile];
+  if (def?.kind !== 'property') {
+    throw new Error(`tile ${tile} is not a property`);
   }
-  return Math.floor((tile.price * (config.rentPercentByLevel[level] ?? 0)) / 100);
+  return { def, level: view.tiles[tile]?.level ?? 0 };
 }
 
-/** Cost of one upgrade level; the same for every level. */
-export function upgradeCost(price: number, config: RuleConfig): number {
-  return Math.floor((price * config.upgradeCostPercent) / 100);
+/** What buying the tile costs (docs/GAME_RULES.md §3). */
+export function buyPrice(view: PriceView, tile: TileIndex): number {
+  const { def, level } = propertyAt(view, tile);
+  return def.price + level * def.upgradeCost;
+}
+
+/** Cost of the next building level on the tile; the same for every level. */
+export function upgradeCost(view: PriceView, tile: TileIndex): number {
+  return propertyAt(view, tile).def.upgradeCost;
+}
+
+/** Rent for stopping on the tile at its current level. */
+export function rentFor(view: PriceView, tile: TileIndex): number {
+  const { def, level } = propertyAt(view, tile);
+  const rent = def.rents[level];
+  if (rent === undefined) {
+    throw new Error(`tile ${tile} has no rent for level ${level}`);
+  }
+  return rent;
 }
 
 /**
  * Cash + deposit + what the player invested in their properties (price plus each built level at
- * upgradeCost), as used by richestAtRoundLimit (docs/GAME_RULES.md §1).
+ * the tile's upgrade cost), as used by richestAtRoundLimit (docs/GAME_RULES.md §1).
  */
 export function totalAssets(state: GameState, playerId: PlayerId): number {
   const player = playerOf(state, playerId);
   let total = player.cash + player.deposit;
   state.tiles.forEach((tile, i) => {
-    const def = state.board.tiles[i];
-    if (tile.owner === playerId && def?.kind === 'property') {
-      total += def.price + tile.level * upgradeCost(def.price, state.config);
+    if (tile.owner === playerId && state.board.tiles[i]?.kind === 'property') {
+      total += buyPrice(state, i);
     }
   });
   return total;

@@ -173,7 +173,7 @@ describe('checkInvariants', () => {
     [
       'buy decision at the wrong price',
       () => deciding(buy({ price: 999 })),
-      'phase awaitBuyDecision: price 999 does not match tile price 1000',
+      'phase awaitBuyDecision: price 999 does not match buy price 1000',
     ],
     [
       'buy decision on owned land',

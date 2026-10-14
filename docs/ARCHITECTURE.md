@@ -35,7 +35,7 @@ type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 
 - `applyAction` 自行驗證動作格式（日後來自網路）：格式錯誤回傳 `invalidAction`，不 throw。錯誤優先順序 `invalidAction` > `gameOver` > `unknownPlayer` > `notYourTurn` > `wrongPhase` > `insufficientFunds`。
 - `PlayerView` = `GameState` 去掉 `rngState`，加上 `viewer`；欄位逐一列出複製，新增的 state 欄位預設不會外洩。
-- 金錢相關邏輯在 `money.ts`：`pay()`（強制付款：現金 → 存款 → 破產）、`spend()`（購地、加蓋，只用現金）、`rentFor`、`upgradeCost`、`totalAssets`。
+- 金錢相關邏輯在 `money.ts`：`pay()`（強制付款：現金 → 存款 → 破產）、`spend()`（購地、加蓋，只用現金）、價格 helper `buyPrice`／`upgradeCost`／`rentFor`（收 `PriceView`，`GameState` 與 `PlayerView` 都符合，前後端算出同樣的價格）、`totalAssets`。
 
 原則：
 

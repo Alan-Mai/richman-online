@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Board, PropertyTileDef } from './board';
+import type { Board } from './board';
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from './config';
 import { rentFor } from './money';
 import type { GameState } from './state';
@@ -16,17 +16,16 @@ import {
 const PRICE = 1001;
 /** Tile 1 belongs to p2 in these tests; tile 2 to p3 when there are three players. */
 const BOARD = loopBoard([null, PRICE, 2000, null, null, null]);
-
-function property(price: number, rentTable?: number[]): PropertyTileDef {
-  const tile: PropertyTileDef = {
-    kind: 'property',
-    name: 'P',
-    price,
-    links: [],
-    pos: { x: 0, y: 0 },
-  };
-  return rentTable === undefined ? tile : { ...tile, rentTable };
-}
+/** Tile 1 with its own made-up rents, unrelated to its price. */
+const OWN_RENTS = [7, 8, 9, 10, 11, 12];
+const OWN_RENTS_BOARD = loopBoard([
+  null,
+  { price: PRICE, upgradeCost: 33, rents: OWN_RENTS },
+  2000,
+  null,
+  null,
+  null,
+]);
 
 /** p1 about to roll a 1 onto p2's tile 1. */
 function beforeLanding(
@@ -42,18 +41,15 @@ function beforeLanding(
 const roll = { type: 'rollDice', playerId: 'p1' } as const;
 
 describe('rentFor', () => {
-  it('is floor(price * rentPercentByLevel[level] / 100) at every level', () => {
-    const tile = property(PRICE);
-    const expected = [100, 300, 600, 1001, 1501, 2002];
+  it("looks up the tile's own rent at its level, at every level", () => {
+    const state = patchTile(newTestGame({ board: OWN_RENTS_BOARD }), 1, { owner: 'p2' });
     for (let level = 0; level <= DEFAULT_RULE_CONFIG.maxLevel; level++) {
-      expect(rentFor(tile, level, DEFAULT_RULE_CONFIG)).toBe(expected[level]);
+      expect(rentFor(patchTile(state, 1, { level }), 1)).toBe(OWN_RENTS[level]);
     }
   });
 
-  it('uses the tile rentTable instead of the percentages when present', () => {
-    const tile = property(PRICE, [1, 2, 3, 4, 5, 6]);
-    expect(rentFor(tile, 0, DEFAULT_RULE_CONFIG)).toBe(1);
-    expect(rentFor(tile, 5, DEFAULT_RULE_CONFIG)).toBe(6);
+  it('throws for a tile that is not a property (caller bug)', () => {
+    expect(() => rentFor(newTestGame({ board: BOARD }), 0)).toThrow();
   });
 });
 
@@ -70,11 +66,8 @@ describe("landing on another player's property", () => {
     expect(state.tiles[1]).toEqual({ owner: 'p2', level: 2 });
   });
 
-  it('charges the rentTable value when the board defines one', () => {
-    const tiles = BOARD.tiles.map((t, i) =>
-      i === 1 ? { ...property(PRICE, [7, 8, 9, 10, 11, 12]), links: t.links } : t,
-    );
-    const board = { ...BOARD, tiles };
+  it("charges the tile's own rent for its level", () => {
+    const board = OWN_RENTS_BOARD;
     const { events } = applyOk(beforeLanding({ cash: 50, level: 3 }, { board }), roll);
     expect(events[2]).toEqual({ type: 'RentPaid', from: 'p1', to: 'p2', tile: 1, amount: 10 });
   });
@@ -121,8 +114,13 @@ describe("landing on another player's property", () => {
   });
 
   it('records a zero rent without bankrupting anyone', () => {
-    const config = { rentPercentByLevel: [0, 30, 60, 100, 150, 200] };
-    const { state, events } = applyOk(beforeLanding({ cash: 0 }, { config }), roll);
+    const board = loopBoard([
+      null,
+      { price: PRICE, upgradeCost: 500, rents: [0, 30, 60, 100, 150, 200] },
+      null,
+      null,
+    ]);
+    const { state, events } = applyOk(beforeLanding({ cash: 0 }, { board }), roll);
     expect(events[2]).toEqual({ type: 'RentPaid', from: 'p1', to: 'p2', tile: 1, amount: 0 });
     expect(getPlayer(state, 'p1').bankrupt).toBe(false);
   });

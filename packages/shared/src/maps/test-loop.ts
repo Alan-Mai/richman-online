@@ -13,6 +13,28 @@ const PRICES: readonly (readonly number[])[] = [
   [2800, 2800, 3000, 3000],
 ];
 
+/** Made-up rent templates: percent of the land price at levels 0..5. */
+const RENT_PERCENTS = [
+  [10, 30, 60, 100, 150, 200],
+  [12, 32, 64, 100, 140, 190],
+] as const;
+
+/**
+ * A property's own amounts: upgrade cost half the price, rents from the side's template
+ * (alternating by side). Made up for this map.
+ */
+export function testLoopAmounts(
+  price: number,
+  side: number,
+): { price: number; upgradeCost: number; rents: number[] } {
+  const percents = RENT_PERCENTS[side % RENT_PERCENTS.length] ?? RENT_PERCENTS[0];
+  return {
+    price,
+    upgradeCost: Math.floor(price / 2),
+    rents: percents.map((percent) => Math.floor((price * percent) / 100)),
+  };
+}
+
 const CORNER_NAMES = ['起點', '測試空地 A', '測試空地 B', '測試空地 C'] as const;
 
 /** Clockwise from the top-left corner: top row, right column, bottom row, left column. */
@@ -45,7 +67,13 @@ function buildTiles(): TileDef[] {
     } else {
       propertyNumber += 1;
       const price = PRICES[side]?.[offset - 1] ?? 0;
-      tiles.push({ kind: 'property', name: `測試路 ${propertyNumber}`, price, links, pos });
+      tiles.push({
+        kind: 'property',
+        name: `測試路 ${propertyNumber}`,
+        ...testLoopAmounts(price, side),
+        links,
+        pos,
+      });
     }
   }
   return tiles;

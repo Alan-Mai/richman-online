@@ -93,13 +93,11 @@ describe('createGame', () => {
   });
 
   it('reports config errors', () => {
-    const config = withConfig({ maxLevel: 4 });
+    const config = withConfig({ diceFaces: 0 });
     const result = createGame(setup({ config }));
     expect(result).toEqual({
       ok: false,
-      errors: [
-        { reason: 'config', error: { field: 'rentPercentByLevel', reason: 'lengthMismatch' } },
-      ],
+      errors: [{ reason: 'config', error: { field: 'diceFaces', reason: 'notPositiveInteger' } }],
     });
   });
 

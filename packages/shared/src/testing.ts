@@ -1,6 +1,6 @@
 // Test-only helpers. Not exported from index.ts; the only place that creates scripted RNG states.
 import type { Action } from './actions';
-import type { Board, TileDef } from './board';
+import type { Board, PropertyTileDef, TileDef } from './board';
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from './config';
 import { applyAction, createGame } from './engine';
 import type { GameEvent } from './events';
@@ -98,17 +98,35 @@ export function tileOf(state: GameState, id: PlayerId): TileIndex {
   return location.tile;
 }
 
+/** A property's own amounts, as loopBoard takes them. */
+export type PropertySpec = Pick<PropertyTileDef, 'price' | 'upgradeCost' | 'rents'>;
+
 /**
- * A loop 0 -> 1 -> ... -> 0. Each entry is a property price, or null for a
- * blank tile. Names are placeholders. Links list the forward neighbour first (see behind).
+ * Made-up amounts for a property that only needs a price: upgrade cost floor(price / 2) and rents
+ * floor(price * 10 / 30 / 60 / 100 / 150 / 200 %) at levels 0..5. Not from the original game.
  */
-export function loopBoard(spec: readonly (number | null)[]): Board {
+export function testProperty(price: number): PropertySpec {
+  return {
+    price,
+    upgradeCost: Math.floor(price / 2),
+    rents: [10, 30, 60, 100, 150, 200].map((percent) => Math.floor((price * percent) / 100)),
+  };
+}
+
+/**
+ * A loop 0 -> 1 -> ... -> 0. Each entry is a property (a price for testProperty's amounts, or the
+ * amounts themselves), or null for a blank tile. Names are placeholders. Links list the forward
+ * neighbour first (see behind).
+ */
+export function loopBoard(spec: readonly (number | PropertySpec | null)[]): Board {
   const n = spec.length;
   if (n < 3) throw new RangeError(`a loop needs at least 3 tiles, got ${n}`);
-  const tiles = spec.map((price, i): TileDef => {
+  const tiles = spec.map((entry, i): TileDef => {
     const links = [{ to: (i + 1) % n }, { to: (i + n - 1) % n }];
     const base = { name: `T${i}`, links, pos: { x: i, y: 0 } };
-    return price === null ? { kind: 'blank', ...base } : { kind: 'property', price, ...base };
+    if (entry === null) return { kind: 'blank', ...base };
+    const amounts = typeof entry === 'number' ? testProperty(entry) : entry;
+    return { kind: 'property', ...amounts, ...base };
   });
   return { id: 'test', name: 'test', tiles };
 }

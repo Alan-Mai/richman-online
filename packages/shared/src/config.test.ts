@@ -13,7 +13,6 @@ describe('DEFAULT_RULE_CONFIG', () => {
   it('uses the agreed defaults', () => {
     expect(DEFAULT_RULE_CONFIG.winCondition).toBe('lastStanding');
     expect(DEFAULT_RULE_CONFIG.maxRounds).toBeNull();
-    expect(DEFAULT_RULE_CONFIG.rentPercentByLevel).toHaveLength(DEFAULT_RULE_CONFIG.maxLevel + 1);
   });
 });
 
@@ -43,16 +42,6 @@ describe('validateRuleConfig', () => {
       field: 'maxPlayers',
       reason: 'lessThanMinPlayers',
     });
-  });
-
-  it('requires one rent percent per level', () => {
-    expect(validateRuleConfig(withConfig({ rentPercentByLevel: [10, 20] }))).toContainEqual({
-      field: 'rentPercentByLevel',
-      reason: 'lengthMismatch',
-    });
-    expect(
-      validateRuleConfig(withConfig({ maxLevel: 1, rentPercentByLevel: [10, -1] })),
-    ).toContainEqual({ field: 'rentPercentByLevel', reason: 'notNonNegativeInteger' });
   });
 
   it('ties maxRounds to the richestAtRoundLimit win condition', () => {

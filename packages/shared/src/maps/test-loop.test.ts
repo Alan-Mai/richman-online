@@ -30,9 +30,12 @@ describe('TEST_LOOP_BOARD', () => {
     });
   });
 
-  it('does not use rentTable', () => {
+  it('gives every property its own upgrade cost and strictly rising rents', () => {
     for (const tile of TEST_LOOP_BOARD.tiles) {
-      if (tile.kind === 'property') expect(tile.rentTable).toBeUndefined();
+      if (tile.kind !== 'property') continue;
+      expect(tile.upgradeCost).toBeGreaterThan(0);
+      expect(tile.rents).toHaveLength(DEFAULT_RULE_CONFIG.maxLevel + 1);
+      tile.rents.slice(1).forEach((rent, i) => expect(rent).toBeGreaterThan(tile.rents[i] ?? 0));
     }
   });
 });

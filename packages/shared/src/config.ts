@@ -17,10 +17,6 @@ export interface RuleConfig {
   defaultDiceCount: number;
   diceFaces: number;
   maxLevel: number;
-  /** Upgrade cost per level = floor(price * upgradeCostPercent / 100). */
-  upgradeCostPercent: number;
-  /** Rent = floor(price * rentPercentByLevel[level] / 100); length is maxLevel + 1. */
-  rentPercentByLevel: readonly number[];
   streetBonus: 'none';
 }
 
@@ -35,8 +31,6 @@ export const DEFAULT_RULE_CONFIG: RuleConfig = {
   defaultDiceCount: 1,
   diceFaces: 6,
   maxLevel: 5,
-  upgradeCostPercent: 50,
-  rentPercentByLevel: [10, 30, 60, 100, 150, 200],
   streetBonus: 'none',
 };
 
@@ -44,7 +38,6 @@ export type RuleConfigErrorReason =
   | 'notNonNegativeInteger'
   | 'notPositiveInteger'
   | 'lessThanMinPlayers'
-  | 'lengthMismatch'
   | 'mustBeNullForLastStanding';
 
 export interface RuleConfigError {
@@ -64,13 +57,7 @@ function isPositiveInteger(value: number): boolean {
 export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
   const errors: RuleConfigError[] = [];
 
-  const nonNegative = [
-    'startingCash',
-    'startingDeposit',
-    'startingPoints',
-    'maxLevel',
-    'upgradeCostPercent',
-  ] as const;
+  const nonNegative = ['startingCash', 'startingDeposit', 'startingPoints', 'maxLevel'] as const;
   for (const field of nonNegative) {
     if (!isNonNegativeInteger(config[field])) {
       errors.push({ field, reason: 'notNonNegativeInteger' });
@@ -86,13 +73,6 @@ export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
 
   if (config.minPlayers > config.maxPlayers) {
     errors.push({ field: 'maxPlayers', reason: 'lessThanMinPlayers' });
-  }
-
-  if (config.rentPercentByLevel.length !== config.maxLevel + 1) {
-    errors.push({ field: 'rentPercentByLevel', reason: 'lengthMismatch' });
-  }
-  if (!config.rentPercentByLevel.every(isNonNegativeInteger)) {
-    errors.push({ field: 'rentPercentByLevel', reason: 'notNonNegativeInteger' });
   }
 
   if (config.winCondition === 'lastStanding') {

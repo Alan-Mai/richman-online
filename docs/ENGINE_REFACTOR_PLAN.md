@@ -20,6 +20,7 @@
   - [x] B2（使用者試玩確認，清單全部符合）：HUD「尚未出發」、`PlayerPlaced` 出現動畫（棋子從上方落到起點格，`DURATIONS.placed` 500 ms，非原版；E0a 時查原版出場表現）、未放置者的回合開始不做脈動。和計畫的差異：設定畫面新增「地圖」選項（環狀／分岔測試圖），因為試玩需要分岔圖。
 - [ ] 批次 C：
   - [x] C0。`spendable` 不再收 config；`GAME_RULES.md` 第 3 節「引擎現況」刪掉兩列、第 8 節改寫；client 設定畫面沒有用到這些選項，只改 `display.test`。
+  - [x] C1。價格 helper 收 `PriceView = Pick<GameState, 'board' | 'tiles'>`（C4 加 `priceIndex`），client HUD 用 display model 的 tiles 呼叫；HUD 的 `config` 欄位已不需要而移除。購地時保留既有等級（D1 之前只有測試會構造帶等級的無主地）。測試地圖的加蓋費 = 地價 ÷ 2、過路費用兩組自編百分比範本（依邊交替）；`testing.ts` 的 `loopBoard` 只給價格時用 `testProperty` 的自編數值。
 - [ ] D、E0、E、F
 
 實作中發現的待補項目，直接寫進對應批次的條目。

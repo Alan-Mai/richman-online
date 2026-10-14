@@ -39,7 +39,7 @@ export {
 export type { RuleError } from './errors';
 export { checkInvariants } from './invariants';
 export type { BankruptcyCause, GameEvent, GameEventType } from './events';
-export { rentFor, totalAssets, upgradeCost } from './money';
+export { buyPrice, rentFor, totalAssets, upgradeCost, type PriceView } from './money';
 export type { PlayerId, TileIndex } from './ids';
 export type { ServerUpdate } from './protocol';
 export { viewFor, type PlayerView, type Viewer } from './view';

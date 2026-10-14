@@ -4,6 +4,7 @@ import {
   isPlaceable,
   validateBoard,
   type Board,
+  type PropertyTileDef,
   type TileDef,
   type TileLink,
 } from './board';
@@ -18,15 +19,21 @@ function blank(links: LinkSpec[]): TileDef {
   return { kind: 'blank', name: 'B', links: toLinks(links), pos: { x: 0, y: 0 } };
 }
 
-function property(links: LinkSpec[], price = 100, rentTable?: number[]): TileDef {
-  const tile: TileDef = {
+const RENTS = [5, 10, 20, 40, 80, 160];
+
+function property(
+  links: LinkSpec[],
+  { price = 100, upgradeCost = 50, rents = RENTS }: Partial<PropertyTileDef> = {},
+): TileDef {
+  return {
     kind: 'property',
     name: 'P',
     price,
+    upgradeCost,
+    rents,
     links: toLinks(links),
     pos: { x: 0, y: 0 },
   };
-  return rentTable ? { ...tile, rentTable } : tile;
 }
 
 function board(tiles: TileDef[]): Board {
@@ -134,39 +141,47 @@ describe('validateBoard', () => {
 
   it('rejects non-positive or fractional prices', () => {
     const tiles = loop();
-    tiles[1] = property([2, 0], 0);
-    tiles[2] = property([3, 1], 10.5);
+    tiles[1] = property([2, 0], { price: 0 });
+    tiles[2] = property([3, 1], { price: 10.5 });
     const errors = validateBoard(board(tiles), DEFAULT_RULE_CONFIG);
     expect(errors).toContainEqual({ reason: 'invalidPrice', tile: 1 });
     expect(errors).toContainEqual({ reason: 'invalidPrice', tile: 2 });
   });
 
-  it('checks rentTable against maxLevel', () => {
-    const levels = DEFAULT_RULE_CONFIG.maxLevel + 1;
-    const ok = loop();
-    ok[1] = property([2, 0], 100, Array<number>(levels).fill(5));
-    expect(validateBoard(board(ok), DEFAULT_RULE_CONFIG)).toEqual([]);
+  it('accepts a zero upgrade cost and zero rents', () => {
+    const tiles = loop();
+    tiles[1] = property([2, 0], { upgradeCost: 0, rents: [0, 0, 0, 0, 0, 0] });
+    expect(validateBoard(board(tiles), DEFAULT_RULE_CONFIG)).toEqual([]);
+  });
 
-    const short = loop();
-    short[1] = property([2, 0], 100, [1, 2]);
-    expect(validateBoard(board(short), DEFAULT_RULE_CONFIG)).toContainEqual({
-      reason: 'rentTableLength',
-      tile: 1,
-    });
-    expect(
-      validateBoard(board(short), {
-        ...DEFAULT_RULE_CONFIG,
-        maxLevel: 1,
-        rentPercentByLevel: [0, 0],
-      }),
-    ).toEqual([]);
+  it('rejects negative or fractional upgrade costs', () => {
+    const tiles = loop();
+    tiles[1] = property([2, 0], { upgradeCost: -1 });
+    tiles[2] = property([3, 1], { upgradeCost: 0.5 });
+    const errors = validateBoard(board(tiles), DEFAULT_RULE_CONFIG);
+    expect(errors).toContainEqual({ reason: 'invalidUpgradeCost', tile: 1 });
+    expect(errors).toContainEqual({ reason: 'invalidUpgradeCost', tile: 2 });
+  });
 
-    const negative = loop();
-    negative[1] = property([2, 0], 100, [...Array<number>(levels - 1).fill(5), -1]);
-    expect(validateBoard(board(negative), DEFAULT_RULE_CONFIG)).toContainEqual({
-      reason: 'invalidRentTable',
-      tile: 1,
-    });
+  it('requires one rent per level 0..maxLevel', () => {
+    const tiles = loop();
+    tiles[1] = property([2, 0], { rents: [1, 2] });
+    tiles[2] = property([3, 1], { rents: [...RENTS, 320] });
+    const errors = validateBoard(board(tiles), DEFAULT_RULE_CONFIG);
+    expect(errors).toContainEqual({ reason: 'rentsLength', tile: 1 });
+    expect(errors).toContainEqual({ reason: 'rentsLength', tile: 2 });
+    expect(validateBoard(board(tiles), { ...DEFAULT_RULE_CONFIG, maxLevel: 1 })).toEqual([
+      { reason: 'rentsLength', tile: 2 },
+    ]);
+  });
+
+  it('rejects negative or fractional rents', () => {
+    const tiles = loop();
+    tiles[1] = property([2, 0], { rents: [5, 10, 20, 40, 80, -1] });
+    tiles[2] = property([3, 1], { rents: [5, 10.5, 20, 40, 80, 160] });
+    const errors = validateBoard(board(tiles), DEFAULT_RULE_CONFIG);
+    expect(errors).toContainEqual({ reason: 'invalidRents', tile: 1 });
+    expect(errors).toContainEqual({ reason: 'invalidRents', tile: 2 });
   });
 });
 

@@ -3,17 +3,29 @@
 // this project; nothing comes from the original game.
 import type { Board, TileDef, TileLink } from '../board';
 import type { TileIndex } from '../ids';
-import { TEST_LOOP_BOARD } from './test-loop';
+import { TEST_LOOP_BOARD, testLoopAmounts } from './test-loop';
 
 /** Extra tiles, appended after the 20 loop tiles (indices 20..25). */
 const EXTRA: readonly TileDef[] = [
   // Middle road from the top edge (tile 3) down to the bottom edge (tile 12), one way downward.
   { kind: 'blank', name: '測試中路口', links: [], pos: { x: 3, y: 1 } },
-  { kind: 'property', name: '測試中路 1', price: 1500, links: [], pos: { x: 3, y: 2 } },
-  { kind: 'property', name: '測試中路 2', price: 2600, links: [], pos: { x: 3, y: 3 } },
+  {
+    kind: 'property',
+    name: '測試中路 1',
+    ...testLoopAmounts(1500, 0),
+    links: [],
+    pos: { x: 3, y: 2 },
+  },
+  {
+    kind: 'property',
+    name: '測試中路 2',
+    ...testLoopAmounts(2600, 1),
+    links: [],
+    pos: { x: 3, y: 3 },
+  },
   { kind: 'blank', name: '測試中路尾', links: [], pos: { x: 3, y: 4 } },
   // Dead-end spur off the left edge (tile 17).
-  { kind: 'property', name: '測試巷', price: 900, links: [], pos: { x: 1, y: 3 } },
+  { kind: 'property', name: '測試巷', ...testLoopAmounts(900, 0), links: [], pos: { x: 1, y: 3 } },
   { kind: 'blank', name: '測試巷底', links: [], pos: { x: 2, y: 3 } },
 ];
 

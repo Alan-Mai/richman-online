@@ -2,7 +2,7 @@
 // Total money is deliberately not checked: payouts and bonuses create money (docs/DECISIONS.md).
 import { isLinked } from './board';
 import type { GameState, PlayerState } from './state';
-import { upgradeCost } from './money';
+import { buyPrice, upgradeCost } from './money';
 
 function isNonNegativeInteger(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0;
@@ -114,8 +114,9 @@ function checkPhase(state: GameState, current: PlayerState): string[] {
       const owner = tiles[phase.tile]?.owner ?? null;
       const level = tiles[phase.tile]?.level ?? 0;
       if (phase.kind === 'awaitBuyDecision') {
-        if (phase.price !== def.price) {
-          errors.push(`${prefix}price ${phase.price} does not match tile price ${def.price}`);
+        const price = buyPrice(state, phase.tile);
+        if (phase.price !== price) {
+          errors.push(`${prefix}price ${phase.price} does not match buy price ${price}`);
         }
         if (owner !== null) {
           errors.push(`${prefix}tile ${phase.tile} is already owned by ${owner}`);
@@ -129,7 +130,7 @@ function checkPhase(state: GameState, current: PlayerState): string[] {
         if (level >= config.maxLevel) {
           errors.push(`${prefix}tile ${phase.tile} is already at maxLevel ${config.maxLevel}`);
         }
-        const cost = upgradeCost(def.price, config);
+        const cost = upgradeCost(state, phase.tile);
         if (phase.cost !== cost) {
           errors.push(`${prefix}cost ${phase.cost} does not match upgrade cost ${cost}`);
         }

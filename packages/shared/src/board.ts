@@ -33,14 +33,15 @@ interface TileBase {
   pos: Point;
 }
 
+/** An ordinary property (docs/GAME_RULES.md §3); every amount is before the price index. */
 export interface PropertyTileDef extends TileBase {
   kind: 'property';
+  /** Land price. */
   price: number;
-  /**
-   * Optional rent per level (length maxLevel + 1). When absent, rent is derived from
-   * RuleConfig.rentPercentByLevel.
-   */
-  rentTable?: readonly number[];
+  /** Cost of each building level; the same for every level. */
+  upgradeCost: number;
+  /** Rent at each level 0..maxLevel (length maxLevel + 1). */
+  rents: readonly number[];
 }
 
 export interface BlankTileDef extends TileBase {
@@ -81,8 +82,9 @@ export type BoardError =
         | 'noExit'
         | 'disconnected'
         | 'invalidPrice'
-        | 'rentTableLength'
-        | 'invalidRentTable';
+        | 'invalidUpgradeCost'
+        | 'rentsLength'
+        | 'invalidRents';
       tile: TileIndex;
     };
 
@@ -146,13 +148,14 @@ export function validateBoard(board: Board, config: RuleConfig): BoardError[] {
       if (!Number.isSafeInteger(tile.price) || tile.price <= 0) {
         errors.push({ reason: 'invalidPrice', tile: i });
       }
-      if (tile.rentTable !== undefined) {
-        if (tile.rentTable.length !== config.maxLevel + 1) {
-          errors.push({ reason: 'rentTableLength', tile: i });
-        }
-        if (!tile.rentTable.every(isNonNegativeInteger)) {
-          errors.push({ reason: 'invalidRentTable', tile: i });
-        }
+      if (!isNonNegativeInteger(tile.upgradeCost)) {
+        errors.push({ reason: 'invalidUpgradeCost', tile: i });
+      }
+      if (tile.rents.length !== config.maxLevel + 1) {
+        errors.push({ reason: 'rentsLength', tile: i });
+      }
+      if (!tile.rents.every(isNonNegativeInteger)) {
+        errors.push({ reason: 'invalidRents', tile: i });
       }
     }
   });

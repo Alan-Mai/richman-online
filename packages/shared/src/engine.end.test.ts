@@ -53,8 +53,16 @@ describe('totalAssets', () => {
     state = patchPlayer(state, 'p1', { cash: 10, deposit: 20 });
     state = patchTile(state, 1, { owner: 'p1', level: 2 });
     state = patchTile(state, 2, { owner: 'p2', level: 5 });
-    // 10 + 20 + 1001 + 2 * floor(1001 * 50 / 100)
+    // 10 + 20 + 1001 + 2 * 500 (testProperty's upgrade cost)
     expect(totalAssets(state, 'p1')).toBe(2031);
+  });
+
+  it("uses each tile's own upgrade cost", () => {
+    const amounts = { price: 900, upgradeCost: 123, rents: [1, 2, 3, 4, 5, 6] };
+    const board = loopBoard([null, amounts, null, null]);
+    let state = patchPlayer(newTestGame({ board }), 'p1', { cash: 1, deposit: 2 });
+    state = patchTile(state, 1, { owner: 'p1', level: 3 });
+    expect(totalAssets(state, 'p1')).toBe(1 + 2 + 900 + 3 * 123);
   });
 
   it('counts only the price for an unbuilt property', () => {

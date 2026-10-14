@@ -16,15 +16,22 @@ import {
 } from './testing';
 
 const PRICE = 1001;
-const COST = 500; // floor(1001 * 50 / 100)
+/** The tile's own upgrade cost, unrelated to its price. */
+const COST = 437;
 /** Tile 1 is a property p1 already owns. */
-const BOARD = loopBoard([null, PRICE, null, null]);
+const BOARD = loopBoard([
+  null,
+  { price: PRICE, upgradeCost: COST, rents: [1, 2, 3, 4, 5, 6] },
+  null,
+  null,
+]);
 
 function beforeLanding(
   { cash, deposit = 0, level = 0 }: { cash: number; deposit?: number; level?: number },
   config: Partial<RuleConfig> = {},
+  board = BOARD,
 ): GameState {
-  let state = newTestGame({ board: BOARD, config });
+  let state = newTestGame({ board, config });
   state = patchTile(state, 1, { owner: 'p1', level });
   return withFixedDice(patchPlayer(state, 'p1', { cash, deposit }), [1]);
 }
@@ -32,19 +39,20 @@ function beforeLanding(
 function landed(
   money: { cash: number; deposit?: number; level?: number },
   config: Partial<RuleConfig> = {},
+  board = BOARD,
 ) {
-  return applyOk(beforeLanding(money, config), { type: 'rollDice', playerId: 'p1' });
+  return applyOk(beforeLanding(money, config, board), { type: 'rollDice', playerId: 'p1' });
 }
 
 const upgrade: Action = { type: 'upgradeProperty', playerId: 'p1' };
 const decline: Action = { type: 'decline', playerId: 'p1' };
 
 describe('upgradeCost', () => {
-  it('is floor(price * upgradeCostPercent / 100)', () => {
-    expect(upgradeCost(1000, DEFAULT_RULE_CONFIG)).toBe(500);
-    expect(upgradeCost(1001, DEFAULT_RULE_CONFIG)).toBe(500);
-    expect(upgradeCost(999, { ...DEFAULT_RULE_CONFIG, upgradeCostPercent: 33 })).toBe(329);
-    expect(upgradeCost(999, { ...DEFAULT_RULE_CONFIG, upgradeCostPercent: 0 })).toBe(0);
+  it("is the tile's own upgrade cost at every level", () => {
+    const state = patchTile(newTestGame({ board: BOARD }), 1, { owner: 'p1' });
+    for (let level = 0; level < DEFAULT_RULE_CONFIG.maxLevel; level++) {
+      expect(upgradeCost(patchTile(state, 1, { level }), 1)).toBe(COST);
+    }
   });
 });
 
@@ -78,8 +86,10 @@ describe('landing on an own property', () => {
     expect(landed({ cash: 1e6, level: maxLevel }).state.turn.current).toBe('p2');
   });
 
-  it('always offers a free upgrade when upgradeCostPercent is 0', () => {
-    const { state } = landed({ cash: 0 }, { upgradeCostPercent: 0 });
+  it('always offers a free upgrade when the upgrade cost is 0', () => {
+    const amounts = { price: PRICE, upgradeCost: 0, rents: [1, 2, 3, 4, 5, 6] };
+    const free = loopBoard([null, amounts, null, null]);
+    const { state } = landed({ cash: 0 }, {}, free);
     expect(state.turn.phase).toEqual({ kind: 'awaitUpgradeDecision', tile: 1, cost: 0 });
     const after = applyOk(state, upgrade).state;
     expect(after.tiles[1]?.level).toBe(1);

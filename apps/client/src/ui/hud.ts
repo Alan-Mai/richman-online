@@ -6,7 +6,6 @@ import {
   type ActionType,
   type Board,
   type GameEvent,
-  type RuleConfig,
   type ServerUpdate,
   type TileIndex,
 } from '@richman/shared';
@@ -83,7 +82,6 @@ export class Hud implements ControllerSink {
   private readonly log = el('ol', 'hud-log');
   private model: DisplayModel | null = null;
   private ready: ServerUpdate | null = null;
-  private config: RuleConfig | null = null;
   private selectedTile: TileIndex | null = null;
 
   constructor(
@@ -143,7 +141,6 @@ export class Hud implements ControllerSink {
 
   setReady(update: ServerUpdate | null): void {
     this.ready = update;
-    if (update) this.config = update.view.config;
     this.renderActions();
     this.renderTile();
   }
@@ -196,9 +193,10 @@ export class Hud implements ControllerSink {
       rows.push([t('tile.price'), formatMoney(def.price)]);
       rows.push([t('tile.owner'), owner?.name ?? t('tile.noOwner')]);
       rows.push([t('tile.level'), String(level)]);
-      if (this.config) {
-        if (owner) rows.push([t('tile.rent'), formatMoney(rentFor(def, level, this.config))]);
-        rows.push([t('tile.upgradeCost'), formatMoney(upgradeCost(def.price, this.config))]);
+      if (this.model) {
+        const view = { board: this.options.board, tiles: this.model.tiles };
+        if (owner) rows.push([t('tile.rent'), formatMoney(rentFor(view, index))]);
+        rows.push([t('tile.upgradeCost'), formatMoney(upgradeCost(view, index))]);
       }
     }
     const list = el('dl');
