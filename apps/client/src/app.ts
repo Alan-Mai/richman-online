@@ -12,6 +12,7 @@ import { BootScene } from './scenes/boot-scene';
 import { GameScene } from './scenes/game-scene';
 import { MapPreviewScene } from './scenes/map-preview-scene';
 import { GameOverDialog } from './ui/game-over';
+import { loadGameSpeed, saveGameSpeed } from './ui/game-speed-setting';
 import { Hud } from './ui/hud';
 import { describeMapFileError, renderPreviewChooser } from './ui/preview-chooser';
 import { PreviewPanel } from './ui/preview-panel';
@@ -53,7 +54,18 @@ function startGameSession(setup: GameSetup, elements: AppElements, onAgain: () =
 
   let controller: GameController | null = null;
   const act = (type: Parameters<GameController['act']>[0]) => controller?.act(type);
-  const hud = new Hud(elements.hud, { board, onAct: act });
+  const gameSpeed = loadGameSpeed();
+  const hud = new Hud(elements.hud, {
+    board,
+    onAct: act,
+    gameSpeed: {
+      initial: gameSpeed,
+      onChange: (speed) => {
+        scene.gameSpeed = speed;
+        saveGameSpeed(speed);
+      },
+    },
+  });
   const scene = new GameScene(board, {
     onPrimary: () => {
       const primary = controller?.available.find((type) => type !== 'decline');
@@ -62,6 +74,7 @@ function startGameSession(setup: GameSetup, elements: AppElements, onAgain: () =
     onDecline: () => act('decline'),
     onTileSelected: (tile) => hud.showTile(tile),
   });
+  scene.gameSpeed = gameSpeed;
   const game = createPhaserGame(elements.board, [BootScene, scene]);
   const gameOver = new GameOverDialog(elements.overlay, { seed: setup.seed, onAgain });
 

@@ -13,6 +13,7 @@ import {
 import type { ControllerSink } from '../game-controller';
 import { formatMoney, t } from '../i18n';
 import type { DisplayModel } from '../model/display';
+import { GAME_SPEEDS, isGameSpeed, type GameSpeed } from '../render/timings';
 import { cssColor, playerColor } from '../theme';
 import { describeEvent } from './event-text';
 
@@ -21,6 +22,8 @@ const LOG_LIMIT = 50;
 export interface HudOptions {
   board: Board;
   onAct(type: ActionType): void;
+  /** Shows the game speed control when given. */
+  gameSpeed?: { initial: GameSpeed; onChange(speed: GameSpeed): void };
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -32,6 +35,24 @@ function el<K extends keyof HTMLElementTagNameMap>(
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
+}
+
+function gameSpeedControl(options: NonNullable<HudOptions['gameSpeed']>): HTMLLabelElement {
+  const select = el('select');
+  select.name = 'gameSpeed';
+  for (const speed of GAME_SPEEDS) {
+    const option = el('option', undefined, t(`hud.gameSpeed.${speed}`));
+    option.value = String(speed);
+    option.selected = speed === options.initial;
+    select.append(option);
+  }
+  select.addEventListener('change', () => {
+    const speed = Number(select.value);
+    if (isGameSpeed(speed)) options.onChange(speed);
+  });
+  const label = el('label', 'hud-speed');
+  label.append(el('span', undefined, t('hud.gameSpeed')), select);
+  return label;
 }
 
 /** Button text for an offered action, with the price or cost of the pending offer. */
@@ -81,6 +102,7 @@ export class Hud implements ControllerSink {
       this.players,
       this.tileInfo,
       logSection,
+      ...(options.gameSpeed ? [gameSpeedControl(options.gameSpeed)] : []),
       el('p', 'hud-shortcuts', t('hud.shortcuts')),
     );
     this.renderTile();

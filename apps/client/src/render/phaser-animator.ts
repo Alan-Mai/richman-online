@@ -1,5 +1,5 @@
-// Plays GameEvents on the board with tweens. Durations are divided by the scene's current speed
-// (holding Space speeds playback up).
+// Plays GameEvents on the board with tweens. Durations follow the player's game speed setting and
+// are divided by the fast-forward multiplier (holding Space speeds playback up).
 import Phaser from 'phaser';
 import type { GameEvent, PlayerId, Point } from '@richman/shared';
 import { formatMoney, t } from '../i18n';
@@ -7,14 +7,16 @@ import type { DisplayModel } from '../model/display';
 import type { Animator } from '../model/event-queue';
 import { FONT_FAMILY, TEXT_RESOLUTION } from '../theme';
 import type { BoardView } from './board-view';
-import { DURATIONS } from './timings';
+import { DURATIONS, FIXED_MS, frameScale, walkStepMs, type GameSpeed } from './timings';
 
 export interface AnimationStage {
   readonly phaserScene: Phaser.Scene;
   /** Resolves once the scene has been created. */
   readonly ready: Promise<BoardView>;
-  /** Playback speed multiplier, read before every animation. */
+  /** Fast-forward multiplier, read before every animation. */
   readonly speed: number;
+  /** The player's game speed setting, read before every animation. */
+  readonly gameSpeed: GameSpeed;
   showModel(model: DisplayModel): void;
 }
 
@@ -50,7 +52,7 @@ export class PhaserAnimator implements Animator {
         const cost = event.type === 'PropertyBought' ? event.price : event.cost;
         await Promise.all([
           this.floatAt(board.tileCenter(event.tile), `-${formatMoney(cost)}`, '#ff8a8a'),
-          this.wait(DURATIONS.property),
+          this.wait(this.scaled(DURATIONS.property)),
         ]);
         return;
       }
@@ -62,13 +64,22 @@ export class PhaserAnimator implements Animator {
         return;
       case 'PlayerBankrupt':
         this.stage.showModel(after);
-        await this.floatAtPlayer(board, event.playerId, t('hud.bankrupt'), '#ff5050');
-        return this.wait(DURATIONS.bankrupt - DURATIONS.float);
+        await Promise.all([
+          this.floatAtPlayer(board, event.playerId, t('hud.bankrupt'), '#ff5050'),
+          this.wait(FIXED_MS.bankrupt),
+        ]);
+        return;
       case 'GameEnded':
-        return this.wait(DURATIONS.gameEnd);
+        return this.wait(this.scaled(DURATIONS.gameEnd));
     }
   }
 
+  /** Converts a duration given at the default game speed to the current setting. */
+  private scaled(ms: number): number {
+    return ms * frameScale(this.stage.gameSpeed);
+  }
+
+  /** Applies fast-forward. */
   private duration(ms: number): number {
     return ms / Math.max(1, this.stage.speed);
   }
@@ -89,13 +100,14 @@ export class PhaserAnimator implements Animator {
 
   private pulse(board: BoardView, playerId: PlayerId): Promise<void> {
     const token = board.token(playerId);
-    if (!token) return this.wait(DURATIONS.turnStart);
+    const pulseMs = this.scaled(DURATIONS.turnStart);
+    if (!token) return this.wait(pulseMs);
     const base = token.scaleX;
     return this.tween({
       targets: token,
       scale: base * 1.35,
       yoyo: true,
-      duration: this.duration(DURATIONS.turnStart / 2),
+      duration: this.duration(pulseMs / 2),
       ease: 'Sine.easeInOut',
     });
   }
@@ -126,20 +138,20 @@ export class PhaserAnimator implements Animator {
     });
 
     // Cosmetic tumbling before the real faces are shown; the result came from the host.
-    const rollMs = this.duration(DURATIONS.diceRoll);
-    const flips = Math.max(1, Math.round(rollMs / 70));
+    const rollMs = this.scaled(DURATIONS.diceRoll);
+    const flips = Math.max(1, Math.round(this.duration(rollMs) / 70));
     for (let i = 0; i < flips; i++) {
       for (const f of faces) {
         f.text.setText(String(Phaser.Math.Between(1, Math.max(6, f.value))));
         f.box.setAngle(Phaser.Math.Between(-15, 15));
       }
-      await this.wait(DURATIONS.diceRoll / flips);
+      await this.wait(rollMs / flips);
     }
     for (const f of faces) {
       f.text.setText(String(f.value));
       f.box.setAngle(0);
     }
-    await this.wait(DURATIONS.diceHold);
+    await this.wait(FIXED_MS.diceHold);
     for (const f of faces) {
       f.box.destroy();
       f.text.destroy();
@@ -154,31 +166,37 @@ export class PhaserAnimator implements Animator {
   ): Promise<void> {
     const token = board.token(playerId);
     if (!token) return;
-    const start = before.players.find((p) => p.id === playerId)?.position;
-    if (start !== undefined) {
-      const at = board.tokenPosition(playerId, start);
+    let from = before.players.find((p) => p.id === playerId)?.position;
+    if (from !== undefined) {
+      const at = board.tokenPosition(playerId, from);
       token.setPosition(at.x, at.y);
     }
     const hop = board.tileSize * 0.15;
     for (const tile of path) {
       const to = board.tokenPosition(playerId, tile);
+      // Original pacing: whole frames for the distance between the two tiles (walking for now).
+      const stepMs = walkStepMs(
+        from === undefined ? 1 : board.distance(from, tile),
+        this.stage.gameSpeed,
+      );
+      from = tile;
       await Promise.all([
         this.tween({
           targets: token,
           x: to.x,
-          duration: this.duration(DURATIONS.step),
+          duration: this.duration(stepMs),
           ease: 'Linear',
         }),
         this.tween({
           targets: token,
           y: { from: token.y, to: to.y - hop },
-          duration: this.duration(DURATIONS.step / 2),
+          duration: this.duration(stepMs / 2),
           ease: 'Quad.easeOut',
         }).then(() =>
           this.tween({
             targets: token,
             y: to.y,
-            duration: this.duration(DURATIONS.step / 2),
+            duration: this.duration(stepMs / 2),
             ease: 'Quad.easeIn',
           }),
         ),
@@ -214,7 +232,7 @@ export class PhaserAnimator implements Animator {
       targets: label,
       y: at.y - 40,
       alpha: { from: 1, to: 0 },
-      duration: this.duration(DURATIONS.float),
+      duration: this.duration(this.scaled(DURATIONS.float)),
       ease: 'Cubic.easeOut',
     }).then(() => {
       label.destroy();

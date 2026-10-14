@@ -68,6 +68,11 @@ export const zhTW = {
   'hud.yourTurn': '輪到 {name}',
   'hud.playing': '播放中…',
   'hud.log': '紀錄',
+  'hud.gameSpeed': '動畫速度',
+  'hud.gameSpeed.0': '0（最慢）',
+  'hud.gameSpeed.1': '1',
+  'hud.gameSpeed.2': '2（預設）',
+  'hud.gameSpeed.3': '3（最快）',
   'hud.shortcuts': 'Enter：主要動作　Esc：放棄　按住空白鍵：加速',
 
   'tile.hint': '點選格子查看資訊',

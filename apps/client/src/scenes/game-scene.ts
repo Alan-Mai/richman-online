@@ -4,7 +4,7 @@ import type { DisplayModel } from '../model/display';
 import { BoardView } from '../render/board-view';
 import type { Rect } from '../render/layout';
 import type { AnimationStage } from '../render/phaser-animator';
-import { FAST_SPEED } from '../render/timings';
+import { DEFAULT_GAME_SPEED, FAST_SPEED, type GameSpeed } from '../render/timings';
 
 const MARGIN = 16;
 
@@ -23,6 +23,8 @@ export class GameScene extends Phaser.Scene implements AnimationStage {
   private resolveReady: (board: BoardView) => void = () => {};
   private fastKey: Phaser.Input.Keyboard.Key | null = null;
   readonly ready: Promise<BoardView>;
+  /** The player's game speed setting; changes apply from the next animation. */
+  gameSpeed: GameSpeed = DEFAULT_GAME_SPEED;
 
   constructor(
     private readonly board: Board,

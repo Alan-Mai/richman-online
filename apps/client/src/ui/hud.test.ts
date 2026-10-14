@@ -191,3 +191,26 @@ describe('describeEvent', () => {
     }
   });
 });
+
+describe('Hud game speed', () => {
+  it('is hidden unless requested', () => {
+    expect(root.querySelector('select[name="gameSpeed"]')).toBeNull();
+  });
+
+  it('shows the current speed and reports changes', () => {
+    const changes: number[] = [];
+    const speedRoot = document.createElement('div');
+    new Hud(speedRoot, {
+      board: TEST_LOOP_BOARD,
+      onAct: () => {},
+      gameSpeed: { initial: 1, onChange: (speed) => changes.push(speed) },
+    });
+    const select = speedRoot.querySelector<HTMLSelectElement>('select[name="gameSpeed"]');
+    if (!select) throw new Error('no speed control');
+    expect([...select.options].map((o) => o.value)).toEqual(['0', '1', '2', '3']);
+    expect(select.value).toBe('1');
+    select.value = '3';
+    select.dispatchEvent(new Event('change'));
+    expect(changes).toEqual([3]);
+  });
+});

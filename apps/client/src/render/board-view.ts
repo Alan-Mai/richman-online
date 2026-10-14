@@ -62,6 +62,13 @@ export class BoardView {
     return this.layout.toScreen(this.board.tiles[tile]?.pos ?? { x: 0, y: 0 });
   }
 
+  /** Straight-line distance between two tiles in board units. */
+  distance(a: TileIndex, b: TileIndex): number {
+    const p = this.board.tiles[a]?.pos ?? { x: 0, y: 0 };
+    const q = this.board.tiles[b]?.pos ?? { x: 0, y: 0 };
+    return Math.hypot(q.x - p.x, q.y - p.y);
+  }
+
   /** Where a player's token rests on a tile. */
   tokenPosition(playerId: string, tile: TileIndex): Point {
     const center = this.tileCenter(tile);
