@@ -92,6 +92,16 @@ describe('Hud players', () => {
     expect(root.querySelector('.hud-round')?.textContent).toBe('第 7 輪');
   });
 
+  it('marks players who are not on the board yet', () => {
+    const opening = displayFromView(updates[0]!.view);
+    hud.showModel(opening);
+    const tags = [...root.querySelectorAll('.hud-player')].map(
+      (item) => item.querySelector('.hud-tag')?.textContent ?? null,
+    );
+    // Seat 0 is placed when the game starts; the others wait for their first turn.
+    expect(tags).toEqual([null, '尚未出發', '尚未出發', '尚未出發']);
+  });
+
   it('shows names as text, not markup', () => {
     const model = displayFromView(updates[0]!.view);
     const players = model.players.map((p, i) => (i === 0 ? { ...p, name: '<b>x</b>' } : p));

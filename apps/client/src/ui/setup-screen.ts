@@ -2,9 +2,11 @@
 import { DEFAULT_RULE_CONFIG, type GameSetup, type WinCondition } from '@richman/shared';
 import { t, type MessageKey } from '../i18n';
 import {
+  BOARDS,
   NAME_MAX_LENGTH,
   buildSetup,
   describeSetupError,
+  isBoardChoice,
   randomSeed,
   type SetupForm,
 } from './setup-form';
@@ -49,6 +51,17 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
 
   const title = document.createElement('h1');
   title.textContent = t('setup.title');
+
+  const board = document.createElement('select');
+  board.name = 'board';
+  for (const [value, def] of Object.entries(BOARDS)) {
+    const option = document.createElement('option');
+    option.value = value;
+    // Board names are map content, not UI text.
+    option.textContent = def.name;
+    option.selected = value === initial.board;
+    board.append(option);
+  }
 
   const count = document.createElement('select');
   count.name = 'playerCount';
@@ -106,6 +119,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
   start.textContent = t('setup.start');
 
   const read = (): SetupForm => ({
+    board: isBoardChoice(board.value) ? board.value : 'test-loop',
     playerCount: Number(count.value),
     names: nameInputs.map((n) => n.value),
     winCondition:
@@ -147,6 +161,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
 
   form.append(
     title,
+    labelled(t('setup.board'), board),
     labelled(t('setup.playerCount'), count),
     ...nameLabels,
     win,

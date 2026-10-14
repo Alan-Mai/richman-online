@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { GameSetup } from '@richman/shared';
+import { TEST_BRANCH_BOARD, TEST_LOOP_BOARD, type GameSetup } from '@richman/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { defaultSetupForm, type SetupForm } from './setup-form';
 import { renderSetupScreen } from './setup-screen';
@@ -45,6 +45,15 @@ describe('setup screen', () => {
     expect(setup.config.startingCash).toBe(3000);
     expect(setup.seed).toBe(99);
     expect(form.names[0]).toBe('阿土伯');
+  });
+
+  it('offers the built-in boards by name', () => {
+    const options = [...field<HTMLSelectElement>('board').options].map((o) => o.textContent);
+    expect(options).toEqual([TEST_LOOP_BOARD.name, TEST_BRANCH_BOARD.name]);
+    setValue('board', 'test-branch');
+    submit();
+    expect(started[0]?.[0].board).toBe(TEST_BRANCH_BOARD);
+    expect(started[0]?.[1].board).toBe('test-branch');
   });
 
   it('hides the name fields of unused seats', () => {

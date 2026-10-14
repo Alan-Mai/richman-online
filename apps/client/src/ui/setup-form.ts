@@ -1,7 +1,9 @@
 // New-game form: turns what the players typed into a GameSetup, or a list of problems.
 import {
   DEFAULT_RULE_CONFIG,
+  TEST_BRANCH_BOARD,
   TEST_LOOP_BOARD,
+  type Board,
   type GameSetup,
   type WinCondition,
 } from '@richman/shared';
@@ -10,8 +12,21 @@ import { t } from '../i18n';
 export const NAME_MAX_LENGTH = 12;
 const UINT32_MAX = 0xffff_ffff;
 
+/** Built-in boards a local game can be played on, in menu order. */
+export const BOARDS = {
+  'test-loop': TEST_LOOP_BOARD,
+  'test-branch': TEST_BRANCH_BOARD,
+} as const satisfies Record<string, Board>;
+
+export type BoardChoice = keyof typeof BOARDS;
+
+export function isBoardChoice(value: string): value is BoardChoice {
+  return Object.hasOwn(BOARDS, value);
+}
+
 /** Raw form values; numbers stay strings until validated. */
 export interface SetupForm {
+  board: BoardChoice;
   playerCount: number;
   names: string[];
   winCondition: WinCondition;
@@ -30,6 +45,7 @@ export type BuildSetupResult = { ok: true; setup: GameSetup } | { ok: false; err
 
 export function defaultSetupForm(): SetupForm {
   return {
+    board: 'test-loop',
     playerCount: DEFAULT_RULE_CONFIG.maxPlayers,
     names: Array.from({ length: DEFAULT_RULE_CONFIG.maxPlayers }, (_, i) =>
       t('setup.defaultName', { n: i + 1 }),
@@ -95,7 +111,7 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
         startingCash,
         startingDeposit,
       },
-      board: TEST_LOOP_BOARD,
+      board: BOARDS[form.board],
       players: names.map((name, seat) => ({ id: `p${seat + 1}`, name })),
       seed,
     },

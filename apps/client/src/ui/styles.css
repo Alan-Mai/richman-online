@@ -119,6 +119,10 @@ body {
   font-size: 12px;
 }
 
+.hud-tag.is-waiting {
+  color: var(--muted);
+}
+
 .hud-prompt {
   min-height: 1.2em;
   color: var(--muted);

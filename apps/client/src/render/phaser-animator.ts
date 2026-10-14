@@ -34,7 +34,7 @@ export class PhaserAnimator implements Animator {
         return this.walk(board, event.playerId, before, event.path);
       case 'PlayerPlaced':
         this.stage.showModel(after);
-        return;
+        return this.appear(board, event.playerId);
       case 'DepositWithdrawn':
         return this.floatAtPlayer(
           board,
@@ -94,10 +94,29 @@ export class PhaserAnimator implements Animator {
     });
   }
 
+  /** A newly placed token drops onto its start tile. */
+  private async appear(board: BoardView, playerId: PlayerId): Promise<void> {
+    const token = board.token(playerId);
+    const appearMs = this.scaled(DURATIONS.placed);
+    if (!token) return this.wait(appearMs);
+    const { x, y } = token;
+    const base = token.scaleX;
+    token.setScale(0).setPosition(x, y - board.tileSize * 0.6);
+    await this.tween({
+      targets: token,
+      y,
+      scale: base,
+      duration: this.duration(appearMs),
+      ease: 'Back.easeOut',
+    });
+  }
+
   private pulse(board: BoardView, playerId: PlayerId): Promise<void> {
     const token = board.token(playerId);
     const pulseMs = this.scaled(DURATIONS.turnStart);
+    // Unplaced players have no token yet; their placement animation follows right after.
     if (!token) return this.wait(pulseMs);
+    if (!token.visible) return Promise.resolve();
     const base = token.scaleX;
     return this.tween({
       targets: token,

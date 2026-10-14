@@ -44,6 +44,11 @@ export function frameScale(speed: GameSpeed): number {
 export const DURATIONS = {
   /** Current player's token pulses when the turn starts. */
   turnStart: 350,
+  /**
+   * A player's token drops onto the board on their first turn. Not from the original: how the
+   * original shows a player appearing is checked when its animation tables are exported (E0).
+   */
+  placed: 500,
   /** Dice tumble before the result shows. */
   diceRoll: 700,
   /** Floating money / status text rises and fades. */

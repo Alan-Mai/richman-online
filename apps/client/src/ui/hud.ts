@@ -128,6 +128,8 @@ export class Hud implements ControllerSink {
         );
         item.append(swatch, name, money);
         if (p.bankrupt) item.append(el('span', 'hud-tag', t('hud.bankrupt')));
+        else if (p.tile === null)
+          item.append(el('span', 'hud-tag is-waiting', t('hud.notStarted')));
         return item;
       }),
     );

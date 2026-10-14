@@ -1,4 +1,9 @@
-import { DEFAULT_RULE_CONFIG, createGame } from '@richman/shared';
+import {
+  DEFAULT_RULE_CONFIG,
+  TEST_BRANCH_BOARD,
+  TEST_LOOP_BOARD,
+  createGame,
+} from '@richman/shared';
 import { describe, expect, it } from 'vitest';
 import { buildSetup, defaultSetupForm, describeSetupError, type SetupForm } from './setup-form';
 
@@ -22,6 +27,13 @@ describe('buildSetup', () => {
     expect(setup.config.maxRounds).toBe(20);
     expect(setup.seed).toBe(1234);
     expect(createGame(setup).ok).toBe(true);
+  });
+
+  it('plays the chosen built-in board, the loop by default', () => {
+    expect(ok(form()).board).toBe(TEST_LOOP_BOARD);
+    const branch = ok(form({ board: 'test-branch' }));
+    expect(branch.board).toBe(TEST_BRANCH_BOARD);
+    expect(createGame(branch).ok).toBe(true);
   });
 
   it('uses as many seats as the player count', () => {

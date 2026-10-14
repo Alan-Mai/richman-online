@@ -7,6 +7,7 @@ export const zhTW = {
 
   'setup.defaultName': '玩家 {n}',
   'setup.title': '新遊戲',
+  'setup.board': '地圖',
   'setup.playerCount': '玩家人數',
   'setup.playerName': '玩家 {n} 名稱',
   'setup.winCondition': '勝負條件',
@@ -64,6 +65,7 @@ export const zhTW = {
   'hud.cash': '現金',
   'hud.deposit': '存款',
   'hud.bankrupt': '破產',
+  'hud.notStarted': '尚未出發',
   'hud.players': '玩家',
   'hud.yourTurn': '輪到 {name}',
   'hud.playing': '播放中…',
