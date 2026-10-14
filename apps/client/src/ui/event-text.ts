@@ -60,6 +60,37 @@ export function describeEvent(event: GameEvent, model: DisplayModel, board: Boar
         });
       }
       return t('event.bankrupt', { name: name(event.playerId) });
+    case 'AuctionStarted': {
+      const started = t('event.auctionStarted', {
+        tile: tile(event.tile),
+        price: formatMoney(event.startPrice),
+        remaining: event.remaining,
+      });
+      return event.bidders.length > 0 ? started : `${started}；${t('event.auctionNoBidders')}`;
+    }
+    case 'AuctionRaised':
+      return t('event.auctionRaised', {
+        name: name(event.playerId),
+        raise: formatMoney(event.raise),
+        price: formatMoney(event.price),
+      });
+    case 'AuctionPassed':
+      return t('event.auctionPassed', { name: name(event.playerId) });
+    case 'AuctionWithdrawn':
+      return t(
+        event.reason === 'shortOfCash'
+          ? 'event.auctionWithdrawnShortOfCash'
+          : 'event.auctionWithdrawn',
+        { name: name(event.playerId) },
+      );
+    case 'AuctionWon':
+      return t('event.auctionWon', {
+        name: name(event.playerId),
+        price: formatMoney(event.price),
+        tile: tile(event.tile),
+      });
+    case 'AuctionUnsold':
+      return t('event.auctionUnsold', { tile: tile(event.tile) });
     case 'GameEnded':
       return t(`event.gameEnded.${event.reason}`);
   }

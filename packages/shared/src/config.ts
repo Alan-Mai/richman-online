@@ -1,5 +1,6 @@
 // Tunable rule parameters (docs/GAME_RULES.md, fields marked ⚙️).
-// Defaults are provisional values chosen for this project, not values from the original game.
+// Defaults are provisional values chosen for this project, not values from the original game, unless
+// a field says it is the original's.
 
 export interface RuleConfig {
   minPlayers: number;
@@ -25,6 +26,16 @@ export interface RuleConfig {
   defaultDiceCount: number;
   diceFaces: number;
   maxLevel: number;
+  /**
+   * A bankrupt player's properties are auctioned only when there are more than this many, and then
+   * this many drawn at random (docs/GAME_RULES.md §8; the original's constant).
+   */
+  auctionPlotCount: number;
+  /**
+   * The raises a bidder may add to the current price, ascending; not multiplied by the price index
+   * (docs/GAME_RULES.md §8; the original's five steps).
+   */
+  auctionRaises: readonly number[];
 }
 
 export const DEFAULT_RULE_CONFIG: RuleConfig = {
@@ -37,10 +48,15 @@ export const DEFAULT_RULE_CONFIG: RuleConfig = {
   defaultDiceCount: 1,
   diceFaces: 6,
   maxLevel: 5,
+  auctionPlotCount: 3,
+  auctionRaises: [100, 500, 1000, 5000, 10000],
 };
 
 export type RuleConfigErrorReason =
-  'notNonNegativeInteger' | 'notPositiveInteger' | 'lessThanMinPlayers';
+  | 'notNonNegativeInteger'
+  | 'notPositiveInteger'
+  | 'lessThanMinPlayers'
+  | 'notAscendingPositiveIntegers';
 
 export interface RuleConfigError {
   field: keyof RuleConfig;
@@ -59,7 +75,7 @@ function isPositiveInteger(value: number): boolean {
 export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
   const errors: RuleConfigError[] = [];
 
-  const nonNegative = ['startingPoints', 'maxLevel'] as const;
+  const nonNegative = ['startingPoints', 'maxLevel', 'auctionPlotCount'] as const;
   for (const field of nonNegative) {
     if (!isNonNegativeInteger(config[field])) {
       errors.push({ field, reason: 'notNonNegativeInteger' });
@@ -81,6 +97,14 @@ export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
 
   if (config.minPlayers > config.maxPlayers) {
     errors.push({ field: 'maxPlayers', reason: 'lessThanMinPlayers' });
+  }
+
+  const raises = config.auctionRaises;
+  const ascending = raises.every(
+    (raise, i) => isPositiveInteger(raise) && (i === 0 || raise > (raises[i - 1] ?? 0)),
+  );
+  if (raises.length === 0 || !ascending) {
+    errors.push({ field: 'auctionRaises', reason: 'notAscendingPositiveIntegers' });
   }
 
   for (const field of ['dayLimit', 'netWorthTargetMultiple'] as const) {

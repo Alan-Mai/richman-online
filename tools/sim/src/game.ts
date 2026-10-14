@@ -3,6 +3,7 @@ import {
   DEFAULT_RULE_CONFIG,
   TEST_BRANCH_BOARD,
   TEST_LOOP_BOARD,
+  actorOf,
   applyAction,
   checkInvariants,
   createGame,
@@ -22,12 +23,13 @@ import {
 /** The engine functions the simulator calls; tests swap in broken ones. */
 export interface Engine {
   createGame: typeof createGame;
+  actorOf: typeof actorOf;
   applyAction: typeof applyAction;
   legalActions: typeof legalActions;
   checkInvariants: typeof checkInvariants;
 }
 
-export const ENGINE: Engine = { createGame, applyAction, legalActions, checkInvariants };
+export const ENGINE: Engine = { createGame, actorOf, applyAction, legalActions, checkInvariants };
 
 export const PLAYER_COUNT = 4;
 
@@ -45,13 +47,19 @@ export function isBoardName(name: unknown): name is BoardName {
   return typeof name === 'string' && Object.hasOwn(BOARDS, name);
 }
 
-/** A Record so adding an ActionType without listing it here is a type error. */
-const ACTION_TYPES = Object.keys({
-  rollDice: true,
-  buyProperty: true,
-  upgradeProperty: true,
-  decline: true,
-} satisfies Record<ActionType, true>) as ActionType[];
+/**
+ * A well-formed example of every action type, for checking that unoffered types are refused. A
+ * Record so adding an ActionType without listing it here is a type error.
+ */
+const EXAMPLE_ACTIONS: Record<ActionType, (playerId: PlayerId) => Action> = {
+  rollDice: (playerId) => ({ type: 'rollDice', playerId }),
+  buyProperty: (playerId) => ({ type: 'buyProperty', playerId }),
+  upgradeProperty: (playerId) => ({ type: 'upgradeProperty', playerId }),
+  decline: (playerId) => ({ type: 'decline', playerId }),
+  bid: (playerId) => ({ type: 'bid', playerId, raise: DEFAULT_RULE_CONFIG.auctionRaises[0] ?? 1 }),
+  passRound: (playerId) => ({ type: 'passRound', playerId }),
+  withdraw: (playerId) => ({ type: 'withdraw', playerId }),
+};
 
 export interface GameSpec {
   board: BoardName;
@@ -77,7 +85,7 @@ export type Failure =
   /** The price index only rises (docs/GAME_RULES.md §3). */
   | { kind: 'priceIndexFell'; from: number; to: number }
   | { kind: 'noLegalActions'; playerId: PlayerId }
-  /** Someone other than the current player (or anyone after game over) was offered actions. */
+  /** Someone other than actorOf (the player the game waits for; nobody after game over) was offered actions. */
   | { kind: 'offeredOutOfTurn'; playerId: PlayerId; actions: Action[] }
   | { kind: 'legalActionRejected'; action: Action; error: RuleError }
   /** An action type missing from legalActions was not refused with wrongPhase. */
@@ -132,7 +140,7 @@ export function gameSetup(
 
 /**
  * Checks one state before an action is chosen: the price index did not fall since the previous
- * state (null for the first), invariants hold, nobody but the current player is
+ * state (null for the first), invariants hold, nobody but actorOf is
  * offered anything (nobody at all after game over), every offered action is accepted and every
  * other action type is refused with wrongPhase. May throw if the engine does.
  */
@@ -148,23 +156,22 @@ export function checkStep(
   if (violations.length > 0) {
     return { kind: 'invariant', violations };
   }
-  const over = state.turn.phase.kind === 'gameOver';
-  const current = state.turn.current;
+  const actor = engine.actorOf(state);
   for (const { id } of state.players) {
-    if (over || id !== current) {
+    if (id !== actor) {
       const offered = engine.legalActions(state, id);
       if (offered.length > 0) {
         return { kind: 'offeredOutOfTurn', playerId: id, actions: offered };
       }
     }
   }
-  if (over) {
+  if (actor === null) {
     return null;
   }
 
-  const legal = engine.legalActions(state, current);
+  const legal = engine.legalActions(state, actor);
   if (legal.length === 0) {
-    return { kind: 'noLegalActions', playerId: current };
+    return { kind: 'noLegalActions', playerId: actor };
   }
   for (const action of legal) {
     const result = engine.applyAction(state, action);
@@ -172,9 +179,9 @@ export function checkStep(
       return { kind: 'legalActionRejected', action, error: result.error };
     }
   }
-  for (const type of ACTION_TYPES) {
+  for (const [type, example] of Object.entries(EXAMPLE_ACTIONS)) {
     if (!legal.some((a) => a.type === type)) {
-      const action: Action = { type, playerId: current };
+      const action = example(actor);
       const result = engine.applyAction(state, action);
       if (result.ok || result.error.code !== 'wrongPhase') {
         return {
@@ -233,7 +240,7 @@ export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
         return fail({ kind: 'stepLimit', maxSteps: spec.maxSteps });
       }
 
-      const legal = engine.legalActions(state, state.turn.current);
+      const legal = engine.legalActions(state, engine.actorOf(state) ?? '');
       const [pick, next] = nextInt(chooser, legal.length);
       chooser = next;
       const action = legal[pick];

@@ -46,6 +46,28 @@ describe('validateRuleConfig', () => {
     });
   });
 
+  it('uses the original auction constants', () => {
+    expect(DEFAULT_RULE_CONFIG.auctionPlotCount).toBe(3);
+    expect(DEFAULT_RULE_CONFIG.auctionRaises).toEqual([100, 500, 1000, 5000, 10000]);
+  });
+
+  it('takes a non-negative auction plot count', () => {
+    expect(validateRuleConfig(withConfig({ auctionPlotCount: 0 }))).toEqual([]);
+    expect(validateRuleConfig(withConfig({ auctionPlotCount: -1 }))).toContainEqual({
+      field: 'auctionPlotCount',
+      reason: 'notNonNegativeInteger',
+    });
+  });
+
+  it('requires the auction raises to be ascending positive integers', () => {
+    expect(validateRuleConfig(withConfig({ auctionRaises: [1] }))).toEqual([]);
+    for (const auctionRaises of [[], [0, 100], [100, 100], [500, 100], [100, 1.5]]) {
+      expect(validateRuleConfig(withConfig({ auctionRaises }))).toEqual([
+        { field: 'auctionRaises', reason: 'notAscendingPositiveIntegers' },
+      ]);
+    }
+  });
+
   it('takes null or a positive integer as the day limit and the net worth target', () => {
     const valid = withConfig({ dayLimit: 50, netWorthTargetMultiple: 3 });
     expect(validateRuleConfig(valid)).toEqual([]);

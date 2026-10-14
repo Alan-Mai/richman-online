@@ -119,6 +119,17 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
         ? next
         : updatePlayer(next, creditor, (p) => ({ deposit: p.deposit + event.paidToCreditor }));
     }
+    case 'AuctionWon': {
+      const paid = updatePlayer(model, event.playerId, (p) => ({ cash: p.cash - event.price }));
+      const level = paid.tiles[event.tile]?.level ?? 0;
+      return updateTile(paid, event.tile, { owner: event.playerId, level });
+    }
+    case 'AuctionStarted':
+    case 'AuctionRaised':
+    case 'AuctionPassed':
+    case 'AuctionWithdrawn':
+    case 'AuctionUnsold':
+      return model;
     case 'GameEnded':
       return { ...model, winners: [...event.winners] };
   }

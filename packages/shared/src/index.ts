@@ -40,6 +40,7 @@ export type { RuleError } from './errors';
 export { checkInvariants } from './invariants';
 export type { BankruptcyCause, GameEvent, GameEventType } from './events';
 export {
+  auctionStartPrice,
   buyPrice,
   netWorth,
   rentFor,
@@ -49,7 +50,14 @@ export {
 } from './money';
 export type { PlayerId, TileIndex } from './ids';
 export type { ServerUpdate } from './protocol';
-export { viewFor, type PlayerView, type Viewer } from './view';
+export {
+  viewFor,
+  type AuctionPhaseView,
+  type PhaseView,
+  type PlayerView,
+  type TurnView,
+  type Viewer,
+} from './view';
 export {
   createRng,
   nextInt,
@@ -59,6 +67,9 @@ export {
   type RngState,
 } from './rng';
 export type {
+  AuctionBidder,
+  AuctionBidderStatus,
+  AuctionPhase,
   Controller,
   GameState,
   Phase,

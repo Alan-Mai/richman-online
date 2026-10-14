@@ -286,6 +286,45 @@ describe('describeEvent bankruptcy', () => {
   });
 });
 
+describe('describeEvent auctions', () => {
+  const model = displayFromView(updates[0]!.view);
+  const name = (i: number) => TEST_LOOP_BOARD.tiles[i]!.name;
+  const cases: [string, Parameters<typeof describeEvent>[0], string][] = [
+    [
+      'opening',
+      { type: 'AuctionStarted', tile: 1, startPrice: 1500, bidders: ['p2'], remaining: 2 },
+      `拍賣 ${name(1)}，起標價 1,500（之後還有 2 塊）`,
+    ],
+    [
+      'opening without bidders',
+      { type: 'AuctionStarted', tile: 1, startPrice: 1500, bidders: [], remaining: 0 },
+      `拍賣 ${name(1)}，起標價 1,500（之後還有 0 塊）；沒有人有資格出價`,
+    ],
+    [
+      'raise',
+      { type: 'AuctionRaised', playerId: 'p2', raise: 500, price: 2000 },
+      '玩家2 加價 500，目前價 2,000',
+    ],
+    ['pass', { type: 'AuctionPassed', playerId: 'p3' }, '玩家3 本輪放棄'],
+    ['withdrawal', { type: 'AuctionWithdrawn', playerId: 'p3', reason: 'chose' }, '玩家3 退出拍賣'],
+    [
+      'forced withdrawal',
+      { type: 'AuctionWithdrawn', playerId: 'p3', reason: 'shortOfCash' },
+      '玩家3 現金不足，退出拍賣',
+    ],
+    [
+      'sale',
+      { type: 'AuctionWon', playerId: 'p2', tile: 1, price: 2000 },
+      `玩家2 以 2,000 標得 ${name(1)}`,
+    ],
+    ['no sale', { type: 'AuctionUnsold', tile: 1 }, `${name(1)} 流標`],
+  ];
+
+  it.each(cases)('describes the %s', (_, event, text) => {
+    expect(describeEvent(event, model, TEST_LOOP_BOARD)).toBe(text);
+  });
+});
+
 describe('describeEvent', () => {
   it('describes every event type in the sample game', () => {
     let model = displayFromView(updates[0]!.view);

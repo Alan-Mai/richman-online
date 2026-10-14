@@ -1,6 +1,7 @@
 // State transitions of the rule engine. Pure and deterministic: randomness only comes from
 // state.rngState (see CLAUDE.md and .claude/rules/shared-engine.md).
 import type { Action, ActionType } from './actions';
+import { applyAuctionAction, auctionActions, startAuctions, type AuctionStep } from './auction';
 import { isPlaceable, validateBoard, type Board, type BoardError } from './board';
 import { validateRuleConfig, type RuleConfig, type RuleConfigError } from './config';
 import type { RuleError } from './errors';
@@ -107,6 +108,7 @@ export function createGame(setup: GameSetup): CreateGameResult {
     turn: { current: first.id, round: 1, phase: { kind: 'awaitRoll' } },
     day: 0,
     priceIndex: 1,
+    lotteryPool: 0,
     rngState: createRng(setup.seed),
   };
   const started = startTurn(state, first.id, 1);
@@ -121,6 +123,9 @@ const ACTION_TYPES: ReadonlySet<string> = new Set<ActionType>([
   'buyProperty',
   'upgradeProperty',
   'decline',
+  'bid',
+  'passRound',
+  'withdraw',
 ]);
 
 /** Actions arrive from the network; rebuild a clean Action or reject the shape. */
@@ -128,11 +133,24 @@ function parseAction(raw: unknown): Action | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return null;
   }
-  const { type, playerId } = raw as Record<string, unknown>;
+  const { type, playerId, raise } = raw as Record<string, unknown>;
   if (typeof type !== 'string' || !ACTION_TYPES.has(type) || typeof playerId !== 'string') {
     return null;
   }
-  return { type: type as ActionType, playerId };
+  const actionType = type as ActionType;
+  switch (actionType) {
+    case 'bid':
+      return Number.isSafeInteger(raise)
+        ? { type: actionType, playerId, raise: raise as number }
+        : null;
+    case 'rollDice':
+    case 'buyProperty':
+    case 'upgradeProperty':
+    case 'decline':
+    case 'passRound':
+    case 'withdraw':
+      return { type: actionType, playerId };
+  }
 }
 
 function reject(error: RuleError): Result {
@@ -180,15 +198,32 @@ export function applyAction(state: GameState, rawAction: Action): Result {
       return phase.kind === 'awaitBuyDecision' || phase.kind === 'awaitUpgradeDecision'
         ? accept(endTurn(state))
         : wrongPhase(phase.kind);
+    case 'bid':
+    case 'passRound':
+    case 'withdraw': {
+      if (phase.kind !== 'auction') {
+        return wrongPhase(phase.kind);
+      }
+      const result = applyAuctionAction(state, phase, action);
+      return result.ok ? accept(afterAuctionStep(result.step)) : reject(result.error);
+    }
   }
 }
 
 /**
  * Who the game is waiting for, or null once it is over. Usually turn.current; during an auction
- * (docs/GAME_RULES.md §8) it will be the bidder whose turn it is. Only one player acts at a time.
+ * (docs/GAME_RULES.md §8) the bidder whose turn it is. Only one player acts at a time.
  */
 export function actorOf(state: GameState): PlayerId | null {
-  return state.turn.phase.kind === 'gameOver' ? null : state.turn.current;
+  const { phase } = state.turn;
+  switch (phase.kind) {
+    case 'gameOver':
+      return null;
+    case 'auction':
+      return phase.bidder;
+    default:
+      return state.turn.current;
+  }
 }
 
 /** Server-only: the actions playerId may send now. Empty unless it is their turn. */
@@ -209,6 +244,8 @@ export function legalActions(state: GameState, playerId: PlayerId): Action[] {
         { type: 'upgradeProperty', playerId },
         { type: 'decline', playerId },
       ];
+    case 'auction':
+      return auctionActions(state, state.turn.phase);
     case 'gameOver':
       return [];
   }
@@ -362,15 +399,37 @@ function resolveLanding(state: GameState): Step {
   } else {
     const amount = rentFor(state, index);
     const paid = pay(state, player.id, { kind: 'rent', tile: index, creditor: owner, amount });
-    const events: GameEvent[] = paid.bankrupt
-      ? paid.events
-      : [
-          ...paid.events,
-          { type: 'RentPaid', from: player.id, to: owner, tile: index, amount, into: 'deposit' },
-        ];
-    return chain({ state: paid.state, events }, endTurn);
+    if (paid.bankrupt) {
+      return chain(paid, (s) => afterBankruptcy(s, paid.releasedTiles));
+    }
+    const rent: GameEvent = {
+      type: 'RentPaid',
+      from: player.id,
+      to: owner,
+      tile: index,
+      amount,
+      into: 'deposit',
+    };
+    return chain({ state: paid.state, events: [...paid.events, rent] }, endTurn);
   }
   return endTurn(state);
+}
+
+/**
+ * The current player has just gone bankrupt (docs/GAME_RULES.md §8). If the game goes on, some of
+ * the released properties may be auctioned before the turn ends; the bankrupt player stays
+ * turn.current meanwhile. With one player left the game ends at once, without auctions.
+ */
+function afterBankruptcy(state: GameState, released: readonly TileIndex[]): Step {
+  if (state.players.filter((p) => !p.bankrupt).length <= 1) {
+    return endTurn(state);
+  }
+  return afterAuctionStep(startAuctions(state, released));
+}
+
+function afterAuctionStep(step: AuctionStep): Step {
+  const { state, events } = step;
+  return step.done ? chain({ state, events }, endTurn) : { state, events };
 }
 
 function awaitDecision(state: GameState, phase: Phase): Step {

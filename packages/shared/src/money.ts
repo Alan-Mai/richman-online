@@ -31,6 +31,16 @@ export function upgradeCost(view: PriceView, tile: TileIndex): number {
   return view.priceIndex * propertyAt(view, tile).def.upgradeCost;
 }
 
+/**
+ * Where the bidding on a property starts (docs/GAME_RULES.md §8): floor(land price × (1 + 0.5 ×
+ * level)) × price index. Upgrade costs do not count.
+ */
+export function auctionStartPrice(view: PriceView, tile: TileIndex): number {
+  const { def, level } = propertyAt(view, tile);
+  // price × (1 + 0.5 × level) in integers, rounded down.
+  return view.priceIndex * Math.floor((def.price * (2 + level)) / 2);
+}
+
 /** One tile's rent at its own level. */
 function levelRent(view: PriceView, tile: TileIndex): number {
   const { def, level } = propertyAt(view, tile);
@@ -108,19 +118,25 @@ function withdraw(state: GameState, playerId: PlayerId, amount: number): Step {
   };
 }
 
-/** A forced payment. Rent goes to the tile owner; system debts (taxes, fines) go nowhere. */
+/**
+ * A forced payment. Rent goes to the tile owner; system debts (taxes, fines) go nowhere unless the
+ * debtor goes bankrupt over one, when what they had left goes into the lottery pool.
+ */
 export type Debt =
   | { kind: 'rent'; tile: TileIndex; creditor: PlayerId; amount: number }
   | { kind: 'system'; amount: number };
 
 export interface PayResult extends Step {
   bankrupt: boolean;
+  /** The properties a bankruptcy released; empty otherwise. */
+  releasedTiles: readonly TileIndex[];
 }
 
 /**
  * Forced payment (docs/GAME_RULES.md §8): cash first, then the deposit. If both together fall short
  * the debtor goes bankrupt: money is zeroed, every owned tile becomes unowned and keeps its
- * buildings, and a player creditor receives everything the debtor had left. Bankruptcy emits only
+ * buildings, and everything the debtor had left goes to a player creditor, or into the lottery pool
+ * for a debt to the system. The auctions that may follow are the caller's. Bankruptcy emits only
  * PlayerBankrupt.
  */
 export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult {
@@ -129,7 +145,7 @@ export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult
     throw new RangeError(`debt must be a non-negative integer, got ${amount}`);
   }
   if (amount === 0) {
-    return { state, events: [], bankrupt: false };
+    return { state, events: [], bankrupt: false, releasedTiles: [] };
   }
 
   const creditor = debt.kind === 'rent' ? debt.creditor : null;
@@ -141,6 +157,7 @@ export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult
       state: creditor === null ? paid.state : receive(paid.state, creditor, amount),
       events: paid.events,
       bankrupt: false,
+      releasedTiles: [],
     };
   }
 
@@ -150,9 +167,10 @@ export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult
     ...updatePlayer(state, debtorId, () => ({ cash: 0, deposit: 0, bankrupt: true })),
     tiles: state.tiles.map((tile) => (tile.owner === debtorId ? { ...tile, owner: null } : tile)),
   };
-  if (creditor !== null) {
-    next = receive(next, creditor, paidToCreditor);
-  }
+  next =
+    creditor === null
+      ? { ...next, lotteryPool: next.lotteryPool + available }
+      : receive(next, creditor, paidToCreditor);
   const cause: BankruptcyCause =
     debt.kind === 'rent'
       ? { kind: 'rent', tile: debt.tile, amountDue: amount }
@@ -170,6 +188,7 @@ export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult
       },
     ],
     bankrupt: true,
+    releasedTiles,
   };
 }
 

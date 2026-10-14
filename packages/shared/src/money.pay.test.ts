@@ -54,7 +54,7 @@ describe('pay when the debtor can cover it', () => {
   it('does nothing for a zero debt', () => {
     const state = game({ cash: 0, deposit: 0 });
     const result = pay(state, 'p1', rent(0));
-    expect(result).toEqual({ state, events: [], bankrupt: false });
+    expect(result).toEqual({ state, events: [], bankrupt: false, releasedTiles: [] });
   });
 
   it('takes system debts without paying anyone', () => {
@@ -107,6 +107,7 @@ describe('pay when the debtor cannot cover it', () => {
     state = patchTile(state, 3, { owner: 'p2', level: 1 });
     const result = pay(state, 'p1', rent(10));
     expect(result.events[0]).toMatchObject({ type: 'PlayerBankrupt', releasedTiles: [1, 4] });
+    expect(result.releasedTiles).toEqual([1, 4]);
     expect(result.state.tiles).toEqual([
       { owner: null, level: 0 },
       { owner: null, level: 0 },
@@ -117,7 +118,7 @@ describe('pay when the debtor cannot cover it', () => {
     ]);
   });
 
-  it('writes off a system debt', () => {
+  it('puts what is left of a system debt into the lottery pool', () => {
     const state = game({ cash: 300, deposit: 200 });
     const result = pay(state, 'p1', { kind: 'system', amount: 1000 });
     expect(result.events).toEqual([
@@ -132,6 +133,12 @@ describe('pay when the debtor cannot cover it', () => {
     ]);
     expect(getPlayer(result.state, 'p1')).toMatchObject({ cash: 0, deposit: 0, bankrupt: true });
     expect(result.state.players.slice(1)).toEqual(state.players.slice(1));
+    expect(result.state.lotteryPool).toBe(500);
+  });
+
+  it('pays a rent bankruptcy to the creditor, not the lottery pool', () => {
+    const result = pay(game({ cash: 300, deposit: 200 }), 'p1', rent(1000));
+    expect(result.state.lotteryPool).toBe(0);
   });
 });
 

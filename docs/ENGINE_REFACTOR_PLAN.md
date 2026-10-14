@@ -51,6 +51,13 @@
   - [x] D1。client `display.ts`：`PlayerBankrupt` 只清擁有者、`PropertyBought` 保留原等級。模擬器 `stats.test` 用到舊不變量訊息當範例字串，改成另一則訊息。
     - D6 待補：棋盤的 `drawOwnership` 只畫有地主的地，無主地的保留建築目前看不到（HUD 格子資訊有等級與含建築的購地價）。D6 時一併畫出，列入試玩清單。
   - [x] D2。`controller` 在 `PlayerSetup` 為必填（`createGame` 對未知值回傳 `invalidController`）；`actorOf` 在 `gameOver` 時回傳 `null`。補上 C4 延後的「電腦與人類拆法相同（暫定）」測試。client 設定畫面與模擬器暫時全部設成 `human`（D5、D6 再開放）；模擬器的失敗紀錄 `players` 多了 `controller`，`LOG_VERSION` 改成 4。
+  - [x] D3。和計畫的差異與補充：
+    - 查證（`local-assets/ghidra` 反組譯）：破產處理先判斷「只剩 1 人」並直接結束，之後才釋出地產與拍賣，所以引擎在只剩 1 人時不拍賣。結標判斷、跳過已退出者（不跳過已放棄者）、輪到時現金低於目前價自動退出，都照筆記的 p／q 流程。
+    - `RuleConfig` 新增 `auctionPlotCount`（3）與 `auctionRaises`（5 檔），是 `GAME_RULES.md` 第 8 節已寫的原版常數；`auctionRaises` 必須是遞增的正整數。不在表內的加價回 `invalidAction`、現金不足回 `insufficientFunds`。
+    - 事件：`AuctionStarted`（含資格名單與之後剩餘塊數；沒人有資格時名單為空，緊接 `AuctionUnsold`）、`AuctionRaised`、`AuctionPassed`、`AuctionWithdrawn`（`reason: 'chose' | 'shortOfCash'`）、`AuctionWon`、`AuctionUnsold`。`viewFor` 的拍賣 phase 以 `remaining` 取代 `queue`（`PhaseView`／`TurnView`）。
+    - 系統債務破產時剩餘的錢進 `lotteryPool`（`pay` 內處理）；`PayResult` 加 `releasedTiles`。
+    - 為了讓測試保持綠燈，D5／D6 的一部分提前做：模擬器改用 `actorOf`、沒提供的動作類型改用各自的範例動作（`bid` 帶參數）；client 的 intent 帶完整參數（`toIntent`）、`LocalGameHost` 改用 `actorOf`、拍賣事件的 display／紀錄文字（暫定，D6 試玩時再調）／得標動畫；HUD 目前只有一個「加價」按鈕（最小一檔），D6 換成拍賣面板。
+    - 觀察：目前引擎沒有任何讓現金增加的來源（過路費進存款、付款先扣現金），破產發生時其他人的現金通常也已耗盡，所以隨機對局的拍賣幾乎都沒有人有資格出價（模擬器種子 1 各 300 局，兩張圖都沒有失敗）。`engine.legal.test` 改從「座位 0 很窮、其他人很有錢、各有 4 塊地」的狀態開始隨機對局，確保拍賣被走到。D6 試玩需要另外的設定或除錯掛勾才看得到有人出價的拍賣。
 - [ ] E0、E、F
 
 實作中發現的待補項目，直接寫進對應批次的條目。

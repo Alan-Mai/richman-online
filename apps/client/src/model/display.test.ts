@@ -100,6 +100,33 @@ describe('applyEventToDisplay', () => {
     expect(next.players[1]).toMatchObject({ cash: 750, deposit: 500 });
   });
 
+  it('AuctionWon takes the price from cash and hands over the tile with its buildings', () => {
+    const before: DisplayModel = {
+      ...model(),
+      tiles: [...model().tiles.slice(0, 2), { owner: null, level: 3 }],
+    };
+    const next = applyEventToDisplay(before, {
+      type: 'AuctionWon',
+      playerId: 'b',
+      tile: 2,
+      price: 700,
+    });
+    expect(next.players[1]).toMatchObject({ cash: 300, deposit: 500 });
+    expect(next.tiles[2]).toEqual({ owner: 'b', level: 3 });
+  });
+
+  it('the other auction events change nothing on their own', () => {
+    const before = model();
+    const events: GameEvent[] = [
+      { type: 'AuctionStarted', tile: 2, startPrice: 100, bidders: ['b'], remaining: 0 },
+      { type: 'AuctionRaised', playerId: 'b', raise: 100, price: 200 },
+      { type: 'AuctionPassed', playerId: 'b' },
+      { type: 'AuctionWithdrawn', playerId: 'b', reason: 'shortOfCash' },
+      { type: 'AuctionUnsold', tile: 2 },
+    ];
+    for (const event of events) expect(applyEventToDisplay(before, event)).toEqual(before);
+  });
+
   it('PropertyBought keeps the buildings of a released tile', () => {
     const before: DisplayModel = {
       ...model(),

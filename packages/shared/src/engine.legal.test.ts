@@ -4,13 +4,25 @@ import type { RuleConfig } from './config';
 import { actorOf, applyAction, legalActions } from './engine';
 import { checkInvariants } from './invariants';
 import { createRng, nextInt, type RngState } from './rng';
-import { applyOk, newTestGame, patchTurn } from './testing';
+import type { GameState } from './state';
+import {
+  applyOk,
+  exampleAction,
+  loopBoard,
+  newTestGame,
+  patchPlayer,
+  patchTile,
+  patchTurn,
+} from './testing';
 
 const ACTION_TYPES: readonly ActionType[] = [
   'rollDice',
   'buyProperty',
   'upgradeProperty',
   'decline',
+  'bid',
+  'passRound',
+  'withdraw',
 ];
 
 /**
@@ -18,13 +30,14 @@ const ACTION_TYPES: readonly ActionType[] = [
  * that each offered action is accepted, nobody else is offered anything, and unoffered action
  * types are refused.
  */
-function playRandomGame(config: Partial<RuleConfig>, seed: number, maxSteps: number) {
-  let state = newTestGame({ config, playerCount: 4, seed });
+function playRandomGame(start: GameState, seed: number, maxSteps: number) {
+  let state = start;
   let chooser: RngState = createRng(seed ^ 0x5eed);
   let steps = 0;
+  let auctionSteps = 0;
   while (state.turn.phase.kind !== 'gameOver' && steps < maxSteps) {
     expect(checkInvariants(state)).toEqual([]);
-    const current = state.turn.current;
+    const current = actorOf(state) ?? '';
     for (const player of state.players) {
       if (player.id !== current) expect(legalActions(state, player.id)).toEqual([]);
     }
@@ -34,13 +47,14 @@ function playRandomGame(config: Partial<RuleConfig>, seed: number, maxSteps: num
     for (const action of legal) expect(applyAction(state, action).ok).toBe(true);
     for (const type of ACTION_TYPES) {
       if (!legal.some((a) => a.type === type)) {
-        expect(applyAction(state, { type, playerId: current })).toEqual({
+        expect(applyAction(state, exampleAction(type, current))).toEqual({
           ok: false,
           error: { code: 'wrongPhase', phase: state.turn.phase.kind },
         });
       }
     }
 
+    if (state.turn.phase.kind === 'auction') auctionSteps++;
     const [pick, next] = nextInt(chooser, legal.length);
     chooser = next;
     const result = applyAction(state, legal[pick] as Action);
@@ -49,7 +63,7 @@ function playRandomGame(config: Partial<RuleConfig>, seed: number, maxSteps: num
     steps++;
   }
   expect(checkInvariants(state)).toEqual([]);
-  return state;
+  return { state, auctionSteps };
 }
 
 describe('legalActions completeness', () => {
@@ -77,10 +91,29 @@ describe('legalActions completeness', () => {
   it.each(configs)('holds for random games: %s', (_, config, maxSteps) => {
     let finished = 0;
     for (const seed of [1, 2, 3, 4, 5]) {
-      const end = playRandomGame(config, seed, maxSteps);
+      const start = newTestGame({ config, playerCount: 4, seed });
+      const end = playRandomGame(start, seed, maxSteps).state;
       if (end.turn.phase.kind === 'gameOver') finished++;
     }
     expect(finished).toBeGreaterThan(0);
+  });
+
+  it('holds through bankruptcy auctions', () => {
+    // Random play rarely gets there: rent goes into deposits, so cash only ever falls and bidders
+    // with enough cash are scarce. Start instead with every player owning 4 built properties, seat
+    // 0 poor and the others rich, so bankruptcies come with open auctions.
+    const board = loopBoard(Array.from({ length: 16 }, () => 2000));
+    let auctionSteps = 0;
+    for (const seed of [1, 2, 3, 4, 5]) {
+      let start = newTestGame({ board, playerCount: 4, seed, config: { defaultDiceCount: 2 } });
+      start.players.forEach((p, seat) => {
+        start = patchPlayer(start, p.id, { cash: seat === 0 ? 3000 : 40_000, deposit: 0 });
+        for (let k = 0; k < 4; k++)
+          start = patchTile(start, seat + 4 * k, { owner: p.id, level: 3 });
+      });
+      auctionSteps += playRandomGame(start, seed, 2000).auctionSteps;
+    }
+    expect(auctionSteps).toBeGreaterThan(20);
   });
 });
 

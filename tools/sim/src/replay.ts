@@ -148,7 +148,8 @@ export function replay(log: GameLog, engine: Engine = ENGINE): ReplayResult {
       if (failure !== null) {
         return { kind: 'failed', step, failure };
       }
-      if (!engine.legalActions(state, state.turn.current).some((a) => sameAction(a, action))) {
+      const offered = engine.legalActions(state, engine.actorOf(state) ?? '');
+      if (!offered.some((a) => sameAction(a, action))) {
         return { kind: 'failed', step, failure: { kind: 'notOffered', action } };
       }
       const result = engine.applyAction(state, action);

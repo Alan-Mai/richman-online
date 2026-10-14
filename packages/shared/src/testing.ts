@@ -1,5 +1,5 @@
 // Test-only helpers. Not exported from index.ts; the only place that creates scripted RNG states.
-import type { Action } from './actions';
+import type { Action, ActionType } from './actions';
 import type { Board, PropertyTileDef, TileDef } from './board';
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from './config';
 import { applyAction, createGame } from './engine';
@@ -189,4 +189,9 @@ export function applyOk(
     throw new Error(`action rejected: ${JSON.stringify(result.error)}`);
   }
   return { state: result.state, events: result.events };
+}
+
+/** A well-formed action of the given type, with made-up parameters where it takes any. */
+export function exampleAction(type: ActionType, playerId: PlayerId): Action {
+  return type === 'bid' ? { type, playerId, raise: 100 } : { type, playerId };
 }

@@ -3,10 +3,17 @@
 import type { Board } from './board';
 import type { RuleConfig } from './config';
 import type { PlayerId } from './ids';
-import type { GameState, PlayerState, TileState, TurnState } from './state';
+import type { AuctionPhase, GameState, Phase, PlayerState, TileState, TurnState } from './state';
 
 /** Who the view is for. A tagged union so no player id can be mistaken for a spectator. */
 export type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
+
+/** An auction as clients see it: the drawn properties still to come only as a count. */
+export type AuctionPhaseView = Omit<AuctionPhase, 'queue'> & { remaining: number };
+
+export type PhaseView = Exclude<Phase, AuctionPhase> | AuctionPhaseView;
+
+export type TurnView = Omit<TurnState, 'phase'> & { phase: PhaseView };
 
 export interface PlayerView {
   viewer: Viewer;
@@ -14,7 +21,7 @@ export interface PlayerView {
   board: Board;
   players: readonly PlayerState[];
   tiles: readonly TileState[];
-  turn: TurnState;
+  turn: TurnView;
   day: number;
   priceIndex: number;
 }
@@ -30,8 +37,16 @@ export function viewFor(state: GameState, viewer: Viewer): PlayerView {
     board: state.board,
     players: state.players.map((p) => ({ ...p, location: { ...p.location } })),
     tiles: state.tiles.map((t) => ({ ...t })),
-    turn: { ...state.turn },
+    turn: { ...state.turn, phase: viewPhase(state.turn.phase) },
     day: state.day,
     priceIndex: state.priceIndex,
   };
+}
+
+function viewPhase(phase: Phase): PhaseView {
+  if (phase.kind !== 'auction') {
+    return phase;
+  }
+  const { queue, ...open } = phase;
+  return { ...open, bidders: open.bidders.map((b) => ({ ...b })), remaining: queue.length };
 }

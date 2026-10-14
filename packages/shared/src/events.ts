@@ -32,12 +32,33 @@ export type GameEvent =
       playerId: PlayerId;
       /** null when the debt was owed to the system. */
       creditor: PlayerId | null;
-      /** Goes into the creditor's deposit, like rent. */
+      /**
+       * Goes into the creditor's deposit, like rent. A debt to the system pays no player: what the
+       * debtor had left goes into the lottery pool instead.
+       */
       paidToCreditor: number;
       /** Every tile the player owned, now unowned with its building level kept. */
       releasedTiles: readonly TileIndex[];
       cause: BankruptcyCause;
     }
+  /** A drawn property goes under the hammer (docs/GAME_RULES.md §8). */
+  | {
+      type: 'AuctionStarted';
+      tile: TileIndex;
+      startPrice: number;
+      /** Who may bid, in seat order; empty when nobody can, and AuctionUnsold follows at once. */
+      bidders: readonly PlayerId[];
+      /** How many drawn properties are still to be auctioned after this one. */
+      remaining: number;
+    }
+  | { type: 'AuctionRaised'; playerId: PlayerId; raise: number; price: number }
+  | { type: 'AuctionPassed'; playerId: PlayerId }
+  /** shortOfCash: their turn came with less cash than the current price. */
+  | { type: 'AuctionWithdrawn'; playerId: PlayerId; reason: 'chose' | 'shortOfCash' }
+  /** Paid from the winner's cash into the lottery pool; the buildings stay. */
+  | { type: 'AuctionWon'; playerId: PlayerId; tile: TileIndex; price: number }
+  /** Nobody bought it; it stays unowned with its buildings. */
+  | { type: 'AuctionUnsold'; tile: TileIndex }
   | {
       type: 'GameEnded';
       /**

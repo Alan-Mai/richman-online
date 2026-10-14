@@ -65,6 +65,19 @@ export class PhaserAnimator implements Animator {
           this.wait(FIXED_MS.bankrupt),
         ]);
         return;
+      case 'AuctionWon':
+        this.stage.showModel(after);
+        await Promise.all([
+          this.floatAt(board.tileCenter(event.tile), `-${formatMoney(event.price)}`, '#ff8a8a'),
+          this.wait(this.scaled(DURATIONS.property)),
+        ]);
+        return;
+      case 'AuctionStarted':
+      case 'AuctionRaised':
+      case 'AuctionPassed':
+      case 'AuctionWithdrawn':
+      case 'AuctionUnsold':
+        return;
       case 'GameEnded':
         return this.wait(this.scaled(DURATIONS.gameEnd));
     }

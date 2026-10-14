@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { newTestGame, patchTile, placePlayer, withFixedDice } from './testing';
+import type { AuctionPhase } from './state';
+import {
+  newTestGame,
+  patchPlayer,
+  patchTile,
+  patchTurn,
+  placePlayer,
+  withFixedDice,
+} from './testing';
 import { viewFor, type Viewer } from './view';
 
 const P1: Viewer = { kind: 'player', id: 'p1' };
@@ -21,7 +29,7 @@ describe('viewFor', () => {
 
   it('keeps everything else and records the viewer', () => {
     const base = patchTile(newTestGame({ playerCount: 3 }), 2, { owner: 'p2', level: 1 });
-    const state = { ...base, day: 4, priceIndex: 2 };
+    const state = { ...base, day: 4, priceIndex: 2, lotteryPool: 7000 };
     const view = viewFor(state, { kind: 'player', id: 'p2' });
     expect(view).toEqual({
       viewer: { kind: 'player', id: 'p2' },
@@ -45,6 +53,38 @@ describe('viewFor', () => {
       { kind: 'offBoard' },
     ]);
     expect(view.players[0]?.location).not.toBe(state.players[0]?.location);
+  });
+
+  it('does not send the lottery pool', () => {
+    const state = { ...newTestGame(), lotteryPool: 123_456 };
+    const view = viewFor(state, SPECTATOR);
+    expect('lotteryPool' in view).toBe(false);
+    expect(JSON.stringify(view)).not.toContain('123456');
+  });
+
+  it('sends the open auction but only how many drawn properties are still to come', () => {
+    const phase: AuctionPhase = {
+      kind: 'auction',
+      tile: 2,
+      queue: [17, 13],
+      startPrice: 1500,
+      price: 2000,
+      leader: 'p2',
+      bidder: 'p3',
+      bidders: [
+        { id: 'p2', status: 'bidding' },
+        { id: 'p3', status: 'passed' },
+      ],
+    };
+    const base = patchPlayer(newTestGame({ playerCount: 3 }), 'p1', { bankrupt: true });
+    const state = patchTurn(base, { phase });
+    for (const viewer of [P1, SPECTATOR]) {
+      const view = viewFor(state, viewer);
+      const { queue, ...open } = phase;
+      expect(queue).toHaveLength(2);
+      expect(view.turn.phase).toEqual({ ...open, remaining: 2 });
+      expect('queue' in view.turn.phase).toBe(false);
+    }
   });
 
   it("sends each player's controller", () => {

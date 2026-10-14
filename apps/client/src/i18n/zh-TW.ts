@@ -4,6 +4,9 @@ export const zhTW = {
   'action.buyProperty': '購買（{price}）',
   'action.upgradeProperty': '加蓋（{cost}）',
   'action.decline': '放棄',
+  'action.bid': '加價 {raise}',
+  'action.passRound': '本輪放棄',
+  'action.withdraw': '退出拍賣',
 
   'setup.defaultName': '玩家 {n}',
   'setup.title': '新遊戲',
@@ -98,6 +101,14 @@ export const zhTW = {
   'event.bankrupt': '{name} 破產了',
   'event.bankruptRent':
     '{name} 付不起 {tile} 的過路費 {amount}，破產了；{creditor} 的存款收到 {paid}',
+  'event.auctionStarted': '拍賣 {tile}，起標價 {price}（之後還有 {remaining} 塊）',
+  'event.auctionNoBidders': '沒有人有資格出價',
+  'event.auctionRaised': '{name} 加價 {raise}，目前價 {price}',
+  'event.auctionPassed': '{name} 本輪放棄',
+  'event.auctionWithdrawn': '{name} 退出拍賣',
+  'event.auctionWithdrawnShortOfCash': '{name} 現金不足，退出拍賣',
+  'event.auctionWon': '{name} 以 {price} 標得 {tile}',
+  'event.auctionUnsold': '{tile} 流標',
   'event.gameEnded.lastStanding': '遊戲結束：只剩一位玩家',
   'event.gameEnded.dayLimitOrNetWorthTarget': '遊戲結束：已達天數上限或淨值目標',
 } as const satisfies Record<string, string>;

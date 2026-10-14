@@ -70,7 +70,7 @@ describe('createGame', () => {
     expect(state.tiles).toHaveLength(TEST_LOOP_BOARD.tiles.length);
     for (const tile of state.tiles) expect(tile).toEqual({ owner: null, level: 0 });
     expect(state.turn).toEqual({ current: 'p1', round: 1, phase: { kind: 'awaitRoll' } });
-    expect(state).toMatchObject({ day: 0, priceIndex: 1 });
+    expect(state).toMatchObject({ day: 0, priceIndex: 1, lotteryPool: 0 });
     expect(state.rngState).toEqual(afterDraws(42, PLACEMENT_DRAWS));
   });
 

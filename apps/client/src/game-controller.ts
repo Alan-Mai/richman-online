@@ -3,7 +3,7 @@
 import type { ActionType, GameEvent, ServerUpdate } from '@richman/shared';
 import type { DisplayModel } from './model/display';
 import { EventQueue, type Animator } from './model/event-queue';
-import type { GameConnection } from './net/connection';
+import { toIntent, type GameConnection } from './net/connection';
 
 export interface ControllerSink {
   showModel?(model: DisplayModel): void;
@@ -59,10 +59,11 @@ export class GameController {
 
   /** Sends the action if it is currently offered; returns whether it was sent. */
   act(type: ActionType): boolean {
-    if (!this.available.includes(type)) return false;
+    const action = this.ready?.legalActions.find((a) => a.type === type);
+    if (action === undefined) return false;
     // Lock input until the resulting update has played.
     this.setReady(null);
-    this.connection.send({ type });
+    this.connection.send(toIntent(action));
     return true;
   }
 

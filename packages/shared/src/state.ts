@@ -46,11 +46,43 @@ export interface TileState {
   level: number;
 }
 
+/**
+ * A bidder's standing in the current auction: still bidding, passed this round (asked again after
+ * the next raise or once the others have had their turn), or out for good.
+ */
+export type AuctionBidderStatus = 'bidding' | 'passed' | 'withdrawn';
+
+export interface AuctionBidder {
+  id: PlayerId;
+  status: AuctionBidderStatus;
+}
+
+/**
+ * One property being auctioned off after a bankruptcy (docs/GAME_RULES.md §8). The seller is the
+ * system; turn.current stays the bankrupt player until the last drawn property is done.
+ */
+export interface AuctionPhase {
+  kind: 'auction';
+  tile: TileIndex;
+  /** The properties drawn to be auctioned after this one, in order. Hidden from clients. */
+  queue: readonly TileIndex[];
+  startPrice: number;
+  /** startPrice until someone raises. */
+  price: number;
+  /** The highest bidder; null until someone raises. */
+  leader: PlayerId | null;
+  /** Whose turn it is to bid; never the leader. */
+  bidder: PlayerId;
+  /** The players who could bid when the auction opened, in seat order. */
+  bidders: readonly AuctionBidder[];
+}
+
 /** What the game is waiting for. */
 export type Phase =
   | { kind: 'awaitRoll' }
   | { kind: 'awaitBuyDecision'; tile: TileIndex; price: number }
   | { kind: 'awaitUpgradeDecision'; tile: TileIndex; cost: number }
+  | AuctionPhase
   | { kind: 'gameOver'; winners: readonly PlayerId[] };
 
 export type PhaseKind = Phase['kind'];
@@ -75,6 +107,11 @@ export interface GameState {
   day: number;
   /** The price index (coef, docs/GAME_RULES.md §3): starts at 1 and never falls. */
   priceIndex: number;
+  /**
+   * The lottery prize pool (docs/GAME_RULES.md §4): auction proceeds and what is left of a debt to
+   * the system go here. Drawing it is Phase 5; viewFor does not send it for now.
+   */
+  lotteryPool: number;
   /** Server-only; viewFor strips it. */
   rngState: RngState;
 }

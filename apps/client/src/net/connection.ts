@@ -7,6 +7,12 @@ export type Intent = Action extends infer A
     : never
   : never;
 
+/** The action as its sender would send it, without playerId. */
+export function toIntent(action: Action): Intent {
+  const entries = Object.entries(action).filter(([key]) => key !== 'playerId');
+  return Object.fromEntries(entries) as Intent;
+}
+
 export type IntentRejection = { code: 'notLegal' } | RuleError;
 
 export type HostMessage =

@@ -1,8 +1,8 @@
 // Consistency checks on a GameState, shared by tests, tools/sim and a future server debug mode.
 // Total money is deliberately not checked: payouts and bonuses create money (docs/DECISIONS.md).
 import { isLinked } from './board';
-import type { GameState, PlayerState } from './state';
-import { buyPrice, upgradeCost } from './money';
+import type { AuctionPhase, GameState, PlayerState } from './state';
+import { auctionStartPrice, buyPrice, upgradeCost } from './money';
 
 function isNonNegativeInteger(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0;
@@ -18,8 +18,11 @@ export function checkInvariants(state: GameState): string[] {
   ];
 }
 
-function checkCalendar({ day, priceIndex }: GameState): string[] {
+function checkCalendar({ day, priceIndex, lotteryPool }: GameState): string[] {
   const errors: string[] = [];
+  if (!isNonNegativeInteger(lotteryPool)) {
+    errors.push(`lotteryPool ${lotteryPool} is not a non-negative integer`);
+  }
   if (!isNonNegativeInteger(day)) {
     errors.push(`day ${day} is not a non-negative integer`);
   }
@@ -94,7 +97,9 @@ function checkTurn(state: GameState): string[] {
   if (!Number.isSafeInteger(turn.round) || turn.round < 1) {
     errors.push(`turn: round ${turn.round} is not a positive integer`);
   }
-  if (turn.phase.kind !== 'gameOver' && current?.bankrupt === true) {
+  // A bankrupt player stays current while their properties are auctioned.
+  const mayBeBankrupt = turn.phase.kind === 'gameOver' || turn.phase.kind === 'auction';
+  if (!mayBeBankrupt && current?.bankrupt === true) {
     errors.push(`turn: current player ${current.id} is bankrupt`);
   }
   if (current !== undefined) {
@@ -148,6 +153,9 @@ function checkPhase(state: GameState, current: PlayerState): string[] {
       }
       break;
     }
+    case 'auction':
+      errors.push(...checkAuction(state, phase).map((error) => `phase auction: ${error}`));
+      break;
     case 'gameOver':
       for (const winner of phase.winners) {
         const player = players.find((p) => p.id === winner);
@@ -158,6 +166,69 @@ function checkPhase(state: GameState, current: PlayerState): string[] {
         }
       }
       break;
+  }
+  return errors;
+}
+
+function checkAuction(state: GameState, phase: AuctionPhase): string[] {
+  const { board, players, tiles } = state;
+  const errors: string[] = [];
+  const drawn = [phase.tile, ...phase.queue];
+  drawn.forEach((tile, i) => {
+    if (board.tiles[tile]?.kind !== 'property') {
+      errors.push(`tile ${tile} is not a property`);
+    } else if (tiles[tile]?.owner != null) {
+      errors.push(`tile ${tile} is owned by ${tiles[tile]?.owner}`);
+    }
+    if (drawn.indexOf(tile) !== i) {
+      errors.push(`tile ${tile} is drawn twice`);
+    }
+  });
+  if (board.tiles[phase.tile]?.kind === 'property') {
+    const startPrice = auctionStartPrice(state, phase.tile);
+    if (phase.startPrice !== startPrice) {
+      errors.push(`start price ${phase.startPrice} does not match ${startPrice}`);
+    }
+  }
+
+  const cashOf = (id: string) => players.find((p) => p.id === id)?.cash ?? 0;
+  const { leader, price } = phase;
+  if (leader === null) {
+    if (price !== phase.startPrice) {
+      errors.push(`price ${price} is above the start price without a leader`);
+    }
+  } else {
+    if (price <= phase.startPrice) {
+      errors.push(`leader ${leader} but price ${price} is not above the start price`);
+    }
+    if (cashOf(leader) < price) {
+      errors.push(`leader ${leader} has less cash than the price ${price}`);
+    }
+  }
+
+  const seat = (id: string) => players.findIndex((p) => p.id === id);
+  const seats = phase.bidders.map((b) => seat(b.id));
+  if (seats.some((s, i) => i > 0 && s <= (seats[i - 1] ?? -1))) {
+    errors.push('bidders are not in seat order');
+  }
+  for (const { id } of phase.bidders) {
+    const player = players.find((p) => p.id === id);
+    if (player === undefined) {
+      errors.push(`bidder ${id} is not a player`);
+    } else if (player.bankrupt) {
+      errors.push(`bidder ${id} is bankrupt`);
+    }
+  }
+
+  const bidder = phase.bidders.find((b) => b.id === phase.bidder);
+  if (bidder === undefined) {
+    errors.push(`bidder ${phase.bidder} is not a bidder`);
+  } else if (bidder.status === 'withdrawn') {
+    errors.push(`bidder ${phase.bidder} has withdrawn`);
+  } else if (phase.bidder === leader) {
+    errors.push(`bidder ${phase.bidder} is the leader`);
+  } else if (cashOf(phase.bidder) < price) {
+    errors.push(`bidder ${phase.bidder} has less cash than the price ${price}`);
   }
   return errors;
 }

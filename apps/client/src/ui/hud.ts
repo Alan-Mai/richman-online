@@ -75,6 +75,15 @@ export function actionLabel(type: ActionType, update: ServerUpdate): string {
       });
     case 'decline':
       return t('action.decline');
+    case 'bid': {
+      // One button per raise arrives with D6's auction panel; until then the smallest one.
+      const raise = update.legalActions.find((a) => a.type === 'bid');
+      return t('action.bid', { raise: formatMoney(raise?.type === 'bid' ? raise.raise : 0) });
+    }
+    case 'passRound':
+      return t('action.passRound');
+    case 'withdraw':
+      return t('action.withdraw');
   }
 }
 

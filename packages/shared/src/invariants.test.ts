@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { checkInvariants } from './invariants';
-import type { GameState, Phase } from './state';
+import type { AuctionPhase, GameState, Phase } from './state';
 import { loopBoard, newTestGame, patchPlayer, patchTile, patchTurn, placePlayer } from './testing';
 
 /** Tiles 0 and 3 are blank; tile 1 costs 1000 (upgrade 500 at the default 50%), tile 2 costs 2000. */
@@ -237,5 +237,119 @@ describe('checkInvariants', () => {
       'tile 1: level 6 is outside 0..5',
       'turn: round 0 is not a positive integer',
     ]);
+  });
+});
+
+describe('checkInvariants during an auction', () => {
+  const PLOTS = loopBoard([null, 1000, 2000, 1000, 1000, null]);
+
+  /** p1 went bankrupt; p2..p4 bid on tile 2 (start 2000) with tile 3 to follow. */
+  function auction(patch: Partial<AuctionPhase> = {}): GameState {
+    let state = newTestGame({ board: PLOTS, playerCount: 4 });
+    state = patchPlayer(state, 'p1', { cash: 0, deposit: 0, bankrupt: true });
+    const phase: AuctionPhase = {
+      kind: 'auction',
+      tile: 2,
+      queue: [3],
+      startPrice: 2000,
+      price: 2500,
+      leader: 'p2',
+      bidder: 'p3',
+      bidders: [
+        { id: 'p2', status: 'bidding' },
+        { id: 'p3', status: 'passed' },
+        { id: 'p4', status: 'withdrawn' },
+      ],
+      ...patch,
+    };
+    return patchTurn(state, { phase });
+  }
+
+  it('accepts a consistent auction with a bankrupt current player', () => {
+    expect(checkInvariants(auction())).toEqual([]);
+    expect(checkInvariants(auction({ price: 2000, leader: null }))).toEqual([]);
+  });
+
+  const cases: [string, () => GameState, string][] = [
+    [
+      'negative lottery pool',
+      () => ({ ...auction(), lotteryPool: -1 }),
+      'lotteryPool -1 is not a non-negative integer',
+    ],
+    [
+      'owned tile',
+      () => patchTile(auction(), 2, { owner: 'p4' }),
+      'phase auction: tile 2 is owned by p4',
+    ],
+    ['blank tile', () => auction({ tile: 0 }), 'phase auction: tile 0 is not a property'],
+    [
+      'owned queued tile',
+      () => patchTile(auction(), 3, { owner: 'p4' }),
+      'phase auction: tile 3 is owned by p4',
+    ],
+    ['repeated tile', () => auction({ queue: [2] }), 'phase auction: tile 2 is drawn twice'],
+    [
+      'wrong start price',
+      () => auction({ startPrice: 1999 }),
+      'phase auction: start price 1999 does not match 2000',
+    ],
+    [
+      'leader but no raise',
+      () => auction({ price: 2000 }),
+      'phase auction: leader p2 but price 2000 is not above the start price',
+    ],
+    [
+      'raise without a leader',
+      () => auction({ leader: null }),
+      'phase auction: price 2500 is above the start price without a leader',
+    ],
+    [
+      'leader who cannot pay',
+      () => patchPlayer(auction(), 'p2', { cash: 2499 }),
+      'phase auction: leader p2 has less cash than the price 2500',
+    ],
+    [
+      'bidder is the leader',
+      () => auction({ bidder: 'p2' }),
+      'phase auction: bidder p2 is the leader',
+    ],
+    ['bidder withdrew', () => auction({ bidder: 'p4' }), 'phase auction: bidder p4 has withdrawn'],
+    [
+      'bidder who cannot pay',
+      () => patchPlayer(auction(), 'p3', { cash: 2499 }),
+      'phase auction: bidder p3 has less cash than the price 2500',
+    ],
+    [
+      'bidder not listed',
+      () => auction({ bidder: 'p1' }),
+      'phase auction: bidder p1 is not a bidder',
+    ],
+    [
+      'bankrupt bidder',
+      () =>
+        auction({
+          bidders: [
+            { id: 'p1', status: 'withdrawn' },
+            { id: 'p2', status: 'bidding' },
+            { id: 'p3', status: 'passed' },
+          ],
+        }),
+      'phase auction: bidder p1 is bankrupt',
+    ],
+    [
+      'bidders out of seat order',
+      () =>
+        auction({
+          bidders: [
+            { id: 'p3', status: 'passed' },
+            { id: 'p2', status: 'bidding' },
+          ],
+        }),
+      'phase auction: bidders are not in seat order',
+    ],
+  ];
+
+  it.each(cases)('reports %s', (_, build, message) => {
+    expect(checkInvariants(build())).toEqual([message]);
   });
 });

@@ -7,6 +7,7 @@ import {
   type GameSetup,
   type ServerUpdate,
 } from '@richman/shared';
+import { toIntent } from '../net/connection';
 import { LocalGameHost } from '../net/local-host';
 
 /** 'dayLimit' ends after 20 days; 'lastStanding' has no day limit or target. */
@@ -54,7 +55,7 @@ export function playRandomGame(setup: GameSetup, maxSteps = 20_000): ServerUpdat
     if (offered.length === 0) return updates;
     const [pick, nextRng] = nextInt(rng, offered.length);
     rng = nextRng;
-    host.send({ type: offered[pick]!.type });
+    host.send(toIntent(offered[pick]!));
   }
   throw new Error(`game did not end within ${maxSteps} steps`);
 }
