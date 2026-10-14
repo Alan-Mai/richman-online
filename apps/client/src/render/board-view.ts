@@ -1,4 +1,4 @@
-// Draws the board, ownership, house levels and player tokens with placeholder shapes.
+// Draws the board, ownership, house levels (owned or not) and player tokens with placeholder shapes.
 import Phaser from 'phaser';
 import { buyPrice, type Board, type Point, type TileIndex } from '@richman/shared';
 import { formatMoney } from '../i18n';
@@ -159,11 +159,13 @@ export class BoardView {
     this.ownerLayer.removeAll(true);
     const size = this.tileSize * 0.92;
     model.tiles.forEach((tile, i) => {
-      if (tile.owner === null) return;
-      const color = playerColor(this.seats.get(tile.owner) ?? 0);
+      if (tile.owner === null && tile.level === 0) return;
       const { x, y } = this.tileCenter(i);
-      const band = this.scene.add.rectangle(x, y - size * 0.42, size, size * 0.16, color);
-      this.ownerLayer.add(band);
+      // An owner's colour band; an unowned property keeps the buildings of a bankrupt owner.
+      if (tile.owner !== null) {
+        const color = playerColor(this.seats.get(tile.owner) ?? 0);
+        this.ownerLayer.add(this.scene.add.rectangle(x, y - size * 0.42, size, size * 0.16, color));
+      }
       // One small house per level, left to right on the band.
       const pip = size * 0.1;
       for (let level = 0; level < tile.level; level++) {

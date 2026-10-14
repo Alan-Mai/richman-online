@@ -1,6 +1,6 @@
 // What the screen currently shows. It advances one GameEvent at a time while animations play and
 // is checked against the authoritative PlayerView once a batch of events has been played.
-import type { GameEvent, PlayerId, PlayerView, TileIndex } from '@richman/shared';
+import type { AuctionBidder, GameEvent, PlayerId, PlayerView, TileIndex } from '@richman/shared';
 
 export interface DisplayPlayer {
   id: PlayerId;
@@ -17,6 +17,20 @@ export interface DisplayTile {
   level: number;
 }
 
+/**
+ * The auction on screen. Whose turn it is to bid is not here: events do not say it, so the HUD
+ * reads it from the latest view once everything has played.
+ */
+export interface DisplayAuction {
+  tile: TileIndex;
+  startPrice: number;
+  price: number;
+  leader: PlayerId | null;
+  bidders: readonly AuctionBidder[];
+  /** Drawn properties still to be auctioned after this one. */
+  remaining: number;
+}
+
 export interface DisplayModel {
   round: number;
   /** Days gone by (GameState.day). */
@@ -25,6 +39,8 @@ export interface DisplayModel {
   current: PlayerId;
   players: readonly DisplayPlayer[];
   tiles: readonly DisplayTile[];
+  /** null outside auctions. */
+  auction: DisplayAuction | null;
   /** null until the game ends. */
   winners: readonly PlayerId[] | null;
 }
@@ -45,8 +61,37 @@ export function displayFromView(view: PlayerView): DisplayModel {
       bankrupt,
     })),
     tiles: view.tiles.map(({ owner, level }) => ({ owner, level })),
+    auction:
+      phase.kind === 'auction'
+        ? {
+            tile: phase.tile,
+            startPrice: phase.startPrice,
+            price: phase.price,
+            leader: phase.leader,
+            bidders: phase.bidders.map((b) => ({ ...b })),
+            remaining: phase.remaining,
+          }
+        : null,
     winners: phase.kind === 'gameOver' ? [...phase.winners] : null,
   };
+}
+
+function updateAuction(
+  model: DisplayModel,
+  update: (auction: DisplayAuction) => Partial<DisplayAuction>,
+): DisplayModel {
+  const { auction } = model;
+  return auction === null ? model : { ...model, auction: { ...auction, ...update(auction) } };
+}
+
+function setBidderStatus(
+  model: DisplayModel,
+  id: PlayerId,
+  status: AuctionBidder['status'],
+): DisplayModel {
+  return updateAuction(model, (a) => ({
+    bidders: a.bidders.map((b) => (b.id === id ? { ...b, status } : b)),
+  }));
 }
 
 function updatePlayer(
@@ -119,17 +164,37 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
         ? next
         : updatePlayer(next, creditor, (p) => ({ deposit: p.deposit + event.paidToCreditor }));
     }
+    case 'AuctionStarted':
+      // With nobody to bid, AuctionUnsold follows at once and the panel only flashes.
+      return {
+        ...model,
+        auction: {
+          tile: event.tile,
+          startPrice: event.startPrice,
+          price: event.startPrice,
+          leader: null,
+          bidders: event.bidders.map((id) => ({ id, status: 'bidding' })),
+          remaining: event.remaining,
+        },
+      };
+    case 'AuctionRaised':
+      // A raise asks everyone who passed again.
+      return updateAuction(model, (a) => ({
+        price: event.price,
+        leader: event.playerId,
+        bidders: a.bidders.map((b) => (b.status === 'passed' ? { ...b, status: 'bidding' } : b)),
+      }));
+    case 'AuctionPassed':
+      return setBidderStatus(model, event.playerId, 'passed');
+    case 'AuctionWithdrawn':
+      return setBidderStatus(model, event.playerId, 'withdrawn');
     case 'AuctionWon': {
       const paid = updatePlayer(model, event.playerId, (p) => ({ cash: p.cash - event.price }));
       const level = paid.tiles[event.tile]?.level ?? 0;
-      return updateTile(paid, event.tile, { owner: event.playerId, level });
+      return { ...updateTile(paid, event.tile, { owner: event.playerId, level }), auction: null };
     }
-    case 'AuctionStarted':
-    case 'AuctionRaised':
-    case 'AuctionPassed':
-    case 'AuctionWithdrawn':
     case 'AuctionUnsold':
-      return model;
+      return { ...model, auction: null };
     case 'GameEnded':
       return { ...model, winners: [...event.winners] };
   }
@@ -153,6 +218,7 @@ export function diffDisplay(actual: DisplayModel, expected: DisplayModel): strin
       check(`players[${i}].${key}`, a?.[key], e[key]);
     }
   });
+  check('auction', JSON.stringify(actual.auction), JSON.stringify(expected.auction));
   check('tiles.length', actual.tiles.length, expected.tiles.length);
   expected.tiles.forEach((e, i) => {
     const a = actual.tiles[i];

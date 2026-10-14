@@ -4,6 +4,7 @@ import {
   TEST_BRANCH_BOARD,
   TEST_LOOP_BOARD,
   type Board,
+  type Controller,
   type GameSetup,
 } from '@richman/shared';
 import { t } from '../i18n';
@@ -28,6 +29,8 @@ export interface SetupForm {
   board: BoardChoice;
   playerCount: number;
   names: string[];
+  /** Who plays each seat; seats past the list are human. */
+  controllers: Controller[];
   /** Empty means no day limit. */
   dayLimit: string;
   /** Multiple of the starting funds; empty means no target. */
@@ -50,6 +53,7 @@ export function defaultSetupForm(): SetupForm {
     names: Array.from({ length: DEFAULT_RULE_CONFIG.maxPlayers }, (_, i) =>
       t('setup.defaultName', { n: i + 1 }),
     ),
+    controllers: Array.from({ length: DEFAULT_RULE_CONFIG.maxPlayers }, () => 'human'),
     dayLimit: '',
     netWorthTarget: '',
     startingFunds: String(DEFAULT_RULE_CONFIG.startingFunds),
@@ -121,7 +125,11 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
         startingFunds,
       },
       board: BOARDS[form.board],
-      players: names.map((name, seat) => ({ id: `p${seat + 1}`, name, controller: 'human' })),
+      players: names.map((name, seat) => ({
+        id: `p${seat + 1}`,
+        name,
+        controller: form.controllers[seat] ?? 'human',
+      })),
       seed,
     },
   };

@@ -57,6 +57,19 @@ export const DURATIONS = {
   property: 450,
   /** Pause after the game ends, before the result dialog. */
   gameEnd: 600,
+  /**
+   * A property goes up for auction, and one with nobody left to buy it is passed. Not from the
+   * original, whose auction dialog opens and closes with its own animations (checked with the
+   * animation tables, E0).
+   */
+  auctionOpen: 700,
+  auctionUnsold: 600,
+  /**
+   * One bid, pass or withdrawal stays readable before the next. Not from the original: there each
+   * bidder's character plays a short animation from its animation files (checked with the animation
+   * tables, E0a).
+   */
+  auctionBid: 600,
 } as const;
 
 /** Fixed waits taken from the original code; the game speed does not change them. */
@@ -65,6 +78,8 @@ export const FIXED_MS = {
   diceHold: 500,
   /** Whole bankruptcy animation, including its floating text. */
   bankrupt: 2000,
+  /** After a sale the original waits this long, hands the property over, and waits again. */
+  auctionSale: 1000,
 } as const;
 
 /** Playback speed multiplier while Space is held. Not in the original. */

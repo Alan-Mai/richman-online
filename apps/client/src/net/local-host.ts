@@ -3,6 +3,7 @@
 import {
   actorOf,
   applyAction,
+  computerAction,
   createGame,
   legalActions,
   viewFor,
@@ -11,14 +12,8 @@ import {
   type GameSetup,
   type GameState,
   type ServerUpdate,
-  type Action,
 } from '@richman/shared';
-import { toIntent, type GameConnection, type HostMessage, type Intent } from './connection';
-
-/** The intent is this action without its sender. */
-function sameIntent(action: Action, intent: Intent): boolean {
-  return JSON.stringify(toIntent(action)) === JSON.stringify(intent);
-}
+import { sameIntent, type GameConnection, type HostMessage, type Intent } from './connection';
 
 export type CreateHostResult =
   { ok: true; host: LocalGameHost } | { ok: false; errors: CreateGameError[] };
@@ -45,11 +40,15 @@ export class LocalGameHost implements GameConnection {
     return () => this.listeners.delete(listener);
   }
 
-  /** Sends the opening update (the first TurnStarted); later calls do nothing. */
+  /**
+   * Sends the opening update (the first TurnStarted), then plays any computer seats up to the first
+   * human decision; later calls do nothing.
+   */
   start(): void {
     if (this.started) return;
     this.started = true;
     this.broadcast(this.openingEvents);
+    this.playComputers();
   }
 
   /** Every seat plays on this device, so an intent always acts for whoever the game waits for. */
@@ -67,15 +66,38 @@ export class LocalGameHost implements GameConnection {
     }
     this.state = result.state;
     this.broadcast(result.events);
+    this.playComputers();
   }
 
-  /** Hot-seat shows the table to whoever acts next (the current player once the game is over). */
+  /**
+   * Plays computerAction for computer seats, one update per action, until a human has to decide or
+   * the game is over. The client's event queue paces them.
+   */
+  private playComputers(): void {
+    for (;;) {
+      const actor = actorOf(this.state);
+      const action = actor === null ? null : computerAction(this.state, actor);
+      if (action === null) return;
+      const result = applyAction(this.state, action);
+      if (!result.ok) {
+        throw new Error(`computerAction was rejected: ${JSON.stringify(result.error)}`);
+      }
+      this.state = result.state;
+      this.broadcast(result.events);
+    }
+  }
+
+  /**
+   * Hot-seat shows the table to whoever acts next (the current player once the game is over). A
+   * computer's options are not offered to the screen.
+   */
   private broadcast(events: readonly GameEvent[]): void {
     const playerId = actorOf(this.state) ?? this.state.turn.current;
+    const human = this.state.players.find((p) => p.id === playerId)?.controller === 'human';
     const update: ServerUpdate = {
       events,
       view: viewFor(this.state, { kind: 'player', id: playerId }),
-      legalActions: legalActions(this.state, playerId),
+      legalActions: human ? legalActions(this.state, playerId) : [],
     };
     this.emit({ kind: 'update', update });
   }

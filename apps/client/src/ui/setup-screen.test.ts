@@ -47,6 +47,19 @@ describe('setup screen', () => {
     expect(form.names[0]).toBe('阿土伯');
   });
 
+  it('lets each seat be played by a human or the computer', () => {
+    expect([...field<HTMLSelectElement>('controller1').options].map((o) => o.textContent)).toEqual([
+      '人類',
+      '電腦',
+    ]);
+    setValue('playerCount', '4');
+    setValue('controller1', 'computer');
+    submit();
+    const [setup, form] = started[0]!;
+    expect(setup.players.map((p) => p.controller)).toEqual(['human', 'computer', 'human', 'human']);
+    expect(form.controllers[1]).toBe('computer');
+  });
+
   it('offers the built-in boards by name', () => {
     const options = [...field<HTMLSelectElement>('board').options].map((o) => o.textContent);
     expect(options).toEqual([TEST_LOOP_BOARD.name, TEST_BRANCH_BOARD.name]);

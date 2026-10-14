@@ -25,6 +25,7 @@ function model(): DisplayModel {
       { owner: null, level: 0 },
       { owner: 'a', level: 2 },
     ],
+    auction: null,
     winners: null,
   };
 }
@@ -115,16 +116,53 @@ describe('applyEventToDisplay', () => {
     expect(next.tiles[2]).toEqual({ owner: 'b', level: 3 });
   });
 
-  it('the other auction events change nothing on their own', () => {
-    const before = model();
-    const events: GameEvent[] = [
-      { type: 'AuctionStarted', tile: 2, startPrice: 100, bidders: ['b'], remaining: 0 },
-      { type: 'AuctionRaised', playerId: 'b', raise: 100, price: 200 },
-      { type: 'AuctionPassed', playerId: 'b' },
-      { type: 'AuctionWithdrawn', playerId: 'b', reason: 'shortOfCash' },
-      { type: 'AuctionUnsold', tile: 2 },
-    ];
-    for (const event of events) expect(applyEventToDisplay(before, event)).toEqual(before);
+  it('follows an auction from its opening to the end', () => {
+    let next = apply({
+      type: 'AuctionStarted',
+      tile: 2,
+      startPrice: 100,
+      bidders: ['a', 'b'],
+      remaining: 1,
+    });
+    expect(next.auction).toEqual({
+      tile: 2,
+      startPrice: 100,
+      price: 100,
+      leader: null,
+      bidders: [
+        { id: 'a', status: 'bidding' },
+        { id: 'b', status: 'bidding' },
+      ],
+      remaining: 1,
+    });
+    next = applyEventToDisplay(next, { type: 'AuctionPassed', playerId: 'a' });
+    expect(next.auction?.bidders[0]).toEqual({ id: 'a', status: 'passed' });
+    next = applyEventToDisplay(next, {
+      type: 'AuctionRaised',
+      playerId: 'b',
+      raise: 500,
+      price: 600,
+    });
+    expect(next.auction).toMatchObject({
+      price: 600,
+      leader: 'b',
+      bidders: [
+        { id: 'a', status: 'bidding' },
+        { id: 'b', status: 'bidding' },
+      ],
+    });
+    next = applyEventToDisplay(next, {
+      type: 'AuctionWithdrawn',
+      playerId: 'a',
+      reason: 'shortOfCash',
+    });
+    expect(next.auction?.bidders[0]).toEqual({ id: 'a', status: 'withdrawn' });
+    // The players' money only changes with the sale.
+    expect(next.players).toEqual(model().players);
+    expect(applyEventToDisplay(next, { type: 'AuctionUnsold', tile: 2 }).auction).toBeNull();
+    expect(
+      applyEventToDisplay(next, { type: 'AuctionWon', playerId: 'b', tile: 2, price: 600 }).auction,
+    ).toBeNull();
   });
 
   it('PropertyBought keeps the buildings of a released tile', () => {

@@ -4,6 +4,7 @@ import {
   TEST_LOOP_BOARD,
   createRng,
   nextInt,
+  type Controller,
   type GameSetup,
   type ServerUpdate,
 } from '@richman/shared';
@@ -15,6 +16,7 @@ export function hotSeatSetup(
   seed: number,
   ending: 'dayLimit' | 'lastStanding' = 'dayLimit',
   playerCount = 4,
+  controllers: readonly Controller[] = [],
 ): GameSetup {
   return {
     config: { ...DEFAULT_RULE_CONFIG, dayLimit: ending === 'dayLimit' ? 20 : null },
@@ -22,7 +24,7 @@ export function hotSeatSetup(
     players: Array.from({ length: playerCount }, (_, i) => ({
       id: `p${i + 1}`,
       name: `玩家${i + 1}`,
-      controller: 'human',
+      controller: controllers[i] ?? 'human',
     })),
     seed,
   };

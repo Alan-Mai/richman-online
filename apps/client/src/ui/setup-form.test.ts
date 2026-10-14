@@ -37,6 +37,23 @@ describe('buildSetup', () => {
     expect(createGame(branch).ok).toBe(true);
   });
 
+  it('seats humans by default and computers where chosen', () => {
+    expect(ok(form()).players.map((p) => p.controller)).toEqual([
+      'human',
+      'human',
+      'human',
+      'human',
+    ]);
+    const setup = ok(form({ controllers: ['human', 'computer', 'human', 'computer'] }));
+    expect(setup.players.map((p) => p.controller)).toEqual([
+      'human',
+      'computer',
+      'human',
+      'computer',
+    ]);
+    expect(createGame(setup).ok).toBe(true);
+  });
+
   it('uses as many seats as the player count', () => {
     const setup = ok(form({ playerCount: 2 }));
     expect(setup.players.map((p) => p.id)).toEqual(['p1', 'p2']);

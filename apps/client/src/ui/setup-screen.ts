@@ -1,5 +1,5 @@
 // The new-game form as DOM. Validation lives in setup-form.ts.
-import { DEFAULT_RULE_CONFIG, type GameSetup } from '@richman/shared';
+import { DEFAULT_RULE_CONFIG, type Controller, type GameSetup } from '@richman/shared';
 import { t } from '../i18n';
 import {
   BOARDS,
@@ -27,6 +27,8 @@ function input(name: string, value: string, attrs: Record<string, string> = {}):
   node.value = value;
   return node;
 }
+
+const CONTROLLERS: readonly Controller[] = ['human', 'computer'];
 
 export interface SetupScreenOptions {
   initial: SetupForm;
@@ -70,9 +72,28 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
   const nameInputs = Array.from({ length: DEFAULT_RULE_CONFIG.maxPlayers }, (_, seat) =>
     input(`name${seat}`, initial.names[seat] ?? '', { maxlength: String(NAME_MAX_LENGTH) }),
   );
-  const nameLabels = nameInputs.map((node, seat) =>
-    labelled(t('setup.playerName', { n: seat + 1 }), node),
-  );
+  const controllerSelects = Array.from({ length: DEFAULT_RULE_CONFIG.maxPlayers }, (_, seat) => {
+    const select = document.createElement('select');
+    select.name = `controller${seat}`;
+    for (const value of CONTROLLERS) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = t(`setup.controller.${value}`);
+      option.selected = value === (initial.controllers[seat] ?? 'human');
+      select.append(option);
+    }
+    return select;
+  });
+  const nameLabels = nameInputs.map((node, seat) => {
+    const label = labelled(t('setup.playerName', { n: seat + 1 }), node);
+    label.classList.add('setup-seat');
+    const controller = controllerSelects[seat];
+    if (controller) {
+      controller.setAttribute('aria-label', t('setup.controller', { n: seat + 1 }));
+      label.append(controller);
+    }
+    return label;
+  });
 
   const dayLimit = input('dayLimit', initial.dayLimit, { inputmode: 'numeric' });
   const netWorthTarget = input('netWorthTarget', initial.netWorthTarget, { inputmode: 'numeric' });
@@ -101,6 +122,9 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     board: isBoardChoice(board.value) ? board.value : 'test-loop',
     playerCount: Number(count.value),
     names: nameInputs.map((n) => n.value),
+    controllers: controllerSelects.map((s): Controller =>
+      s.value === 'computer' ? 'computer' : 'human',
+    ),
     dayLimit: dayLimit.value,
     netWorthTarget: netWorthTarget.value,
     startingFunds: funds.value,

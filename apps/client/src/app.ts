@@ -1,11 +1,12 @@
 // App lifecycle: setup screen → one hot-seat game → result dialog → back to setup, plus the
 // read-only preview of converted original maps.
 import Phaser from 'phaser';
-import type { GameSetup } from '@richman/shared';
+import type { ActionType, GameSetup } from '@richman/shared';
 import { devAssetSource, type AssetSource } from './assets/asset-source';
 import { loadMapPreview, type MapPreview } from './assets/map-preview';
 import { GameController } from './game-controller';
 import { t } from './i18n';
+import { toIntent, type Intent } from './net/connection';
 import { LocalGameHost } from './net/local-host';
 import { PhaserAnimator } from './render/phaser-animator';
 import { BootScene } from './scenes/boot-scene';
@@ -18,6 +19,9 @@ import { describeMapFileError, renderPreviewChooser } from './ui/preview-chooser
 import { PreviewPanel } from './ui/preview-panel';
 import { defaultSetupForm, type SetupForm } from './ui/setup-form';
 import { renderSetupScreen } from './ui/setup-screen';
+
+/** What Enter does: the turn's main choice. */
+const PRIMARY_ACTIONS: readonly ActionType[] = ['rollDice', 'buyProperty', 'upgradeProperty'];
 
 export interface AppElements {
   board: HTMLElement;
@@ -53,7 +57,7 @@ function startGameSession(setup: GameSetup, elements: AppElements, onAgain: () =
   const { board } = setup;
 
   let controller: GameController | null = null;
-  const act = (type: Parameters<GameController['act']>[0]) => controller?.act(type);
+  const act = (intent: Intent) => controller?.act(intent);
   const gameSpeed = loadGameSpeed();
   const hud = new Hud(elements.hud, {
     board,
@@ -68,11 +72,12 @@ function startGameSession(setup: GameSetup, elements: AppElements, onAgain: () =
     },
   });
   const scene = new GameScene(board, {
+    // Keys only cover the turn's own choices; auction bids take a click.
     onPrimary: () => {
-      const primary = controller?.available.find((type) => type !== 'decline');
-      if (primary) act(primary);
+      const primary = controller?.available.find((a) => PRIMARY_ACTIONS.includes(a.type));
+      if (primary) act(toIntent(primary));
     },
-    onDecline: () => act('decline'),
+    onDecline: () => act({ type: 'decline' }),
     onTileSelected: (tile) => hud.showTile(tile),
   });
   scene.gameSpeed = gameSpeed;

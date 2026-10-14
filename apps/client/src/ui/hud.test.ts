@@ -4,12 +4,12 @@ import {
   TEST_LOOP_BOARD,
   buyPrice,
   rentFor,
-  type ActionType,
   type ServerUpdate,
 } from '@richman/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { applyEventToDisplay, displayFromView, type DisplayModel } from '../model/display';
 import { hotSeatSetup, playRandomGame } from '../testing/random-game';
+import type { Intent } from '../net/connection';
 import { describeEvent } from './event-text';
 import { Hud, actionLabel } from './hud';
 
@@ -22,7 +22,7 @@ function find(predicate: (u: ServerUpdate) => boolean): ServerUpdate {
 }
 
 let root: HTMLElement;
-let acted: ActionType[];
+let acted: Intent[];
 let hud: Hud;
 
 beforeEach(() => {
@@ -31,7 +31,7 @@ beforeEach(() => {
   hud = new Hud(root, {
     board: TEST_LOOP_BOARD,
     config: DEFAULT_RULE_CONFIG,
-    onAct: (type) => acted.push(type),
+    onAct: (intent) => acted.push(intent),
   });
 });
 
@@ -72,7 +72,7 @@ describe('Hud actions', () => {
   it('sends the clicked action', () => {
     hud.setReady(updates[0]!);
     buttons()[0]!.click();
-    expect(acted).toEqual(['rollDice']);
+    expect(acted).toEqual([{ type: 'rollDice' }]);
   });
 
   it('offers nothing after the game ends', () => {
@@ -359,5 +359,36 @@ describe('Hud game speed', () => {
     select.value = '3';
     select.dispatchEvent(new Event('change'));
     expect(changes).toEqual([3]);
+  });
+});
+
+describe('Hud during an auction', () => {
+  it('asks the bidder and puts the bidding buttons in the auction panel', () => {
+    const base = updates[0]!;
+    const phase = {
+      kind: 'auction' as const,
+      tile: 1,
+      startPrice: 1000,
+      price: 1000,
+      leader: null,
+      bidder: 'p2',
+      bidders: [{ id: 'p2', status: 'bidding' as const }],
+      remaining: 0,
+    };
+    const update: ServerUpdate = {
+      events: [],
+      view: { ...base.view, turn: { ...base.view.turn, current: 'p1', phase } },
+      legalActions: [
+        { type: 'bid', playerId: 'p2', raise: 100 },
+        { type: 'passRound', playerId: 'p2' },
+        { type: 'withdraw', playerId: 'p2' },
+      ],
+    };
+    hud.showModel(displayFromView(update.view));
+    hud.setReady(update);
+    expect(root.querySelector('.hud-prompt')?.textContent).toBe('拍賣：輪到 玩家2 出價');
+    expect(buttons()).toHaveLength(0);
+    root.querySelector<HTMLButtonElement>('.hud-auction button[data-raise="100"]')?.click();
+    expect(acted).toEqual([{ type: 'bid', raise: 100 }]);
   });
 });

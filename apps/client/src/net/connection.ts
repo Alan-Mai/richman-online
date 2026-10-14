@@ -13,6 +13,11 @@ export function toIntent(action: Action): Intent {
   return Object.fromEntries(entries) as Intent;
 }
 
+/** Whether the action is the intent with a sender filled in. */
+export function sameIntent(action: Action, intent: Intent): boolean {
+  return JSON.stringify(toIntent(action)) === JSON.stringify(intent);
+}
+
 export type IntentRejection = { code: 'notLegal' } | RuleError;
 
 export type HostMessage =

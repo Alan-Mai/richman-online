@@ -65,18 +65,30 @@ export class PhaserAnimator implements Animator {
           this.wait(FIXED_MS.bankrupt),
         ]);
         return;
-      case 'AuctionWon':
-        this.stage.showModel(after);
+      case 'AuctionStarted':
         await Promise.all([
-          this.floatAt(board.tileCenter(event.tile), `-${formatMoney(event.price)}`, '#ff8a8a'),
-          this.wait(this.scaled(DURATIONS.property)),
+          this.floatAt(board.tileCenter(event.tile), t('float.auction'), '#f6d36b'),
+          this.wait(this.scaled(DURATIONS.auctionOpen)),
         ]);
         return;
-      case 'AuctionStarted':
       case 'AuctionRaised':
       case 'AuctionPassed':
       case 'AuctionWithdrawn':
+        // The auction panel shows the move; leave it on screen for a moment.
+        return this.wait(this.scaled(DURATIONS.auctionBid));
+      case 'AuctionWon':
+        // Like the original: a pause, the property changes hands, another pause.
+        await Promise.all([
+          this.floatAt(board.tileCenter(event.tile), `-${formatMoney(event.price)}`, '#ff8a8a'),
+          this.wait(FIXED_MS.auctionSale),
+        ]);
+        this.stage.showModel(after);
+        return this.wait(FIXED_MS.auctionSale);
       case 'AuctionUnsold':
+        await Promise.all([
+          this.floatAt(board.tileCenter(event.tile), t('float.unsold'), '#9fb3c8'),
+          this.wait(this.scaled(DURATIONS.auctionUnsold)),
+        ]);
         return;
       case 'GameEnded':
         return this.wait(this.scaled(DURATIONS.gameEnd));

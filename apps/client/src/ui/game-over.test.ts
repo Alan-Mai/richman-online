@@ -18,6 +18,7 @@ const model: DisplayModel = {
     bankrupt: i === 3,
   })),
   tiles: [],
+  auction: null,
   winners: null,
 };
 

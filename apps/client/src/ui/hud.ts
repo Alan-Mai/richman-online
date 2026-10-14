@@ -17,15 +17,17 @@ import { formatMoney, t } from '../i18n';
 import type { DisplayModel } from '../model/display';
 import { GAME_SPEEDS, isGameSpeed, type GameSpeed } from '../render/timings';
 import { cssColor, playerColor } from '../theme';
+import { toIntent, type Intent } from '../net/connection';
+import { auctionBidder, renderAuctionPanel } from './auction-panel';
 import { describeEvent } from './event-text';
 
 const LOG_LIMIT = 50;
 
 export interface HudOptions {
   board: Board;
-  /** For the day limit and net worth target shown under the round. */
+  /** For the day limit and net worth target shown under the round, and the auction raises. */
   config: RuleConfig;
-  onAct(type: ActionType): void;
+  onAct(intent: Intent): void;
   /** Shows the game speed control when given. */
   gameSpeed?: { initial: GameSpeed; onChange(speed: GameSpeed): void };
 }
@@ -76,7 +78,7 @@ export function actionLabel(type: ActionType, update: ServerUpdate): string {
     case 'decline':
       return t('action.decline');
     case 'bid': {
-      // One button per raise arrives with D6's auction panel; until then the smallest one.
+      // The auction panel labels its own raise buttons; this is the smallest raise on offer.
       const raise = update.legalActions.find((a) => a.type === 'bid');
       return t('action.bid', { raise: formatMoney(raise?.type === 'bid' ? raise.raise : 0) });
     }
@@ -94,6 +96,7 @@ export class Hud implements ControllerSink {
   private readonly players = el('ol', 'hud-players');
   private readonly prompt = el('div', 'hud-prompt');
   private readonly actions = el('div', 'hud-actions');
+  private readonly auction = el('section', 'hud-auction');
   private readonly tileInfo = el('section', 'hud-tile');
   private readonly log = el('ol', 'hud-log');
   private model: DisplayModel | null = null;
@@ -116,6 +119,7 @@ export class Hud implements ControllerSink {
       this.limits,
       this.prompt,
       this.actions,
+      this.auction,
       this.players,
       this.tileInfo,
       logSection,
@@ -157,6 +161,7 @@ export class Hud implements ControllerSink {
         return item;
       }),
     );
+    this.renderAuction();
     this.renderTile();
   }
 
@@ -168,6 +173,7 @@ export class Hud implements ControllerSink {
   setReady(update: ServerUpdate | null): void {
     this.ready = update;
     this.renderActions();
+    this.renderAuction();
     this.renderTile();
   }
 
@@ -200,11 +206,18 @@ export class Hud implements ControllerSink {
       this.actions.replaceChildren();
       return;
     }
-    const current = update.view.players.find((p) => p.id === update.view.turn.current);
-    this.prompt.textContent =
-      update.legalActions.length > 0 && current ? t('hud.yourTurn', { name: current.name }) : '';
+    const bidder = auctionBidder(update);
+    const actorId = bidder ?? update.view.turn.current;
+    const actor = update.view.players.find((p) => p.id === actorId);
+    const offered = update.legalActions.length > 0 && actor !== undefined;
+    this.prompt.textContent = !offered
+      ? ''
+      : t(bidder === null ? 'hud.yourTurn' : 'hud.auctionTurn', { name: actor.name });
+    // The auction panel has its own buttons.
+    const turnActions = bidder === null ? update.legalActions : [];
     this.actions.replaceChildren(
-      ...update.legalActions.map(({ type }) => {
+      ...turnActions.map((action) => {
+        const { type } = action;
         const button = el(
           'button',
           type === 'decline' ? 'secondary' : 'primary',
@@ -212,10 +225,21 @@ export class Hud implements ControllerSink {
         );
         button.type = 'button';
         button.dataset.action = type;
-        button.addEventListener('click', () => this.options.onAct(type));
+        button.addEventListener('click', () => this.options.onAct(toIntent(action)));
         return button;
       }),
     );
+  }
+
+  private renderAuction(): void {
+    if (!this.model) return;
+    renderAuctionPanel(this.auction, {
+      model: this.model,
+      board: this.options.board,
+      raises: this.options.config.auctionRaises,
+      ready: this.ready,
+      onAct: (intent) => this.options.onAct(intent),
+    });
   }
 
   private renderTile(): void {

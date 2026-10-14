@@ -33,7 +33,7 @@ describe('GameController', () => {
     host.start();
     expect(controller.available).toEqual([]);
     await flush();
-    expect(controller.available).toEqual(['rollDice']);
+    expect(controller.available).toEqual([{ type: 'rollDice', playerId: 'p1' }]);
     expect(ready.at(-1)?.legalActions).toEqual([{ type: 'rollDice', playerId: 'p1' }]);
   });
 
@@ -41,7 +41,8 @@ describe('GameController', () => {
     const { host, controller, log } = setup();
     host.start();
     await flush();
-    expect(controller.act('buyProperty')).toBe(false);
+    expect(controller.act({ type: 'buyProperty' })).toBe(false);
+    expect(controller.act({ type: 'bid', raise: 100 })).toBe(false);
     expect(log.errors).toEqual([]);
   });
 
@@ -49,9 +50,9 @@ describe('GameController', () => {
     const { host, controller, log } = setup();
     host.start();
     await flush();
-    expect(controller.act('rollDice')).toBe(true);
+    expect(controller.act({ type: 'rollDice' })).toBe(true);
     expect(controller.available).toEqual([]);
-    expect(controller.act('rollDice')).toBe(false);
+    expect(controller.act({ type: 'rollDice' })).toBe(false);
     await flush();
     expect(controller.available.length).toBeGreaterThan(0);
     expect(log.errors).toEqual([]);

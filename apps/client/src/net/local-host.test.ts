@@ -81,10 +81,36 @@ describe('LocalGameHost', () => {
   it('acts for the current player and shows the table to whoever acts next', () => {
     const updates = playRandomGame(hotSeatSetup(11));
     for (const update of updates) {
-      const current = update.view.turn.current;
-      expect(update.view.viewer).toEqual({ kind: 'player', id: current });
-      expect(update.legalActions.every((a) => a.playerId === current)).toBe(true);
+      const { phase, current } = update.view.turn;
+      const actor = phase.kind === 'auction' ? phase.bidder : current;
+      expect(update.view.viewer).toEqual({ kind: 'player', id: actor });
+      expect(update.legalActions.every((a) => a.playerId === actor)).toBe(true);
     }
+  });
+
+  it('plays computer seats itself and offers nothing while a computer acts', () => {
+    const host = createHost(hotSeatSetup(5, 'dayLimit', 3, ['computer', 'human', 'computer']));
+    const messages = record(host);
+    host.start();
+    const updates = messages.flatMap((m) => (m.kind === 'update' ? [m.update] : []));
+    // p1 (a computer) rolls and maybe buys before p2 has to decide.
+    expect(updates.length).toBeGreaterThan(1);
+    for (const update of updates.slice(0, -1)) expect(update.legalActions).toEqual([]);
+    const last = lastUpdate(messages);
+    expect(last.view.turn.current).toBe('p2');
+    expect(last.legalActions).toEqual([{ type: 'rollDice', playerId: 'p2' }]);
+
+    host.send({ type: 'rollDice' });
+    const after = messages.flatMap((m) => (m.kind === 'update' ? [m.update] : []));
+    expect(after.length).toBeGreaterThan(updates.length);
+    expect(messages.some((m) => m.kind === 'rejected')).toBe(false);
+  });
+
+  it('plays a game between computers to the end on start', () => {
+    const host = createHost(hotSeatSetup(3, 'dayLimit', 2, ['computer', 'computer']));
+    const messages = record(host);
+    host.start();
+    expect(lastUpdate(messages).view.turn.phase.kind).toBe('gameOver');
   });
 
   it.each([1, 2, 3, 4, 5])('plays a round-limit game to the end (seed %i)', (seed) => {

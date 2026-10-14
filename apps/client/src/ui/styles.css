@@ -165,6 +165,127 @@ body {
   outline-offset: 2px;
 }
 
+.hud-auction {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding: 8px;
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.hud-auction h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.auction-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.auction-facts dt {
+  color: var(--muted);
+}
+
+.auction-facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.auction-facts .auction-price {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.auction-bidders {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.auction-bidder {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 8px;
+  padding: 4px 6px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+}
+
+.auction-bidder[aria-current='true'] {
+  border-color: var(--accent);
+}
+
+.auction-bidder.is-leader .auction-status {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.auction-bidder.is-out {
+  opacity: 0.5;
+}
+
+.auction-name {
+  font-weight: bold;
+}
+
+.auction-cash {
+  font-variant-numeric: tabular-nums;
+}
+
+.auction-status {
+  grid-column: 1 / 3;
+  color: var(--muted);
+}
+
+.auction-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: 6px;
+}
+
+.auction-actions .secondary {
+  grid-column: 1 / -1;
+}
+
+.auction-actions button {
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.auction-actions .primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.auction-actions .secondary {
+  background: var(--panel-border);
+  color: var(--text);
+}
+
+.auction-actions button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.auction-actions button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
 .hud-tile dl {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -274,6 +395,15 @@ body {
 
 .setup label[hidden] {
   display: none;
+}
+
+/* Name field and who plays the seat side by side. */
+.setup .setup-seat {
+  grid-template-columns: 1fr auto;
+}
+
+.setup .setup-seat > span {
+  grid-column: 1 / 3;
 }
 
 .setup label > span,
