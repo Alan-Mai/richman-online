@@ -1,9 +1,9 @@
-// Result dialog, opened when the GameEnded event has played.
-import type { GameEvent, PlayerId, ServerUpdate } from '@richman/shared';
+// Result dialog, opened when the GameEnded event has played. Like the original it names only the
+// winner: the original ends with the winner's dialog and shows no ranking (docs/GAME_RULES.md §1).
+import type { GameEvent } from '@richman/shared';
 import type { ControllerSink } from '../game-controller';
 import { t } from '../i18n';
 import type { DisplayModel } from '../model/display';
-import { rankPlayers } from './ranking';
 
 export interface GameOverOptions {
   seed: number;
@@ -16,18 +16,7 @@ export class GameOverDialog implements ControllerSink {
     private readonly options: GameOverOptions,
   ) {}
 
-  /** Players who went bankrupt in each action, in order. */
-  private readonly bankruptcies: PlayerId[][] = [];
-  private lastBankruptUpdate: ServerUpdate | null = null;
-
-  eventPlayed(event: GameEvent, model: DisplayModel, update: ServerUpdate): void {
-    if (event.type === 'PlayerBankrupt') {
-      // One ServerUpdate is one action; bankruptcies in the same action tie.
-      if (update !== this.lastBankruptUpdate) this.bankruptcies.push([]);
-      this.lastBankruptUpdate = update;
-      this.bankruptcies.at(-1)?.push(event.playerId);
-      return;
-    }
+  eventPlayed(event: GameEvent, model: DisplayModel): void {
     if (event.type !== 'GameEnded') return;
     const name = (id: string) => model.players.find((p) => p.id === id)?.name ?? id;
 
@@ -49,28 +38,6 @@ export class GameOverDialog implements ControllerSink {
         ? t('gameOver.winners', { names: event.winners.map(name).join('、') })
         : t('gameOver.noWinner');
 
-    // Like the original, a day limit or net worth ending shows only the winner; the ranking of a
-    // last-standing game is this project's own.
-    const table = document.createElement('ol');
-    table.className = 'game-over-ranking';
-    const ranked =
-      event.reason === 'lastStanding'
-        ? rankPlayers(
-            model.players.map((p) => p.id),
-            this.bankruptcies,
-          )
-        : [];
-    for (const p of ranked) {
-      const item = document.createElement('li');
-      if (event.winners.includes(p.id)) item.classList.add('is-winner');
-      const label = document.createElement('span');
-      label.textContent = `${t('gameOver.rank', { rank: p.rank })} ${name(p.id)}`;
-      const detail = document.createElement('span');
-      detail.textContent = t(p.bankrupt ? 'hud.bankrupt' : 'gameOver.survived');
-      item.append(label, detail);
-      table.append(item);
-    }
-
     const seed = document.createElement('p');
     seed.className = 'game-over-seed';
     seed.textContent = t('gameOver.seed', { seed: this.options.seed });
@@ -81,7 +48,7 @@ export class GameOverDialog implements ControllerSink {
     again.textContent = t('gameOver.again');
     again.addEventListener('click', () => this.options.onAgain());
 
-    dialog.append(title, reason, winners, ...(ranked.length > 0 ? [table] : []), seed, again);
+    dialog.append(title, reason, winners, seed, again);
     this.root.replaceChildren(dialog);
     this.root.hidden = false;
     again.focus();

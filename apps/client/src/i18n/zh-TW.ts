@@ -53,8 +53,6 @@ export const zhTW = {
   'gameOver.title': '遊戲結束',
   'gameOver.winners': '勝利：{names}',
   'gameOver.noWinner': '沒有勝利者',
-  'gameOver.rank': '第 {rank} 名',
-  'gameOver.survived': '存活',
   'gameOver.seed': '本局種子：{seed}',
   'gameOver.again': '回到設定',
 

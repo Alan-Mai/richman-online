@@ -1,8 +1,7 @@
 // @vitest-environment happy-dom
-import type { GameEvent, ServerUpdate } from '@richman/shared';
+import type { GameEvent } from '@richman/shared';
 import { describe, expect, it } from 'vitest';
 import type { DisplayModel } from '../model/display';
-import { hotSeatSetup, playRandomGame } from '../testing/random-game';
 import { GameOverDialog } from './game-over';
 
 const model: DisplayModel = {
@@ -29,36 +28,17 @@ const ended: GameEvent = {
   netWorth: { p1: 30000, p2: 52000, p3: 52000, p4: 0 },
 };
 
-/** Stands in for the update an event arrived in; only its identity matters to the dialog. */
-const sample = playRandomGame(hotSeatSetup(1))[0]!;
-function update(): ServerUpdate {
-  return { ...sample };
-}
-
-function bankrupt(playerId: string): GameEvent {
-  return {
-    type: 'PlayerBankrupt',
-    playerId,
-    creditor: null,
-    paidToCreditor: 0,
-    releasedTiles: [],
-    cause: { kind: 'system', amountDue: 1 },
-  };
-}
-
-/** Plays each group of events as one update, then opens with the last event. */
-function open(event: GameEvent = ended, before: GameEvent[][] = []) {
+function open(event: GameEvent = ended) {
   const root = document.createElement('div');
   root.hidden = true;
   let again = 0;
   const dialog = new GameOverDialog(root, { seed: 77, onAgain: () => again++ });
-  for (const group of before) {
-    const u = update();
-    for (const e of group) dialog.eventPlayed(e, model, u);
-  }
-  dialog.eventPlayed(event, model, update());
+  dialog.eventPlayed(event, model);
   return { root, again: () => again };
 }
+
+/** The dialog's paragraphs in order (the title is a heading, not included). */
+const lines = (root: HTMLElement) => [...root.querySelectorAll('p')].map((p) => p.textContent);
 
 describe('GameOverDialog', () => {
   it('ignores other events', () => {
@@ -70,24 +50,14 @@ describe('GameOverDialog', () => {
   it('shows only the reason, the winner and the seed for a day limit or net worth ending', () => {
     const { root } = open();
     expect(root.hidden).toBe(false);
-    expect(root.textContent).toContain('遊戲結束：已達天數上限或淨值目標');
-    expect(root.querySelector('.game-over-winners')?.textContent).toBe('勝利：乙');
-    // The original shows no ranking for this ending.
-    expect(root.querySelector('.game-over-ranking')).toBeNull();
-    expect(root.querySelector('.game-over-seed')?.textContent).toBe('本局種子：77');
+    expect(lines(root)).toEqual(['遊戲結束：已達天數上限或淨值目標', '勝利：乙', '本局種子：77']);
+    expect(root.querySelector('ol, ul')).toBeNull();
   });
 
-  it('ranks a last-standing game by bankruptcy order, ties within one action', () => {
-    const lastStanding: GameEvent = {
-      type: 'GameEnded',
-      reason: 'lastStanding',
-      winners: ['p3'],
-      netWorth: { p1: 0, p2: 0, p3: 1000, p4: 0 },
-    };
-    // p4 first, then p1 and p2 in the same action.
-    const { root } = open(lastStanding, [[bankrupt('p4')], [bankrupt('p1'), bankrupt('p2')]]);
-    const rows = [...root.querySelectorAll('.game-over-ranking li')].map((li) => li.textContent);
-    expect(rows).toEqual(['第 1 名 丙存活', '第 2 名 甲破產', '第 2 名 乙破產', '第 4 名 丁破產']);
+  it('shows only the reason, the winner and the seed for a last-standing ending', () => {
+    const { root } = open({ ...ended, reason: 'lastStanding', winners: ['p3'] });
+    expect(lines(root)).toEqual(['遊戲結束：只剩一位玩家', '勝利：丙', '本局種子：77']);
+    expect(root.querySelector('ol, ul')).toBeNull();
   });
 
   it('says when nobody won', () => {
