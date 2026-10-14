@@ -66,12 +66,8 @@ describe('landing on an own property', () => {
     });
   });
 
-  it('counts the deposit with cashAndDeposit', () => {
-    const funds = { purchaseFunds: 'cashAndDeposit' } as const;
-    expect(landed({ cash: 100, deposit: COST - 100 }, funds).state.turn.phase.kind).toBe(
-      'awaitUpgradeDecision',
-    );
-    expect(landed({ cash: 100, deposit: COST - 101 }, funds).state.turn.current).toBe('p2');
+  it('does not count the deposit', () => {
+    expect(landed({ cash: COST - 1, deposit: 1e6 }).state.turn.current).toBe('p2');
   });
 
   it('offers the last level and nothing beyond maxLevel', () => {
@@ -80,10 +76,6 @@ describe('landing on an own property', () => {
       'awaitUpgradeDecision',
     );
     expect(landed({ cash: 1e6, level: maxLevel }).state.turn.current).toBe('p2');
-  });
-
-  it('offers nothing when upgradeOnOwnTile is off', () => {
-    expect(landed({ cash: 1e6 }, { upgradeOnOwnTile: false }).state.turn.current).toBe('p2');
   });
 
   it('always offers a free upgrade when upgradeCostPercent is 0', () => {
@@ -111,15 +103,6 @@ describe('upgradeProperty', () => {
     const { state } = applyOk(landed({ cash: COST }).state, upgrade);
     expect(getPlayer(state, 'p1').cash).toBe(0);
     expect(state.tiles[1]?.level).toBe(1);
-  });
-
-  it('takes the shortfall from the deposit with cashAndDeposit', () => {
-    const funds = { purchaseFunds: 'cashAndDeposit' } as const;
-    const offered = landed({ cash: 100, deposit: COST - 100 }, funds).state;
-    const { state, events } = applyOk(offered, upgrade);
-    expect(getPlayer(state, 'p1')).toMatchObject({ cash: 0, deposit: 0 });
-    expect(events[0]).toEqual({ type: 'DepositWithdrawn', playerId: 'p1', amount: COST - 100 });
-    expect(events[1]).toMatchObject({ type: 'PropertyUpgraded', level: 1 });
   });
 
   it('can reach maxLevel', () => {

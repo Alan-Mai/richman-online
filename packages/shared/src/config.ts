@@ -22,12 +22,6 @@ export interface RuleConfig {
   /** Rent = floor(price * rentPercentByLevel[level] / 100); length is maxLevel + 1. */
   rentPercentByLevel: readonly number[];
   streetBonus: 'none';
-  /** Landing on an own property offers a paid one-level upgrade. */
-  upgradeOnOwnTile: boolean;
-  /** Money a player may spend voluntarily on buying and upgrading. */
-  purchaseFunds: 'cash' | 'cashAndDeposit';
-  /** What a creditor player receives from a bankrupt debtor (docs/GAME_RULES.md §8). */
-  bankruptcyPayout: 'remaining' | 'full' | 'none';
 }
 
 export const DEFAULT_RULE_CONFIG: RuleConfig = {
@@ -44,9 +38,6 @@ export const DEFAULT_RULE_CONFIG: RuleConfig = {
   upgradeCostPercent: 50,
   rentPercentByLevel: [10, 30, 60, 100, 150, 200],
   streetBonus: 'none',
-  upgradeOnOwnTile: true,
-  purchaseFunds: 'cash',
-  bankruptcyPayout: 'remaining',
 };
 
 export type RuleConfigErrorReason =

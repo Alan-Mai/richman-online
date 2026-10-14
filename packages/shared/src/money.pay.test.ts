@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type { RuleConfig } from './config';
 import { pay, type Debt } from './money';
 import type { GameState } from './state';
 import { getPlayer, loopBoard, newTestGame, patchPlayer, patchTile } from './testing';
@@ -7,11 +6,8 @@ import { getPlayer, loopBoard, newTestGame, patchPlayer, patchTile } from './tes
 const BOARD = loopBoard([null, 100, 200, 300, 400, null]);
 
 /** p1 owes; p2 is the creditor; p3 stands by. */
-function game(
-  money: { cash: number; deposit: number },
-  config: Partial<RuleConfig> = {},
-): GameState {
-  const state = newTestGame({ board: BOARD, playerCount: 3, config });
+function game(money: { cash: number; deposit: number }): GameState {
+  const state = newTestGame({ board: BOARD, playerCount: 3 });
   return patchPlayer(patchPlayer(state, 'p1', money), 'p2', { cash: 1000, deposit: 1000 });
 }
 
@@ -76,13 +72,9 @@ describe('pay when the debtor cannot cover it', () => {
     expect(getPlayer(result.state, 'p1')).toMatchObject({ cash: 0, deposit: 0, bankrupt: true });
   });
 
-  const payouts: [RuleConfig['bankruptcyPayout'], number][] = [
-    ['remaining', 500],
-    ['full', 1000],
-    ['none', 0],
-  ];
-  it.each(payouts)('bankruptcyPayout %s pays the creditor %i', (bankruptcyPayout, paid) => {
-    const state = game({ cash: 300, deposit: 200 }, { bankruptcyPayout });
+  it('pays the creditor everything the debtor had left', () => {
+    const paid = 500;
+    const state = game({ cash: 300, deposit: 200 });
     const result = pay(state, 'p1', rent(1000));
     expect(result.bankrupt).toBe(true);
     expect(result.events).toEqual([
@@ -100,7 +92,7 @@ describe('pay when the debtor cannot cover it', () => {
     expect(getPlayer(result.state, 'p3')).toEqual(getPlayer(state, 'p3'));
   });
 
-  it("pays nothing under 'remaining' when the debtor has nothing left", () => {
+  it('pays nothing when the debtor has nothing left', () => {
     const result = pay(game({ cash: 0, deposit: 0 }), 'p1', rent(10));
     expect(result.bankrupt).toBe(true);
     expect(result.events[0]).toMatchObject({ type: 'PlayerBankrupt', paidToCreditor: 0 });
@@ -125,25 +117,22 @@ describe('pay when the debtor cannot cover it', () => {
     ]);
   });
 
-  it.each(['remaining', 'full', 'none'] as const)(
-    'writes off a system debt under %s',
-    (bankruptcyPayout) => {
-      const state = game({ cash: 300, deposit: 200 }, { bankruptcyPayout });
-      const result = pay(state, 'p1', { kind: 'system', amount: 1000 });
-      expect(result.events).toEqual([
-        {
-          type: 'PlayerBankrupt',
-          playerId: 'p1',
-          creditor: null,
-          paidToCreditor: 0,
-          releasedTiles: [],
-          cause: { kind: 'system', amountDue: 1000 },
-        },
-      ]);
-      expect(getPlayer(result.state, 'p1')).toMatchObject({ cash: 0, deposit: 0, bankrupt: true });
-      expect(result.state.players.slice(1)).toEqual(state.players.slice(1));
-    },
-  );
+  it('writes off a system debt', () => {
+    const state = game({ cash: 300, deposit: 200 });
+    const result = pay(state, 'p1', { kind: 'system', amount: 1000 });
+    expect(result.events).toEqual([
+      {
+        type: 'PlayerBankrupt',
+        playerId: 'p1',
+        creditor: null,
+        paidToCreditor: 0,
+        releasedTiles: [],
+        cause: { kind: 'system', amountDue: 1000 },
+      },
+    ]);
+    expect(getPlayer(result.state, 'p1')).toMatchObject({ cash: 0, deposit: 0, bankrupt: true });
+    expect(result.state.players.slice(1)).toEqual(state.players.slice(1));
+  });
 });
 
 describe('pay contract', () => {

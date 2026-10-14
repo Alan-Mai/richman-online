@@ -13,8 +13,6 @@ describe('DEFAULT_RULE_CONFIG', () => {
   it('uses the agreed defaults', () => {
     expect(DEFAULT_RULE_CONFIG.winCondition).toBe('lastStanding');
     expect(DEFAULT_RULE_CONFIG.maxRounds).toBeNull();
-    expect(DEFAULT_RULE_CONFIG.purchaseFunds).toBe('cash');
-    expect(DEFAULT_RULE_CONFIG.bankruptcyPayout).toBe('remaining');
     expect(DEFAULT_RULE_CONFIG.rentPercentByLevel).toHaveLength(DEFAULT_RULE_CONFIG.maxLevel + 1);
   });
 });

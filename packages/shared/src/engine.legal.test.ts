@@ -56,22 +56,19 @@ describe('legalActions completeness', () => {
   const configs: [string, Partial<RuleConfig>][] = [
     ['defaults with a round limit', { winCondition: 'richestAtRoundLimit', maxRounds: 25 }],
     [
-      'poor players, cash and deposit, full payout',
+      'poor players',
       {
         winCondition: 'richestAtRoundLimit',
         maxRounds: 40,
         startingCash: 1500,
         startingDeposit: 1500,
-        purchaseFunds: 'cashAndDeposit',
-        bankruptcyPayout: 'full',
       },
     ],
     [
-      'poor players until one is left, no payout',
+      'poor players until one is left',
       {
         startingCash: 2000,
         startingDeposit: 0,
-        bankruptcyPayout: 'none',
         defaultDiceCount: 2,
       },
     ],

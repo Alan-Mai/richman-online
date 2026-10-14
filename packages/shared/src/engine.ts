@@ -194,7 +194,7 @@ export function legalActions(state: GameState, playerId: PlayerId): Action[] {
 
 function buyProperty(state: GameState, phase: BuyDecision): Result {
   const playerId = state.turn.current;
-  if (spendable(playerOf(state, playerId), state.config) < phase.price) {
+  if (spendable(playerOf(state, playerId)) < phase.price) {
     return reject({ code: 'insufficientFunds' });
   }
   const paid = spend(state, playerId, phase.price);
@@ -210,7 +210,7 @@ function buyProperty(state: GameState, phase: BuyDecision): Result {
 
 function upgradeProperty(state: GameState, phase: UpgradeDecision): Result {
   const playerId = state.turn.current;
-  if (spendable(playerOf(state, playerId), state.config) < phase.cost) {
+  if (spendable(playerOf(state, playerId)) < phase.cost) {
     return reject({ code: 'insufficientFunds' });
   }
   const paid = spend(state, playerId, phase.cost);
@@ -326,14 +326,14 @@ function resolveLanding(state: GameState): Step {
   }
 
   const { owner, level } = at(state.tiles, index);
-  const funds = spendable(player, config);
+  const funds = spendable(player);
   if (owner === null) {
     if (funds >= tile.price) {
       return awaitDecision(state, { kind: 'awaitBuyDecision', tile: index, price: tile.price });
     }
   } else if (owner === player.id) {
     const cost = upgradeCost(tile.price, config);
-    if (config.upgradeOnOwnTile && level < config.maxLevel && funds >= cost) {
+    if (level < config.maxLevel && funds >= cost) {
       return awaitDecision(state, { kind: 'awaitUpgradeDecision', tile: index, cost });
     }
   } else {

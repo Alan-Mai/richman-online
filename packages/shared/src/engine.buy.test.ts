@@ -54,16 +54,8 @@ describe('landing on an unowned property', () => {
     expect(events.at(-1)).toEqual({ type: 'TurnStarted', playerId: 'p2', round: 1 });
   });
 
-  it("does not count the deposit with purchaseFunds 'cash'", () => {
+  it('does not count the deposit', () => {
     expect(landed({ cash: PRICE - 1, deposit: 1e6 }).state.turn.current).toBe('p2');
-  });
-
-  it("counts cash plus deposit with purchaseFunds 'cashAndDeposit'", () => {
-    const funds = { purchaseFunds: 'cashAndDeposit' } as const;
-    expect(landed({ cash: 400, deposit: PRICE - 400 }, funds).state.turn.phase.kind).toBe(
-      'awaitBuyDecision',
-    );
-    expect(landed({ cash: 400, deposit: PRICE - 401 }, funds).state.turn.current).toBe('p2');
   });
 
   it('does not offer anything on a blank tile', () => {
@@ -92,27 +84,11 @@ describe('buyProperty', () => {
     expect(state.tiles[1]?.owner).toBe('p1');
   });
 
-  it('takes the shortfall from the deposit with cashAndDeposit', () => {
-    const funds = { purchaseFunds: 'cashAndDeposit' } as const;
-    const offered = landed({ cash: 400, deposit: PRICE - 400 }, funds).state;
-    const { state, events } = applyOk(offered, buy);
-    expect(getPlayer(state, 'p1')).toMatchObject({ cash: 0, deposit: 0 });
-    expect(events.slice(0, 2)).toEqual([
-      { type: 'DepositWithdrawn', playerId: 'p1', amount: PRICE - 400 },
-      { type: 'PropertyBought', playerId: 'p1', tile: 1, price: PRICE },
-    ]);
-  });
-
-  it('does not touch the deposit when cash suffices with cashAndDeposit', () => {
-    const funds = { purchaseFunds: 'cashAndDeposit' } as const;
-    const offered = landed({ cash: PRICE, deposit: 500 }, funds).state;
-    const { state, events } = applyOk(offered, buy);
-    expect(getPlayer(state, 'p1')).toMatchObject({ cash: 0, deposit: 500 });
-    expect(events.map((e) => e.type)).not.toContain('DepositWithdrawn');
-  });
-
-  it('rejects the purchase if the money is no longer there', () => {
-    const offered = patchPlayer(landed({ cash: PRICE }).state, 'p1', { cash: PRICE - 1 });
+  it('rejects the purchase if the cash is no longer there, whatever the deposit', () => {
+    const offered = patchPlayer(landed({ cash: PRICE }).state, 'p1', {
+      cash: PRICE - 1,
+      deposit: 1e6,
+    });
     const snapshot = JSON.stringify(offered);
     expect(applyAction(offered, buy)).toEqual({ ok: false, error: { code: 'insufficientFunds' } });
     expect(JSON.stringify(offered)).toBe(snapshot);

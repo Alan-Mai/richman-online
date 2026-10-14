@@ -36,9 +36,9 @@ export function totalAssets(state: GameState, playerId: PlayerId): number {
   return total;
 }
 
-/** Money the player may spend voluntarily under RuleConfig.purchaseFunds. */
-export function spendable(player: PlayerState, config: RuleConfig): number {
-  return config.purchaseFunds === 'cashAndDeposit' ? player.cash + player.deposit : player.cash;
+/** Money the player may spend voluntarily: buying and upgrading only use cash (§3). */
+export function spendable(player: PlayerState): number {
+  return player.cash;
 }
 
 /** Takes `amount` from cash first, then from the deposit. The caller checks it is covered. */
@@ -68,7 +68,7 @@ export interface PayResult extends Step {
 /**
  * Forced payment (docs/GAME_RULES.md §8): cash first, then the deposit. If both together fall short
  * the debtor goes bankrupt: money is zeroed, every owned tile returns to the bank without houses,
- * and a player creditor receives what RuleConfig.bankruptcyPayout says. Bankruptcy emits only
+ * and a player creditor receives everything the debtor had left. Bankruptcy emits only
  * PlayerBankrupt.
  */
 export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult {
@@ -92,7 +92,7 @@ export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult
     };
   }
 
-  const paidToCreditor = creditor === null ? 0 : bankruptcyPayout(available, amount, state.config);
+  const paidToCreditor = creditor === null ? 0 : available;
   const releasedTiles = state.tiles.flatMap((tile, i) => (tile.owner === debtorId ? [i] : []));
   let next: GameState = {
     ...updatePlayer(state, debtorId, () => ({ cash: 0, deposit: 0, bankrupt: true })),
@@ -121,24 +121,13 @@ export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult
   };
 }
 
-function bankruptcyPayout(available: number, amount: number, config: RuleConfig): number {
-  switch (config.bankruptcyPayout) {
-    case 'remaining':
-      return Math.min(available, amount);
-    case 'full':
-      return amount;
-    case 'none':
-      return 0;
-  }
-}
-
 function receive(state: GameState, playerId: PlayerId, amount: number): GameState {
   return updatePlayer(state, playerId, (p) => ({ cash: p.cash + amount }));
 }
 
 /** Voluntary payment to the bank (buying, upgrading); must be within spendable(). */
 export function spend(state: GameState, playerId: PlayerId, amount: number): Step {
-  if (amount > spendable(playerOf(state, playerId), state.config)) {
+  if (amount > spendable(playerOf(state, playerId))) {
     throw new Error(`${playerId} cannot spend ${amount}`);
   }
   return withdraw(state, playerId, amount);

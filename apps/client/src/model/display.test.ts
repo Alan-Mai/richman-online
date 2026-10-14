@@ -151,15 +151,7 @@ describe('events reproduce the views', () => {
   const cases: [string, GameSetup][] = [
     ['round limit', hotSeatSetup(21)],
     ['last standing', hotSeatSetup(22, 'lastStanding')],
-    [
-      'cash and deposit, low cash',
-      withConfig(hotSeatSetup(24, 'lastStanding'), {
-        purchaseFunds: 'cashAndDeposit',
-        startingCash: 2000,
-      }),
-    ],
-    ['full payout', withConfig(hotSeatSetup(25, 'lastStanding'), { bankruptcyPayout: 'full' })],
-    ['no payout', withConfig(hotSeatSetup(26, 'lastStanding'), { bankruptcyPayout: 'none' })],
+    ['low cash', withConfig(hotSeatSetup(24, 'lastStanding'), { startingCash: 2000 })],
     ['two players', hotSeatSetup(27, 'lastStanding', 2)],
   ];
 
