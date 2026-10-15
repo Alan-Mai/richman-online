@@ -68,6 +68,16 @@ export {
   type ParseRngResult,
   type RngState,
 } from './rng';
+export {
+  ORIGINAL_TABLE_LENGTHS,
+  ORIGINAL_TABLES_VERSION,
+  parseOriginalTables,
+  type OriginalCharacter,
+  type OriginalItem,
+  type OriginalTables,
+  type OriginalTablesError,
+  type ParseOriginalTablesResult,
+} from './tables';
 export type {
   AuctionBidder,
   AuctionBidderStatus,
