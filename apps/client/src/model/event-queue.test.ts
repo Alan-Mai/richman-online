@@ -33,8 +33,20 @@ class ManualAnimator implements Animator {
 
 const instant: Animator = { play: () => Promise.resolve() };
 
+/**
+ * Lets pending promise chains run: one macrotask. A message rather than setTimeout(0), whose
+ * delay follows the system timer resolution (about 16 ms on Windows unless another program raises
+ * it), which made the whole-game test time out.
+ */
 function flush(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  return new Promise((resolve) => {
+    const { port1, port2 } = new MessageChannel();
+    port1.onmessage = () => {
+      port1.close();
+      resolve();
+    };
+    port2.postMessage(null);
+  });
 }
 
 function recorder() {
