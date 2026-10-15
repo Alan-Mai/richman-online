@@ -88,8 +88,8 @@ export function createGame(setup: GameSetup): CreateGameResult {
 
   const { config, board } = setup;
   // Half each as cash and deposit; an odd one goes to neither (docs/GAME_RULES.md §1). Computer
-  // players will split by their character's ratio once that table is exported (non-original until
-  // then).
+  // players split this way too for now (non-original); splitting by their character's ratio from
+  // the exported tables comes with the bank (ROADMAP).
   const dealt = Math.floor(config.startingFunds / 2);
   const players = setup.players.map(({ id, name, controller }): PlayerState => ({
     id,

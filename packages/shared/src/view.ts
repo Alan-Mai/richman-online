@@ -29,8 +29,9 @@ export interface PlayerView {
 }
 
 /**
- * Filters the state for one viewer. Phase 2 has no per-player secrets, so only rngState is
- * dropped; later hidden fields (hands of cards) are filtered here per viewer.
+ * Filters the state for one viewer. Hidden from everyone: rngState, the lottery pool, the drawn
+ * properties still to be auctioned (sent only as a count) and the computers' pre-drawn choices.
+ * Per-player secrets (hands of cards) will be filtered here per viewer.
  */
 export function viewFor(state: GameState, viewer: Viewer): PlayerView {
   return {
