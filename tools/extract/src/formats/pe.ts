@@ -32,6 +32,8 @@ export interface PeSection {
 export interface PeImage {
   imageBase: number;
   sections: PeSection[];
+  /** Absolute virtual address of the import directory, or null when the image has none. */
+  importDirectoryVa: number | null;
 }
 
 export function readPe(bytes: Uint8Array): PeImage {
@@ -75,7 +77,10 @@ export function readPe(bytes: Uint8Array): PeImage {
       isCode: (characteristics & (SCN_CNT_CODE | SCN_MEM_EXECUTE)) !== 0,
     });
   }
-  return { imageBase, sections };
+  // Data directory 1 (imports): RVA at optional header + 104, present when the header is that long.
+  const importRva = optionalSize >= 112 ? view.getUint32(opt + 104, true) : 0;
+  const importDirectoryVa = importRva === 0 ? null : imageBase + importRva;
+  return { imageBase, sections, importDirectoryVa };
 }
 
 /** File bytes for [va, va + length), or undefined unless one section backs the whole range. */

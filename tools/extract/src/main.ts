@@ -2,6 +2,7 @@
 import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { inventory, type CommandContext } from './commands/inventory';
+import { findDwordCommand, importsCommand } from './commands/exe-lookup';
 import { lunarCheck } from './commands/lunar-check';
 import { map } from './commands/map';
 import { tables } from './commands/tables';
@@ -13,6 +14,8 @@ import { MapExportError } from './map-export';
 
 const COMMANDS: Record<string, (ctx: CommandContext) => Promise<void>> = {
   inventory,
+  'find-dword': findDwordCommand,
+  imports: importsCommand,
   'lunar-check': lunarCheck,
   map,
   tables,

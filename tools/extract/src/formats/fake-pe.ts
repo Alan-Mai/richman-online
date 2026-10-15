@@ -14,7 +14,12 @@ const PE_OFFSET = 0x40;
 const OPTIONAL_SIZE = 0xe0;
 const FILE_ALIGN = 0x200;
 
-export function buildFakePe(imageBase: number, sections: FakeSection[]): Uint8Array {
+export function buildFakePe(
+  imageBase: number,
+  sections: FakeSection[],
+  /** RVA written to the import data directory; 0 (none) by default. */
+  importDirectoryRva = 0,
+): Uint8Array {
   const headerEnd = PE_OFFSET + 24 + OPTIONAL_SIZE + 40 * sections.length;
   const align = (n: number) => Math.ceil(n / FILE_ALIGN) * FILE_ALIGN;
   let raw = align(headerEnd);
@@ -34,6 +39,7 @@ export function buildFakePe(imageBase: number, sections: FakeSection[]): Uint8Ar
   const opt = PE_OFFSET + 24;
   view.setUint16(opt, 0x10b, true);
   view.setUint32(opt + 28, imageBase, true);
+  view.setUint32(opt + 104, importDirectoryRva, true);
   sections.forEach((s, i) => {
     const h = opt + OPTIONAL_SIZE + 40 * i;
     out.set(new TextEncoder().encode(s.name.slice(0, 8)), h);
