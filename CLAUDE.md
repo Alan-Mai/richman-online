@@ -63,7 +63,7 @@ pnpm typecheck
 5. 每次 commit 只做一件事，訊息用 Conventional Commits（`feat(shared): ...`）。
 6. 重要技術決策寫進 `docs/DECISIONS.md`；完成路線圖項目時，在同一個 commit 內更新 `docs/ROADMAP.md` 的勾選。
 7. `GAME_RULES.md` 標「待確認」的規則不要自行猜測，其他大富翁類遊戲的慣例也不能當成原版規則；先問我，不要自行補成非原版選項（引擎只實作原版規則，見 `DECISIONS.md`）。原版程式會當機或結果未定義的邊界情況（例：0 個候選仍取亂數），不照抄也不自訂退路，先問我；預設做法是用驗證讓它不可能發生，萬一發生就視為內部錯誤。其餘看似缺陷但結果確定的原版行為，照原版實作。寫作慣例見 `GAME_RULES.md` 開頭。
-8. 輸出很長的工作（掃描 git 歷史、等 CI、分析二進位檔、大範圍搜尋）優先交給 subagent，只回報結論；分析原版素材時，要求 subagent 的回報只含結構與統計，不含原版內容數值。
+8. 輸出很長的工作（掃描 git 歷史、等 CI、分析二進位檔、大範圍搜尋）優先交給 subagent，只回報結論；分析原版素材時，要求 subagent 的回報只含結構與統計，不含原版內容數值。subagent 的逆向結論要寫成 🔍 之前，主 session 必須親自對照反組譯核對關鍵指令，並在 `notes.md` 記下核對了哪些位址；不論是不是透過 `/asset-analyze` 進行，都適用。
 9. 推送前執行 `/pre-push`。
 10. 新增有 peer 依賴限制的套件時，確認版本範圍相容（例：typescript-eslint 對 TypeScript）；也避免選用發布未滿兩週的版本（尤其是新的主版本）。
 11. 不要在本倉庫用 `git add -f` 測試防護機制，改用暫存目錄的另一個倉庫。
@@ -77,4 +77,4 @@ pnpm typecheck
 - 遊戲內玩家可見文字集中在 i18n 檔，預設 `zh-TW`。
 - 狀態物件不可就地修改，回傳新物件。
 - 優先使用可辨識聯合型別（discriminated unions）表示 Action、Event，以及任何「id 或特殊值」的參數（例：`Viewer = { kind: 'player'; id } | { kind: 'spectator' }`）。不要把特殊值和字串 id 混在同一個型別（`PlayerId | 'spectator'`），也不要用 `eslint-disable` 掩蓋型別問題。
-- 含反斜線、單引號、反引號或 `${…}` 的文字（Windows 路徑、正則、跳脫字元、JS 樣板字串、含單引號的字串常值）一律用 Write/Edit 工具寫，不要用 bash heredoc、sed、perl 或 `node -e '…'`（本機 Git Bash 會吞掉 `\\`、單引號會提前結束 bash 字串、雙引號內的反引號與 `${…}` 會被 shell 展開）。
+- 含反斜線、單引號、反引號或 `${…}` 的文字（Windows 路徑、正則、跳脫字元、JS 樣板字串、含單引號的字串常值）一律用 Write/Edit 工具寫，不要用 bash heredoc（含 `<<'EOF'`）、sed、perl 或 `node -e '…'`（本機 Git Bash 會吞掉 `\\`、單引號會提前結束 bash 字串、雙引號內的反引號與 `${…}` 會被 shell 展開）。需要一次改多個檔案時，先用 Write 把腳本寫到 gitignored 的位置（`tools/extract/scratch/` 或系統暫存目錄，不得 commit），再用 `node <檔案>` 執行；腳本內容同樣適用這條。
