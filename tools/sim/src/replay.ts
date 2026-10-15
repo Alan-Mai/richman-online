@@ -27,7 +27,12 @@ import {
  * Bumped whenever the engine changes how a game unfolds from the same seed and actions; older logs
  * cannot be replayed.
  */
-export const LOG_VERSION = 5;
+export const LOG_VERSION = 6;
+
+/** Why logs of a given older version cannot be replayed, where that is worth spelling out. */
+const OLDER_VERSION_REASONS: Readonly<Record<number, string>> = {
+  5: 'its config has no startDate (the calendar came in log version 6)',
+};
 
 export interface GameLog {
   version: typeof LOG_VERSION;
@@ -81,10 +86,13 @@ export function parseGameLog(
     return { ok: false, errors: ['not a game log object'] };
   }
   if (data.version !== LOG_VERSION) {
+    const reason =
+      typeof data.version === 'number' ? OLDER_VERSION_REASONS[data.version] : undefined;
     return {
       ok: false,
       errors: [
-        `unsupported log version ${String(data.version)} (expected ${LOG_VERSION}; logs from older engines cannot be replayed)`,
+        `unsupported log version ${String(data.version)} (expected ${LOG_VERSION}; logs from older engines cannot be replayed)` +
+          (reason === undefined ? '' : `: ${reason}`),
       ],
     };
   }

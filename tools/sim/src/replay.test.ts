@@ -121,7 +121,13 @@ describe('parseGameLog', () => {
     [
       'an older version',
       edit({ version: 1 }),
-      'unsupported log version 1 (expected 5; logs from older engines cannot be replayed)',
+      'unsupported log version 1 (expected 6; logs from older engines cannot be replayed)',
+    ],
+    [
+      'a version 5 log, from before the calendar',
+      edit({ version: 5 }),
+      'unsupported log version 5 (expected 6; logs from older engines cannot be replayed): ' +
+        'its config has no startDate (the calendar came in log version 6)',
     ],
     ['an unknown board', edit({ board: 'elsewhere' }), 'unknown board elsewhere'],
     ['a missing config', edit({ config: null }), 'config must be an object'],
