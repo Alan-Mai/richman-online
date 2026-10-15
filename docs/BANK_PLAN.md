@@ -141,3 +141,5 @@
   - 1-2 與 1-4 合併成一個 commit（產生器說明要引用比對指令）：農曆演算法、產生器 `pnpm -F extract lunar-gen`、`packages/shared/src/lunar-data.ts`（1997–2199，列進 `.prettierignore`，由 extract 的測試確認與產生器一致）、`pnpm -F extract cli lunar-check`。本機比對 8399 筆全部一致；香港天文台抽樣 16 年 5841 日全部一致。
   - 1-3 `lunarDate`（shared 查表）完成。
   - 1-5 節日規則完成（`holidays.ts`、`Board.holidays`、`validateBoard` 的 `tooManyHolidays`／`invalidHoliday`）；內建測試圖加了自編節日。客戶端尚未使用。
+- 批次 2：進行中。
+  - 2-1 查證完成（逆向步驟 10c，約 0.3 輪）：原版「加入電腦」只從尚未被任何座位使用的角色中均勻隨機選，角色不重複；已寫進 GAME_RULES 第 1 節。使用者決定：2-3、2-6、2-7 依種子為電腦**不重複**抽角色；人類座位目前沒有角色，只在電腦之間不重複。ROADMAP 另記「人類座位選角色」（Phase 4 之前）。
