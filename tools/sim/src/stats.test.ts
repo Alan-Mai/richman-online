@@ -139,6 +139,7 @@ describe('summarize', () => {
         saleRatioSum: 3,
         forks: 10,
         deadEnds: 1,
+        diceRolls: { 1: 30, 2: 10 },
       }),
       record(2, { kind: 'unfinished' }, 30, 10, 1, {
         firstBankruptcyRound: 20,
@@ -147,12 +148,14 @@ describe('summarize', () => {
         auctions: 1,
         forks: 20,
         deadEnds: 3,
+        diceRolls: { 2: 30, 3: 30 },
       }),
       // Failed games count only for the first bankruptcy.
       record(3, { kind: 'failed', step: 1, failure: { kind: 'missingGameEnded' } }, 1, 1, 1, {
         firstBankruptcyRound: 3,
         finalDay: 999,
         auctions: 99,
+        diceRolls: { 3: 1000 },
       }),
     ];
     const summary = summarize(games, 4);
@@ -163,6 +166,7 @@ describe('summarize', () => {
     expect(summary.meanLotteryPool).toBe(5000);
     expect(summary.forksPerGame).toBe(15);
     expect(summary.deadEndsPerGame).toBe(2);
+    expect(summary.diceRolls).toEqual({ 1: 30, 2: 40, 3: 30 });
 
     const text = formatStats(summary, 0);
     expect(text).toContain('first in round 11.0 on average');
@@ -173,6 +177,7 @@ describe('summarize', () => {
     );
     expect(text).toContain('lottery pool at the end: mean 5000.0');
     expect(text).toContain('moves per game: forks 15.0, dead-end turnarounds 2.0');
+    expect(text).toContain('rolls by dice count (100 rolls): 1 30.0%, 2 40.0%, 3 30.0%');
   });
 
   it('counts the endings by humans going out, which have no winner', () => {
@@ -253,6 +258,7 @@ describe('formatting', () => {
   const spec: GameSpec = {
     board: 'test-loop',
     controllers: 'mixed',
+    vehicle: 'motorbike',
     seed: 12,
     dayLimit: 100,
     netWorthTargetMultiple: null,
@@ -267,14 +273,20 @@ describe('formatting', () => {
         { type: 'decline', playerId: 'p1' },
       ]),
     ).toBe('p1:rollDice p1:decline');
+    expect(
+      formatActions([
+        { type: 'setDiceCount', playerId: 'p2', count: 2 },
+        { type: 'bid', playerId: 'p3', raise: 500 },
+      ]),
+    ).toBe('p2:setDiceCount(2) p3:bid(500)');
   });
 
   it('builds a rerun command for one game', () => {
     expect(rerunCommand(spec)).toBe(
-      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --controllers mixed --day-limit 100 --max-days 1000 --max-steps 20000',
+      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --controllers mixed --vehicle motorbike --day-limit 100 --max-days 1000 --max-steps 20000',
     );
     expect(rerunCommand({ ...spec, dayLimit: null, netWorthTargetMultiple: 3 })).toBe(
-      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --controllers mixed --net-worth-target 3 --max-days 1000 --max-steps 20000',
+      'pnpm -F sim sim -- --games 1 --seed 12 --board test-loop --controllers mixed --vehicle motorbike --net-worth-target 3 --max-days 1000 --max-steps 20000',
     );
   });
 

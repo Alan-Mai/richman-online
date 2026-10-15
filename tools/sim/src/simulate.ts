@@ -36,6 +36,7 @@ function simulate(options: RunOptions, io: SimIO, engine: Engine): number {
     const spec: GameSpec = {
       board: options.board,
       controllers: options.controllers,
+      vehicle: options.vehicle,
       seed: gameSeedFor(options.seed, index),
       dayLimit: options.dayLimit,
       netWorthTargetMultiple: options.netWorthTargetMultiple,

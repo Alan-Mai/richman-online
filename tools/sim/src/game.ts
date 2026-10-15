@@ -24,6 +24,7 @@ import {
   type PlayerId,
   type RuleError,
   type TileIndex,
+  type Vehicle,
   type Viewer,
 } from '@richman/shared';
 
@@ -126,6 +127,8 @@ const EXAMPLE_ACTIONS: Record<ActionType, (playerId: PlayerId) => Action> = {
 export interface GameSpec {
   board: BoardName;
   controllers: ControllerMode;
+  /** RuleConfig.startingVehicle. */
+  vehicle: Vehicle;
   seed: number;
   /** RuleConfig.dayLimit; null for no limit. */
   dayLimit: number | null;
@@ -189,6 +192,8 @@ export interface GameMetrics {
   forks: number;
   /** Steps that turned back at a dead end. */
   deadEnds: number;
+  /** Rolls by how many dice were rolled: diceRolls[n] rolls of n dice. */
+  diceRolls: Record<number, number>;
 }
 
 export function emptyMetrics(): GameMetrics {
@@ -204,6 +209,7 @@ export function emptyMetrics(): GameMetrics {
     saleRatioSum: 0,
     forks: 0,
     deadEnds: 0,
+    diceRolls: {},
   };
 }
 
@@ -227,12 +233,16 @@ export function chooserSeedFor(gameSeed: number): number {
 }
 
 export function gameSetup(
-  spec: Pick<GameSpec, 'board' | 'controllers' | 'seed' | 'dayLimit' | 'netWorthTargetMultiple'>,
+  spec: Pick<
+    GameSpec,
+    'board' | 'controllers' | 'vehicle' | 'seed' | 'dayLimit' | 'netWorthTargetMultiple'
+  >,
 ): GameSetup {
   const controllers = controllersFor(spec.controllers);
   return {
     config: {
       ...DEFAULT_RULE_CONFIG,
+      startingVehicle: spec.vehicle,
       dayLimit: spec.dayLimit,
       netWorthTargetMultiple: spec.netWorthTargetMultiple,
     },
@@ -416,6 +426,7 @@ export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
       actions.push(action);
       if (auction !== null) auction.actions++;
       countTurns(state, result.events, metrics);
+      countDice(result.events, metrics);
       for (const event of result.events) {
         switch (event.type) {
           case 'PlayerBankrupt':
@@ -466,6 +477,14 @@ function startPriceOf(before: GameState, after: GameState, tile: TileIndex): num
     if (phase.kind === 'auction' && phase.tile === tile) return phase.startPrice;
   }
   throw new Error(`no auction of tile ${tile} around the sale`);
+}
+
+function countDice(events: readonly GameEvent[], metrics: GameMetrics): void {
+  for (const event of events) {
+    if (event.type !== 'DiceRolled') continue;
+    const n = event.dice.length;
+    metrics.diceRolls[n] = (metrics.diceRolls[n] ?? 0) + 1;
+  }
 }
 
 /**

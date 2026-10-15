@@ -44,6 +44,8 @@ export interface Stats {
   meanLotteryPool: number | null;
   forksPerGame: number | null;
   deadEndsPerGame: number | null;
+  /** Rolls by dice count over the games that did not fail: diceRolls[n] rolls of n dice. */
+  diceRolls: Record<number, number>;
   /** Most frequent first, each with the seed of the first game that showed it. */
   failureGroups: { key: string; count: number; seed: number }[];
 }
@@ -83,6 +85,7 @@ export function summarize(records: readonly GameRecord[], seats: number): Stats 
     meanLotteryPool: null,
     forksPerGame: null,
     deadEndsPerGame: null,
+    diceRolls: {},
     failureGroups: [],
   };
   const finishedRounds: number[] = [];
@@ -108,6 +111,11 @@ export function summarize(records: readonly GameRecord[], seats: number): Stats 
     stats.meanLotteryPool = mean(played.map((m) => m.lotteryPool));
     stats.forksPerGame = mean(played.map((m) => m.forks));
     stats.deadEndsPerGame = mean(played.map((m) => m.deadEnds));
+    for (const m of played) {
+      for (const [n, rolls] of Object.entries(m.diceRolls)) {
+        stats.diceRolls[Number(n)] = (stats.diceRolls[Number(n)] ?? 0) + rolls;
+      }
+    }
   }
   const sum = (pick: (m: GameMetrics) => number) => played.reduce((total, m) => total + pick(m), 0);
   const sold = sum((m) => m.auctionsSold);
@@ -237,8 +245,22 @@ export function describeFailure(failure: ReplayFailure): string[] {
   }
 }
 
+function diceLine(rolls: Readonly<Record<number, number>>): string {
+  const counts = Object.entries(rolls).map(([n, count]) => [Number(n), count] as const);
+  const total = counts.reduce((sum, [, count]) => sum + count, 0);
+  if (total === 0) return 'rolls by dice count: n/a';
+  const parts = counts.sort(([a], [b]) => a - b).map(([n, c]) => `${n} ${percent(c, total)}`);
+  return `rolls by dice count (${total} rolls): ${parts.join(', ')}`;
+}
+
+/** One token per action; parameters follow the type (raise of a bid, dice count). */
 export function formatActions(actions: readonly Action[]): string {
-  return actions.map((a) => `${a.playerId}:${a.type}`).join(' ');
+  return actions
+    .map((a) => {
+      const parameter = a.type === 'bid' ? a.raise : a.type === 'setDiceCount' ? a.count : null;
+      return `${a.playerId}:${a.type}${parameter === null ? '' : `(${parameter})`}`;
+    })
+    .join(' ');
 }
 
 /** Reruns one game with the same players; same seed, same choices. */
@@ -248,7 +270,7 @@ export function rerunCommand(spec: GameSpec): string {
     spec.netWorthTargetMultiple === null
       ? ''
       : ` --net-worth-target ${spec.netWorthTargetMultiple}`;
-  return `pnpm -F sim sim -- --games 1 --seed ${spec.seed} --board ${spec.board} --controllers ${spec.controllers}${days}${target} --max-days ${spec.maxDays} --max-steps ${spec.maxSteps}`;
+  return `pnpm -F sim sim -- --games 1 --seed ${spec.seed} --board ${spec.board} --controllers ${spec.controllers} --vehicle ${spec.vehicle}${days}${target} --max-days ${spec.maxDays} --max-steps ${spec.maxSteps}`;
 }
 
 export function formatFailureDetail(
@@ -319,6 +341,7 @@ export function formatStats(stats: Stats, elapsedMs: number): string {
     auctionLine(stats.auctions),
     `lottery pool at the end: mean ${fixed(stats.meanLotteryPool)}`,
     `moves per game: forks ${fixed(stats.forksPerGame)}, dead-end turnarounds ${fixed(stats.deadEndsPerGame)}`,
+    diceLine(stats.diceRolls),
   ];
   if (stats.failureGroups.length > 0) {
     lines.push('failure groups:');

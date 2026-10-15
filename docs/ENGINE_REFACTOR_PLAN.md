@@ -105,6 +105,7 @@
     - 預覽步數與門檻是原版常數，放在 `RuleConfig.computerDice`；「汽車隨機 2 或 3、機車 2」寫成「`crowdedMinDice` 到上限之間隨機」，預設值下與原版相同；範圍只有 1 個值時不抽亂數（引擎細節）。
     - `stepFrom` 移到新檔 `movement.ts`，加上 `previewPath`，避免 `computer.ts` 與 `engine.ts` 循環引用。
     - 大型建築要計入預覽，記在 ROADMAP 大型建築項目。模擬器的外洩檢查加上 `computerDiceCount`。
+  - [x] 模擬器（E3 之後另一個 commit）：`--vehicle walk|motorbike|car`（起始交通工具）、統計各顆數的擲骰比例；失敗紀錄的動作顯示參數；`LOG_VERSION` 改成 5（設定移除 `defaultDiceCount`）。CLAUDE.md 指令段補上 `--vehicle`。
 - [ ] F
 
 實作中發現的待補項目，直接寫進對應批次的條目。

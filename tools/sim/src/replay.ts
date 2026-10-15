@@ -27,7 +27,7 @@ import {
  * Bumped whenever the engine changes how a game unfolds from the same seed and actions; older logs
  * cannot be replayed.
  */
-export const LOG_VERSION = 4;
+export const LOG_VERSION = 5;
 
 export interface GameLog {
   version: typeof LOG_VERSION;

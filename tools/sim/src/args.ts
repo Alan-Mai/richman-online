@@ -1,5 +1,6 @@
 // Command-line parsing for the simulator. A small hand-written parser: node:util parseArgs refuses
 // values that start with "-", which hides the clearer range errors below.
+import { VEHICLES, type Vehicle } from '@richman/shared';
 import {
   BOARD_NAMES,
   CONTROLLER_MODES,
@@ -12,6 +13,8 @@ import {
 export interface RunOptions {
   board: BoardName;
   controllers: ControllerMode;
+  /** RuleConfig.startingVehicle. */
+  vehicle: Vehicle;
   games: number;
   seed: number;
   /** null: no day limit (the default). */
@@ -33,6 +36,7 @@ export const USAGE = `usage:
                      [--controllers random|computer|mixed]
                        (seats count from 0; computer: seat 0 random, the rest computers;
                         mixed: seats 1 and 3 computers, 0 and 2 random)
+                     [--vehicle walk|motorbike|car]
                      [--day-limit N] [--net-worth-target MULTIPLE] [--max-days 1000]
                      [--max-steps 20 x max-days] [--max-failure-details 5]
   pnpm -F sim sim -- replay <failure.json>`;
@@ -40,6 +44,7 @@ export const USAGE = `usage:
 const OPTION_NAMES = [
   'board',
   'controllers',
+  'vehicle',
   'games',
   'seed',
   'day-limit',
@@ -132,6 +137,12 @@ export function parseCommand(argv: readonly string[]): ParseResult {
     errors.push(`--controllers must be ${CONTROLLER_MODES.join(', ')}, got ${controllersRaw}`);
   }
 
+  const vehicleRaw = values.get('vehicle') ?? 'walk';
+  const vehicle = VEHICLES.find((v) => v === vehicleRaw) ?? 'walk';
+  if (vehicle !== vehicleRaw) {
+    errors.push(`--vehicle must be ${VEHICLES.join(', ')}, got ${vehicleRaw}`);
+  }
+
   const optionalPositive = (name: OptionName): number | null =>
     values.has(name) ? readInt(name, 1, 1, Number.MAX_SAFE_INTEGER) : null;
   const dayLimit = optionalPositive('day-limit');
@@ -154,6 +165,7 @@ export function parseCommand(argv: readonly string[]): ParseResult {
       options: {
         board,
         controllers,
+        vehicle,
         games,
         seed,
         dayLimit,

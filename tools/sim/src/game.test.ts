@@ -17,6 +17,7 @@ import {
 const RICHEST: GameSpec = {
   board: 'test-loop',
   controllers: 'random',
+  vehicle: 'walk',
   seed: 1,
   dayLimit: 100,
   netWorthTargetMultiple: null,
@@ -318,6 +319,25 @@ describe('runGame players', () => {
     expect(forks).toBeGreaterThan(0);
     expect(deadEnds).toBeGreaterThan(0);
     expect(runGame({ ...RICHEST, dayLimit: 30 }).metrics).toMatchObject({ forks: 0, deadEnds: 0 });
+  });
+
+  it('counts rolls by dice count, set by the starting vehicle and the players', () => {
+    const walking = runGame({ ...RICHEST, dayLimit: 30 }).metrics.diceRolls;
+    expect(Object.keys(walking)).toEqual(['1']);
+    const rolls = { 1: 0, 2: 0, 3: 0 };
+    for (const controllers of ['random', 'computer'] as const) {
+      const { metrics, outcome } = runGame({
+        ...RICHEST,
+        vehicle: 'car',
+        controllers,
+        dayLimit: 30,
+      });
+      expect(outcome.kind).not.toBe('failed');
+      for (const n of [1, 2, 3] as const) rolls[n] += metrics.diceRolls[n] ?? 0;
+    }
+    expect(rolls[1]).toBeGreaterThan(0);
+    expect(rolls[2]).toBeGreaterThan(0);
+    expect(rolls[3]).toBeGreaterThan(0);
   });
 });
 

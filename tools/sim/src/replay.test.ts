@@ -5,6 +5,7 @@ import { parseGameLog, replay, reproduces, toGameLog, type GameLog } from './rep
 const RICHEST: GameSpec = {
   board: 'test-loop',
   controllers: 'random',
+  vehicle: 'walk',
   seed: 7,
   dayLimit: 10,
   netWorthTargetMultiple: null,
@@ -120,7 +121,7 @@ describe('parseGameLog', () => {
     [
       'an older version',
       edit({ version: 1 }),
-      'unsupported log version 1 (expected 4; logs from older engines cannot be replayed)',
+      'unsupported log version 1 (expected 5; logs from older engines cannot be replayed)',
     ],
     ['an unknown board', edit({ board: 'elsewhere' }), 'unknown board elsewhere'],
     ['a missing config', edit({ config: null }), 'config must be an object'],

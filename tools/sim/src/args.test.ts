@@ -4,6 +4,7 @@ import { parseCommand, type RunOptions } from './args';
 const DEFAULTS: RunOptions = {
   board: 'test-loop',
   controllers: 'random',
+  vehicle: 'walk',
   games: 1000,
   seed: 1,
   dayLimit: null,
@@ -30,6 +31,8 @@ describe('parseCommand', () => {
       '--games=20',
       '--controllers',
       'mixed',
+      '--vehicle',
+      'car',
       '--seed',
       '4294967295',
       '--day-limit',
@@ -50,6 +53,7 @@ describe('parseCommand', () => {
         options: {
           board: 'test-loop',
           controllers: 'mixed',
+          vehicle: 'car',
           games: 20,
           seed: 4294967295,
           dayLimit: 7,
