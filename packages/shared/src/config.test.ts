@@ -20,6 +20,32 @@ describe('DEFAULT_RULE_CONFIG', () => {
     // The original's first option for both: no limit, no target.
     expect(DEFAULT_RULE_CONFIG.dayLimit).toBeNull();
     expect(DEFAULT_RULE_CONFIG.netWorthTargetMultiple).toBeNull();
+    // Where the original starts on any computer today (docs/GAME_RULES.md §2).
+    expect(DEFAULT_RULE_CONFIG.startDate).toEqual({ year: 2010, month: 1, day: 1 });
+  });
+});
+
+describe('startDate', () => {
+  const at = (year: number, month: number, day: number) =>
+    validateRuleConfig(withConfig({ startDate: { year, month, day } }));
+  const invalid = { field: 'startDate', reason: 'invalidStartDate' };
+
+  it('accepts the original clamp range, both ends included', () => {
+    expect(at(1998, 1, 1)).toEqual([]);
+    expect(at(2004, 2, 29)).toEqual([]);
+    expect(at(2010, 12, 31)).toEqual([]);
+  });
+
+  it('rejects dates outside the range', () => {
+    expect(at(1997, 12, 31)).toContainEqual(invalid);
+    expect(at(2011, 1, 1)).toContainEqual(invalid);
+  });
+
+  it('rejects days that do not exist', () => {
+    expect(at(2010, 2, 29)).toContainEqual(invalid);
+    expect(at(2010, 6, 31)).toContainEqual(invalid);
+    expect(at(2010, 13, 1)).toContainEqual(invalid);
+    expect(at(2010, 1, 1.5)).toContainEqual(invalid);
   });
 });
 

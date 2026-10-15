@@ -1,4 +1,5 @@
 import type { Board } from './board';
+import type { CalendarDate } from './calendar';
 import type { RuleConfig, Vehicle } from './config';
 import type { PlayerId, TileIndex } from './ids';
 import type { RngState } from './rng';
@@ -120,6 +121,8 @@ export interface GameState {
    * Days gone by: 0 in a new game, +1 each time play wraps back to seat 0 (docs/GAME_RULES.md §2).
    */
   day: number;
+  /** Today's calendar date: RuleConfig.startDate in a new game, one day later each day gone by. */
+  date: CalendarDate;
   /** The price index (coef, docs/GAME_RULES.md §3): starts at 1 and never falls. */
   priceIndex: number;
   /**

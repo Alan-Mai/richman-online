@@ -60,6 +60,16 @@ describe('checkInvariants', () => {
   const cases: [string, () => GameState, string][] = [
     ['negative day', () => ({ ...base(), day: -1 }), 'day -1 is not a non-negative integer'],
     ['fractional day', () => ({ ...base(), day: 0.5 }), 'day 0.5 is not a non-negative integer'],
+    [
+      'date behind the day count',
+      () => ({ ...base(), day: 2 }),
+      'date 2010-01-01 is not 2 days after the start date 2010-01-01',
+    ],
+    [
+      'date that does not exist',
+      () => ({ ...base(), date: { year: 2010, month: 2, day: 30 } }),
+      'date 2010-02-30 is not a valid date',
+    ],
     ['price index 0', () => ({ ...base(), priceIndex: 0 }), 'priceIndex 0 is not an integer >= 1'],
     [
       'fractional price index',

@@ -4,6 +4,7 @@ import type { Action, ActionType } from './actions';
 import { applyAuctionAction, auctionActions, startAuctions, type AuctionStep } from './auction';
 import { computerBid, drawComputerDiceCount } from './computer';
 import { isPlaceable, validateBoard, type Board, type BoardError } from './board';
+import { nextDay } from './calendar';
 import { validateRuleConfig, type RuleConfig, type RuleConfigError } from './config';
 import type { RuleError } from './errors';
 import type { GameEndReason, GameEvent } from './events';
@@ -112,6 +113,7 @@ export function createGame(setup: GameSetup): CreateGameResult {
     tiles: board.tiles.map(() => ({ owner: null, level: 0 })),
     turn: { current: first.id, round: 1, phase: { kind: 'awaitRoll' } },
     day: 0,
+    date: { ...config.startDate },
     priceIndex: 1,
     lotteryPool: 0,
     rngState: createRng(setup.seed),
@@ -530,14 +532,15 @@ function endTurn(state: GameState): Step {
 }
 
 /**
- * One day goes by at the end of every round (docs/GAME_RULES.md §2). The day limit and the net
- * worth target are checked first (docs/GAME_RULES.md §1); if the game goes on, the price index
- * becomes floor(average net worth of the players still in / starting funds) unless that is lower
- * (docs/GAME_RULES.md §3).
+ * One day goes by at the end of every round (docs/GAME_RULES.md §2): the calendar date moves on
+ * first, then the day limit and the net worth target are checked (docs/GAME_RULES.md §1); if the
+ * game goes on, the price index becomes floor(average net worth of the players still in / starting
+ * funds) unless that is lower (docs/GAME_RULES.md §3).
  */
 function advanceDay(state: GameState): Step {
   const { config } = state;
   const day = state.day + 1;
+  const { date } = nextDay(state.date);
   const standing = state.players.filter((p) => !p.bankrupt);
   const worths = standing.map((p) => netWorth(state, p.id));
 
@@ -550,8 +553,8 @@ function advanceDay(state: GameState): Step {
   const dayLimitReached = config.dayLimit !== null && day >= config.dayLimit && best > 0;
   if (targetReached || dayLimitReached) {
     const dated: Step = {
-      state: { ...state, day },
-      events: [{ type: 'DayAdvanced', day, priceIndex: state.priceIndex }],
+      state: { ...state, day, date },
+      events: [{ type: 'DayAdvanced', day, date, priceIndex: state.priceIndex }],
     };
     // The original takes the same path for both conditions and records neither.
     return chain(dated, (s) => endGame(s, 'dayLimitOrNetWorthTarget', [richest]));
@@ -561,8 +564,8 @@ function advanceDay(state: GameState): Step {
   const average = Math.floor(sum / standing.length);
   const priceIndex = Math.max(state.priceIndex, Math.floor(average / config.startingFunds));
   return {
-    state: { ...state, day, priceIndex },
-    events: [{ type: 'DayAdvanced', day, priceIndex }],
+    state: { ...state, day, date, priceIndex },
+    events: [{ type: 'DayAdvanced', day, date, priceIndex }],
   };
 }
 

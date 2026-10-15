@@ -74,6 +74,7 @@ interface GameState {
   tiles: TileState[];        // 與 board.tiles 平行：擁有者、建築等級（無主地也可能有等級）
   turn: { current: PlayerId; round: number; phase: Phase };
   day: number;               // 已過天數，新局 0，每輪 +1
+  date: CalendarDate;        // 日曆日期（年月日），新局 = config.startDate，每輪 +1 日（calendar.ts）
   priceIndex: number;        // 物價指數 coef，新局 1，只升不降
   lotteryPool: number;       // 彩券獎池，viewFor 不送
   rngState: RngState;        // 伺服器專用

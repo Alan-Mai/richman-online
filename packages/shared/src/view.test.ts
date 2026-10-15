@@ -29,7 +29,8 @@ describe('viewFor', () => {
 
   it('keeps everything else and records the viewer', () => {
     const base = patchTile(newTestGame({ playerCount: 3 }), 2, { owner: 'p2', level: 1 });
-    const state = { ...base, day: 4, priceIndex: 2, lotteryPool: 7000 };
+    const date = { year: 2010, month: 1, day: 5 };
+    const state = { ...base, day: 4, date, priceIndex: 2, lotteryPool: 7000 };
     const view = viewFor(state, { kind: 'player', id: 'p2' });
     expect(view).toEqual({
       viewer: { kind: 'player', id: 'p2' },
@@ -39,6 +40,7 @@ describe('viewFor', () => {
       tiles: state.tiles,
       turn: state.turn,
       day: 4,
+      date,
       priceIndex: 2,
     });
     expect(viewFor(state, SPECTATOR).viewer).toEqual({ kind: 'spectator' });

@@ -229,7 +229,7 @@ describe('describeEvent day and rent', () => {
 
   it('reports the day gone by and the price index', () => {
     const text = describeEvent(
-      { type: 'DayAdvanced', day: 3, priceIndex: 2 },
+      { type: 'DayAdvanced', day: 3, date: { year: 2010, month: 1, day: 4 }, priceIndex: 2 },
       model,
       TEST_LOOP_BOARD,
     );

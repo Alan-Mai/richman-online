@@ -2,6 +2,14 @@
 // Defaults are provisional values chosen for this project, not values from the original game, unless
 // a field says it is the original's.
 
+import {
+  EARLIEST_START_DATE,
+  LATEST_START_DATE,
+  compareDates,
+  isValidDate,
+  type CalendarDate,
+} from './calendar';
+
 /** How a player gets around (docs/GAME_RULES.md §9). The temporary vehicle is Phase 5. */
 export type Vehicle = 'walk' | 'motorbike' | 'car';
 
@@ -28,6 +36,12 @@ export interface RuleConfig {
    * null means no target, the original's first option.
    */
   netWorthTargetMultiple: number | null;
+  /**
+   * The calendar date of a new game (docs/GAME_RULES.md §2 "日曆"), within EARLIEST_START_DATE ..
+   * LATEST_START_DATE, the range the original clamps the computer's date to. The default,
+   * 1 January 2010, is where the original starts on any computer today.
+   */
+  startDate: CalendarDate;
   /**
    * What every player rides from the start; one setting for all, as on the original setup screen
    * (docs/GAME_RULES.md §9).
@@ -95,6 +109,7 @@ export const DEFAULT_RULE_CONFIG: RuleConfig = {
   startingPoints: 0,
   dayLimit: null,
   netWorthTargetMultiple: null,
+  startDate: { year: 2010, month: 1, day: 1 },
   startingVehicle: 'walk',
   vehicleMaxDice: { walk: 1, motorbike: 2, car: 3 },
   diceFaces: 6,
@@ -124,7 +139,8 @@ export type RuleConfigErrorReason =
   | 'notAscendingPositiveIntegers'
   | 'invalidComputerBid'
   | 'invalidComputerDice'
-  | 'invalidVehicle';
+  | 'invalidVehicle'
+  | 'invalidStartDate';
 
 export interface RuleConfigError {
   field: keyof RuleConfig;
@@ -188,6 +204,15 @@ export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
   }
   if (!VEHICLES.every((vehicle) => isPositiveInteger(config.vehicleMaxDice[vehicle]))) {
     errors.push({ field: 'vehicleMaxDice', reason: 'notPositiveInteger' });
+  }
+
+  const { startDate } = config;
+  if (
+    !isValidDate(startDate) ||
+    compareDates(startDate, EARLIEST_START_DATE) < 0 ||
+    compareDates(startDate, LATEST_START_DATE) > 0
+  ) {
+    errors.push({ field: 'startDate', reason: 'invalidStartDate' });
   }
 
   for (const field of ['dayLimit', 'netWorthTargetMultiple'] as const) {

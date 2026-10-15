@@ -1,6 +1,7 @@
 // What one client may see. Fields are copied by name so new GameState fields stay hidden until
 // they are deliberately added here.
 import type { Board } from './board';
+import type { CalendarDate } from './calendar';
 import type { RuleConfig } from './config';
 import type { PlayerId } from './ids';
 import type { AuctionPhase, GameState, Phase, PlayerState, TileState, TurnState } from './state';
@@ -25,6 +26,7 @@ export interface PlayerView {
   tiles: readonly TileState[];
   turn: TurnView;
   day: number;
+  date: CalendarDate;
   priceIndex: number;
 }
 
@@ -42,6 +44,7 @@ export function viewFor(state: GameState, viewer: Viewer): PlayerView {
     tiles: state.tiles.map((t) => ({ ...t })),
     turn: { ...state.turn, phase: viewPhase(state.turn.phase) },
     day: state.day,
+    date: { ...state.date },
     priceIndex: state.priceIndex,
   };
 }

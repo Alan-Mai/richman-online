@@ -206,11 +206,14 @@ describe('day limit', () => {
     // Average net worth 30,000 would raise the index to 3.
     const cash = { p1: 30_000, p2: 30_000 };
     const { state, events } = rollOne(endOfDay({ config: { dayLimit: 1 }, cash }));
+    // The date moves on first, even on the day the game ends (docs/GAME_RULES.md §2).
     expect(events.find((e) => e.type === 'DayAdvanced')).toEqual({
       type: 'DayAdvanced',
       day: 1,
+      date: { year: 2010, month: 1, day: 2 },
       priceIndex: 1,
     });
+    expect(state.date).toEqual({ year: 2010, month: 1, day: 2 });
     expect(state.priceIndex).toBe(1);
     expect(gameEnded(events).reason).toBe('dayLimitOrNetWorthTarget');
   });

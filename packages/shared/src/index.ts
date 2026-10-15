@@ -16,6 +16,22 @@ export {
   type UnsupportedTileDef,
   type TileDef,
 } from './board';
+export {
+  CALENDAR_EPOCH,
+  EARLIEST_START_DATE,
+  LATEST_START_DATE,
+  addDays,
+  compareDates,
+  daysBetween,
+  daysInMonth,
+  fromSerial,
+  isLeapYear,
+  isValidDate,
+  nextDay,
+  toSerial,
+  weekday,
+  type CalendarDate,
+} from './calendar';
 export { TEST_BRANCH_BOARD } from './maps/test-branch';
 export { TEST_LOOP_BOARD } from './maps/test-loop';
 export {

@@ -137,3 +137,4 @@
 ## 進度
 
 - 批次 1：進行中。
+  - 1-1 日曆模型完成（`calendar.ts`、`RuleConfig.startDate`、`GameState.date`、`DayAdvanced.date`、不變量）。舊的模擬器失敗紀錄沒有 `startDate`，replay 時會被設定驗證拒絕（只在本機，不另做相容）。客戶端顯示日期併入 2-7。

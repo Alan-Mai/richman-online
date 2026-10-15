@@ -51,7 +51,12 @@ describe('applyEventToDisplay', () => {
   });
 
   it('DayAdvanced sets the day and the price index', () => {
-    const next = apply({ type: 'DayAdvanced', day: 4, priceIndex: 3 });
+    const next = apply({
+      type: 'DayAdvanced',
+      day: 4,
+      date: { year: 2010, month: 1, day: 5 },
+      priceIndex: 3,
+    });
     expect(next).toMatchObject({ day: 4, priceIndex: 3 });
   });
 

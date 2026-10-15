@@ -53,6 +53,9 @@ function pass(state: GameState) {
 
 const withIndex = (state: GameState, priceIndex: number): GameState => ({ ...state, priceIndex });
 
+/** The day after the default start date. */
+const JAN_2 = { year: 2010, month: 1, day: 2 };
+
 describe('starting funds', () => {
   it('gives half as cash and half as deposit', () => {
     const state = game();
@@ -94,6 +97,54 @@ describe('a new game', () => {
   it('starts on day 0 with price index 1', () => {
     expect(game()).toMatchObject({ day: 0, priceIndex: 1 });
   });
+
+  it('starts on the configured date', () => {
+    expect(game().date).toEqual({ year: 2010, month: 1, day: 1 });
+    const startDate = { year: 1999, month: 7, day: 15 };
+    expect(game({ config: { startDate } }).date).toEqual(startDate);
+  });
+
+  it('rejects a start date outside the original range', () => {
+    const startDate = { year: 2011, month: 1, day: 1 };
+    expect(newTestGame.bind(null, { config: { startDate } })).toThrow(/startDate/);
+  });
+});
+
+describe('the calendar date', () => {
+  /** Plays `rounds` full rounds of two players from the given start date. */
+  function after(rounds: number, startDate = { year: 2010, month: 1, day: 1 }) {
+    let state = game({ config: { startDate } });
+    const events: GameEvent[] = [];
+    for (let i = 0; i < rounds * 2; i++) {
+      const step = pass(state);
+      state = step.state;
+      events.push(...step.events);
+    }
+    return { state, events };
+  }
+
+  it('moves on one day each day gone by', () => {
+    const { state, events } = after(3);
+    expect(state).toMatchObject({ day: 3, date: { year: 2010, month: 1, day: 4 } });
+    expect(events.flatMap((e) => (e.type === 'DayAdvanced' ? [e.date] : []))).toEqual([
+      JAN_2,
+      { year: 2010, month: 1, day: 3 },
+      { year: 2010, month: 1, day: 4 },
+    ]);
+  });
+
+  it('crosses months, leap days and years', () => {
+    expect(after(2, { year: 2008, month: 2, day: 28 }).state.date).toEqual({
+      year: 2008,
+      month: 3,
+      day: 1,
+    });
+    expect(after(1, { year: 2010, month: 12, day: 31 }).state.date).toEqual({
+      year: 2011,
+      month: 1,
+      day: 1,
+    });
+  });
 });
 
 describe('the day', () => {
@@ -110,7 +161,7 @@ describe('the day', () => {
     const { state, events } = pass(afterP1);
     expect(state.day).toBe(1);
     expect(events.slice(-2)).toEqual([
-      { type: 'DayAdvanced', day: 1, priceIndex: 1 },
+      { type: 'DayAdvanced', day: 1, date: JAN_2, priceIndex: 1 },
       { type: 'TurnStarted', playerId: 'p1', round: 2 },
     ]);
   });
@@ -127,7 +178,7 @@ describe('the day', () => {
     const { state: next, events } = pass(state);
     expect(next.day).toBe(1);
     expect(events.slice(-2)).toEqual([
-      { type: 'DayAdvanced', day: 1, priceIndex: 1 },
+      { type: 'DayAdvanced', day: 1, date: JAN_2, priceIndex: 1 },
       { type: 'TurnStarted', playerId: 'p2', round: 2 },
     ]);
   });
@@ -156,7 +207,12 @@ describe('the price index', () => {
     // Net worths 25,000 and 34,999: average 29,999 -> 2.
     const { state, events } = pass(endOfRound({ p1: [20_000, 5000], p2: [30_000, 4999] }));
     expect(state.priceIndex).toBe(2);
-    expect(dayAdvanced(events)).toEqual({ type: 'DayAdvanced', day: 1, priceIndex: 2 });
+    expect(dayAdvanced(events)).toEqual({
+      type: 'DayAdvanced',
+      day: 1,
+      date: JAN_2,
+      priceIndex: 2,
+    });
   });
 
   it('stays at 1 below twice the starting funds', () => {
@@ -181,7 +237,12 @@ describe('the price index', () => {
     const start = withIndex(endOfRound({ p1: [100, 0], p2: [100, 0] }), 3);
     const { state, events } = pass(start);
     expect(state.priceIndex).toBe(3);
-    expect(dayAdvanced(events)).toEqual({ type: 'DayAdvanced', day: 1, priceIndex: 3 });
+    expect(dayAdvanced(events)).toEqual({
+      type: 'DayAdvanced',
+      day: 1,
+      date: JAN_2,
+      priceIndex: 3,
+    });
   });
 
   it('leaves bankrupt players out of the average', () => {
@@ -261,9 +322,11 @@ describe('netWorth', () => {
 });
 
 describe('viewFor', () => {
-  it('sends the day and the price index', () => {
-    const state = { ...game(), day: 12, priceIndex: 5 };
-    expect(viewFor(state, { kind: 'player', id: 'p1' })).toMatchObject({ day: 12, priceIndex: 5 });
-    expect(viewFor(state, { kind: 'spectator' })).toMatchObject({ day: 12, priceIndex: 5 });
+  it('sends the day, the date and the price index', () => {
+    const date = { year: 2010, month: 1, day: 13 };
+    const state = { ...game(), day: 12, date, priceIndex: 5 };
+    const sent = { day: 12, date, priceIndex: 5 };
+    expect(viewFor(state, { kind: 'player', id: 'p1' })).toMatchObject(sent);
+    expect(viewFor(state, { kind: 'spectator' })).toMatchObject(sent);
   });
 });

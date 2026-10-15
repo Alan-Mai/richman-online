@@ -1,6 +1,7 @@
 // Consistency checks on a GameState, shared by tests, tools/sim and a future server debug mode.
 // Total money is deliberately not checked: payouts and bonuses create money (docs/DECISIONS.md).
 import { isLinked } from './board';
+import { daysBetween, isValidDate, type CalendarDate } from './calendar';
 import { VEHICLES } from './config';
 import type { AuctionPhase, GameState, PlayerState } from './state';
 import { auctionStartPrice, buyPrice, upgradeCost } from './money';
@@ -19,13 +20,22 @@ export function checkInvariants(state: GameState): string[] {
   ];
 }
 
-function checkCalendar({ day, priceIndex, lotteryPool }: GameState): string[] {
+const formatDate = ({ year, month, day }: CalendarDate): string =>
+  `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+function checkCalendar({ config, day, date, priceIndex, lotteryPool }: GameState): string[] {
   const errors: string[] = [];
   if (!isNonNegativeInteger(lotteryPool)) {
     errors.push(`lotteryPool ${lotteryPool} is not a non-negative integer`);
   }
   if (!isNonNegativeInteger(day)) {
     errors.push(`day ${day} is not a non-negative integer`);
+  } else if (!isValidDate(date)) {
+    errors.push(`date ${formatDate(date)} is not a valid date`);
+  } else if (daysBetween(config.startDate, date) !== day) {
+    errors.push(
+      `date ${formatDate(date)} is not ${day} days after the start date ${formatDate(config.startDate)}`,
+    );
   }
   if (!Number.isSafeInteger(priceIndex) || priceIndex < 1) {
     errors.push(`priceIndex ${priceIndex} is not an integer >= 1`);

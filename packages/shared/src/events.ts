@@ -1,3 +1,4 @@
+import type { CalendarDate } from './calendar';
 import type { PlayerId, TileIndex } from './ids';
 
 /** The debt that could not be paid; amountDue is the full amount, not what was paid. */
@@ -15,8 +16,11 @@ export type GameEndReason =
 /** What happened, in order, for the client to animate. */
 export type GameEvent =
   | { type: 'TurnStarted'; playerId: PlayerId; round: number }
-  /** A round ended: one more day has gone by and the price index was updated (maybe unchanged). */
-  | { type: 'DayAdvanced'; day: number; priceIndex: number }
+  /**
+   * A round ended: one more day has gone by, `date` is the new calendar date, and the price index
+   * was updated (maybe unchanged).
+   */
+  | { type: 'DayAdvanced'; day: number; date: CalendarDate; priceIndex: number }
   /** A player's first turn put them on the board, facing away from prev. */
   | { type: 'PlayerPlaced'; playerId: PlayerId; tile: TileIndex; prev: TileIndex }
   /** The player chose how many dice to roll; kept for later turns until changed. */
