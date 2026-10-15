@@ -48,8 +48,8 @@ export default defineConfig(
     },
   },
   {
-    // Plain JS config files have no type info.
-    files: ['**/*.js'],
+    // Plain JS config files and Claude Code hooks have no type info.
+    files: ['**/*.js', '.claude/hooks/**/*.mjs'],
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
@@ -59,6 +59,7 @@ export default defineConfig(
       'apps/client/vite.config.ts',
       'tools/**',
       'scripts/**',
+      '.claude/hooks/**',
       '*.js',
       '*.ts',
     ],
