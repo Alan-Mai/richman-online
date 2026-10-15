@@ -11,6 +11,8 @@ export function describeEvent(event: GameEvent, model: DisplayModel, board: Boar
       return t('event.turnStarted', { name: name(event.playerId) });
     case 'DayAdvanced':
       return t('event.dayAdvanced', { day: event.day, priceIndex: event.priceIndex });
+    case 'DiceCountSet':
+      return t('event.diceCountSet', { name: name(event.playerId), count: event.count });
     case 'DiceRolled':
       return t('event.diceRolled', {
         name: name(event.playerId),

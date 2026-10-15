@@ -189,6 +189,7 @@ describe('runGame failure detection', () => {
         kind: 'unofferedNotRefused',
         action: { type: 'upgradeProperty', playerId: 'p1' },
         outcome: 'accepted',
+        expected: 'wrongPhase',
       },
     });
   });

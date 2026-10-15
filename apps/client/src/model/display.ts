@@ -119,6 +119,7 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
       return { ...model, current: event.playerId, round: event.round };
     case 'DayAdvanced':
       return { ...model, day: event.day, priceIndex: event.priceIndex };
+    case 'DiceCountSet':
     case 'DiceRolled':
       return model;
     case 'PlayerMoved': {

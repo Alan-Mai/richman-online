@@ -3,6 +3,11 @@ import type { PlayerId } from './ids';
 /** Player intents. playerId is filled in by the server from the sending connection. */
 export type Action =
   | { type: 'rollDice'; playerId: PlayerId }
+  /**
+   * Choose how many dice to roll, 1 to the vehicle's most; on a motorbike or car only, before
+   * rolling. Kept for later turns until changed (docs/GAME_RULES.md §9).
+   */
+  | { type: 'setDiceCount'; playerId: PlayerId; count: number }
   | { type: 'buyProperty'; playerId: PlayerId }
   | { type: 'upgradeProperty'; playerId: PlayerId }
   /** Pass on the pending buy or upgrade offer. */

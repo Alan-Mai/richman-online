@@ -216,7 +216,7 @@ export function describeFailure(failure: ReplayFailure): string[] {
       ];
     case 'unofferedNotRefused':
       return [
-        `unoffered ${formatActions([failure.action])} was ${failure.outcome}, expected wrongPhase`,
+        `unoffered ${formatActions([failure.action])} was ${failure.outcome}, expected ${failure.expected}`,
       ];
     case 'notOffered':
       return [`logged ${formatActions([failure.action])} is not a legal action`];

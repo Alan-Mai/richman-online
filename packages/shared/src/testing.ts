@@ -193,5 +193,12 @@ export function applyOk(
 
 /** A well-formed action of the given type, with made-up parameters where it takes any. */
 export function exampleAction(type: ActionType, playerId: PlayerId): Action {
-  return type === 'bid' ? { type, playerId, raise: 100 } : { type, playerId };
+  switch (type) {
+    case 'bid':
+      return { type, playerId, raise: 100 };
+    case 'setDiceCount':
+      return { type, playerId, count: 1 };
+    default:
+      return { type, playerId };
+  }
 }

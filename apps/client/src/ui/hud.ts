@@ -67,6 +67,8 @@ export function actionLabel(type: ActionType, update: ServerUpdate): string {
   switch (type) {
     case 'rollDice':
       return t('action.rollDice');
+    case 'setDiceCount':
+      return t('action.setDiceCount');
     case 'buyProperty':
       return t('action.buyProperty', {
         price: formatMoney(phase.kind === 'awaitBuyDecision' ? phase.price : 0),

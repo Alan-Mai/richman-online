@@ -1,6 +1,7 @@
 // Player-visible text, default locale. Placeholders are written as {name}.
 export const zhTW = {
   'action.rollDice': '擲骰子',
+  'action.setDiceCount': '選擇骰子數',
   'action.buyProperty': '購買（{price}）',
   'action.upgradeProperty': '加蓋（{cost}）',
   'action.decline': '放棄',
@@ -113,6 +114,7 @@ export const zhTW = {
 
   'event.turnStarted': '輪到 {name}',
   'event.dayAdvanced': '過了一天（已過 {day} 天），物價指數 ×{priceIndex}',
+  'event.diceCountSet': '{name} 改擲 {count} 顆骰子',
   'event.diceRolled': '{name} 擲出 {dice}，共 {total} 點',
   'event.moved': '{name} 走到 {tile}',
   'event.playerPlaced': '{name} 從 {tile} 出發',

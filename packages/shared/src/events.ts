@@ -19,6 +19,8 @@ export type GameEvent =
   | { type: 'DayAdvanced'; day: number; priceIndex: number }
   /** A player's first turn put them on the board, facing away from prev. */
   | { type: 'PlayerPlaced'; playerId: PlayerId; tile: TileIndex; prev: TileIndex }
+  /** The player chose how many dice to roll; kept for later turns until changed. */
+  | { type: 'DiceCountSet'; playerId: PlayerId; count: number }
   | { type: 'DiceRolled'; playerId: PlayerId; dice: readonly number[]; total: number }
   /** Every tile stepped on, in order, ending with the landing tile. */
   | { type: 'PlayerMoved'; playerId: PlayerId; path: readonly TileIndex[] }

@@ -17,6 +17,7 @@ import {
 
 const ACTION_TYPES: readonly ActionType[] = [
   'rollDice',
+  'setDiceCount',
   'buyProperty',
   'upgradeProperty',
   'decline',
@@ -47,9 +48,13 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
     for (const action of legal) expect(applyAction(state, action).ok).toBe(true);
     for (const type of ACTION_TYPES) {
       if (!legal.some((a) => a.type === type)) {
+        // On foot the dice count is not a choice, so it is refused as invalid, not as out of phase.
+        const onFoot = type === 'setDiceCount' && state.turn.phase.kind === 'awaitRoll';
         expect(applyAction(state, exampleAction(type, current))).toEqual({
           ok: false,
-          error: { code: 'wrongPhase', phase: state.turn.phase.kind },
+          error: onFoot
+            ? { code: 'invalidAction' }
+            : { code: 'wrongPhase', phase: state.turn.phase.kind },
         });
       }
     }
@@ -84,7 +89,8 @@ describe('legalActions completeness', () => {
         startingFunds: 2000,
         startingVehicle: 'motorbike',
       },
-      2000,
+      // Random play spends many steps choosing the dice count.
+      5000,
     ],
   ];
 

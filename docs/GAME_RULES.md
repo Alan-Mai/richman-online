@@ -225,7 +225,7 @@ Claude Code：遇到 `❓ 待確認` 時不要自行決定，先詢問或做成�
 
 ## 9. 交通工具 🔍
 
-引擎現況（引擎改造進行中）：E1 已實作玩家的交通工具 `vehicle`（`walk`／`motorbike`／`car`）、全體共用的 `RuleConfig.startingVehicle`（預設步行，同原版）、各交通工具的顆數上限 `vehicleMaxDice`（1／2／3），開局顆數為上限。尚未實作：人類選顆數（E2）、電腦選顆數（E3）；開局扣全場庫存、臨時交通工具與其他道具化內容屬 Phase 5。
+引擎現況（引擎改造進行中）：E1 已實作玩家的交通工具 `vehicle`（`walk`／`motorbike`／`car`）、全體共用的 `RuleConfig.startingVehicle`（預設步行，同原版）、各交通工具的顆數上限 `vehicleMaxDice`（1／2／3），開局顆數為上限。E2：擲骰前可用 `setDiceCount` 在 1 到上限之間選擇（只限機車與汽車；步行時不提供，送出時以 `invalidAction` 拒絕），之後的回合沿用。尚未實作：電腦選顆數（E3）；開局扣全場庫存、臨時交通工具與其他道具化內容屬 Phase 5。
 
 種類與骰子數：
 - 4 種：步行、機車、汽車、臨時交通工具。機車與汽車各只有一種。

@@ -94,6 +94,11 @@
   - B2／D6 待補已查證，結果見下方「批次 E0」。
 - [ ] 批次 E：
   - [x] E1。`Vehicle` 與 `VEHICLES` 放在 `config.ts`；設定驗證新增 `invalidVehicle`（起始交通工具），`vehicleMaxDice` 每一項須為正整數；不變量檢查交通工具與顆數範圍。開局扣全場庫存延到 Phase 5（程式註解）。
+  - [x] E2。和計畫的差異與補充：
+    - `legalActions` 在 `awaitRoll` 列出 1 到上限的每一個顆數（含目前的顆數，選同一個也接受）；新事件 `DiceCountSet`。行動者是電腦時也提供（E3 由 `computerAction` 送出）。
+    - 步行時送出 `setDiceCount` 回 `invalidAction`（不是 `wrongPhase`）：`engine.legal.test` 與模擬器「沒提供的動作類型」檢查因此對這一種改成預期 `invalidAction`，模擬器的 `unofferedNotRefused` 多記 `expected`。
+    - `engine.legal.test` 的機車隨機對局常花步數在選顆數，步數上限改成 5000。
+    - client 編譯修正：`DiceCountSet` 的紀錄文字（暫定）、顆數按鈕先用通用文字；設定畫面還沒有起始交通工具，所以目前不會出現，E4 再做。
 - [ ] F
 
 實作中發現的待補項目，直接寫進對應批次的條目。

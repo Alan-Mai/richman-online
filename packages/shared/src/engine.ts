@@ -124,6 +124,7 @@ export type Result =
 
 const ACTION_TYPES: ReadonlySet<string> = new Set<ActionType>([
   'rollDice',
+  'setDiceCount',
   'buyProperty',
   'upgradeProperty',
   'decline',
@@ -137,7 +138,7 @@ function parseAction(raw: unknown): Action | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return null;
   }
-  const { type, playerId, raise } = raw as Record<string, unknown>;
+  const { type, playerId, raise, count } = raw as Record<string, unknown>;
   if (typeof type !== 'string' || !ACTION_TYPES.has(type) || typeof playerId !== 'string') {
     return null;
   }
@@ -146,6 +147,10 @@ function parseAction(raw: unknown): Action | null {
     case 'bid':
       return Number.isSafeInteger(raise)
         ? { type: actionType, playerId, raise: raise as number }
+        : null;
+    case 'setDiceCount':
+      return Number.isSafeInteger(count)
+        ? { type: actionType, playerId, count: count as number }
         : null;
     case 'rollDice':
     case 'buyProperty':
@@ -192,6 +197,10 @@ export function applyAction(state: GameState, rawAction: Action): Result {
   switch (action.type) {
     case 'rollDice':
       return phase.kind === 'awaitRoll' ? accept(rollDice(state)) : wrongPhase(phase.kind);
+    case 'setDiceCount':
+      return phase.kind === 'awaitRoll'
+        ? setDiceCount(state, action.count)
+        : wrongPhase(phase.kind);
     case 'buyProperty':
       return phase.kind === 'awaitBuyDecision' ? buyProperty(state, phase) : wrongPhase(phase.kind);
     case 'upgradeProperty':
@@ -261,8 +270,14 @@ export function legalActions(state: GameState, playerId: PlayerId): Action[] {
     return [];
   }
   switch (state.turn.phase.kind) {
-    case 'awaitRoll':
-      return [{ type: 'rollDice', playerId }];
+    case 'awaitRoll': {
+      const most = choosableDice(state) ?? 0;
+      const counts = Array.from({ length: most }, (_, i) => i + 1);
+      return [
+        { type: 'rollDice', playerId },
+        ...counts.map((count): Action => ({ type: 'setDiceCount', playerId, count })),
+      ];
+    }
     case 'awaitBuyDecision':
       return [
         { type: 'buyProperty', playerId },
@@ -278,6 +293,27 @@ export function legalActions(state: GameState, playerId: PlayerId): Action[] {
     case 'gameOver':
       return [];
   }
+}
+
+/**
+ * The most dice the current player may choose to roll, or null when their vehicle gives no choice:
+ * on foot (docs/GAME_RULES.md §9).
+ */
+function choosableDice(state: GameState): number | null {
+  const { vehicle } = playerOf(state, state.turn.current);
+  return vehicle === 'walk' ? null : state.config.vehicleMaxDice[vehicle];
+}
+
+function setDiceCount(state: GameState, count: number): Result {
+  const most = choosableDice(state);
+  if (most === null || count < 1 || count > most) {
+    return reject({ code: 'invalidAction' });
+  }
+  const playerId = state.turn.current;
+  return accept({
+    state: updatePlayer(state, playerId, () => ({ diceCount: count })),
+    events: [{ type: 'DiceCountSet', playerId, count }],
+  });
 }
 
 function buyProperty(state: GameState, phase: BuyDecision): Result {

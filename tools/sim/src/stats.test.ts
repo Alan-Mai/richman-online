@@ -211,9 +211,14 @@ describe('failureKeys', () => {
     expect(
       failureKeys({ kind: 'legalActionRejected', action, error: { code: 'insufficientFunds' } }),
     ).toEqual(['legalActionRejected: buyProperty -> insufficientFunds']);
-    expect(failureKeys({ kind: 'unofferedNotRefused', action, outcome: 'accepted' })).toEqual([
-      'unofferedNotRefused: buyProperty -> accepted',
-    ]);
+    expect(
+      failureKeys({
+        kind: 'unofferedNotRefused',
+        action,
+        outcome: 'accepted',
+        expected: 'wrongPhase',
+      }),
+    ).toEqual(['unofferedNotRefused: buyProperty -> accepted']);
     expect(failureKeys({ kind: 'stepLimit', maxSteps: 9 })).toEqual(['stepLimit']);
     expect(failureKeys({ kind: 'missingGameEnded' })).toEqual(['missingGameEnded']);
     expect(failureKeys({ kind: 'createGame', errors: [{ reason: 'invalidSeed' }] })).toEqual([

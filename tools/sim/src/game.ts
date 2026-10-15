@@ -108,6 +108,7 @@ export function isBoardName(name: unknown): name is BoardName {
  */
 const EXAMPLE_ACTIONS: Record<ActionType, (playerId: PlayerId) => Action> = {
   rollDice: (playerId) => ({ type: 'rollDice', playerId }),
+  setDiceCount: (playerId) => ({ type: 'setDiceCount', playerId, count: 1 }),
   buyProperty: (playerId) => ({ type: 'buyProperty', playerId }),
   upgradeProperty: (playerId) => ({ type: 'upgradeProperty', playerId }),
   decline: (playerId) => ({ type: 'decline', playerId }),
@@ -149,8 +150,8 @@ export type Failure =
   | { kind: 'viewLeak'; viewer: string; key: string }
   | { kind: 'auctionTooLong'; tile: TileIndex; actions: number }
   | { kind: 'legalActionRejected'; action: Action; error: RuleError }
-  /** An action type missing from legalActions was not refused with wrongPhase. */
-  | { kind: 'unofferedNotRefused'; action: Action; outcome: string }
+  /** An action type missing from legalActions was not refused with the expected error. */
+  | { kind: 'unofferedNotRefused'; action: Action; outcome: string; expected: RuleError['code'] }
   | { kind: 'missingGameEnded' }
   | { kind: 'stepLimit'; maxSteps: number }
   | { kind: 'exception'; message: string; stack?: string };
@@ -243,7 +244,7 @@ export function gameSetup(
  * Checks one state before an action is chosen: the price index did not fall since the previous
  * state (null for the first), invariants hold, nobody but actorOf is
  * offered anything (nobody at all after game over), every offered action is accepted and every
- * other action type is refused with wrongPhase. May throw if the engine does.
+ * other action type is refused (see expectedRefusal). May throw if the engine does.
  */
 export function checkStep(
   engine: Engine,
@@ -302,16 +303,28 @@ export function checkStep(
     if (!legal.some((a) => a.type === type)) {
       const action = example(actor);
       const result = engine.applyAction(state, action);
-      if (result.ok || result.error.code !== 'wrongPhase') {
+      const expected = expectedRefusal(state, action.type);
+      if (result.ok || result.error.code !== expected) {
         return {
           kind: 'unofferedNotRefused',
           action,
           outcome: result.ok ? 'accepted' : result.error.code,
+          expected,
         };
       }
     }
   }
   return null;
+}
+
+/**
+ * How an unoffered action type must be refused: wrongPhase, except the dice count while waiting to
+ * roll, which is only unoffered on foot, where it is not a choice (invalidAction).
+ */
+function expectedRefusal(state: GameState, type: ActionType): RuleError['code'] {
+  return type === 'setDiceCount' && state.turn.phase.kind === 'awaitRoll'
+    ? 'invalidAction'
+    : 'wrongPhase';
 }
 
 export const sameAction = (a: Action, b: Action): boolean =>
