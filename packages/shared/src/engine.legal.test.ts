@@ -71,8 +71,19 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
   return { state, auctionSteps };
 }
 
+/** Plays seeds 1–5 and expects at least one of them to finish. */
+function expectRandomGamesHold(config: Partial<RuleConfig>, maxSteps: number): void {
+  let finished = 0;
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const start = newTestGame({ config, playerCount: 4, seed });
+    const end = playRandomGame(start, seed, maxSteps).state;
+    if (end.turn.phase.kind === 'gameOver') finished++;
+  }
+  expect(finished).toBeGreaterThan(0);
+}
+
 describe('legalActions completeness', () => {
-  // [name, config, step limit]; rent goes into deposits, so last-standing games run long.
+  // [name, config, step limit]
   const configs: [string, Partial<RuleConfig>, number][] = [
     ['defaults with a day limit', { dayLimit: 25 }, 600],
     [
@@ -83,26 +94,17 @@ describe('legalActions completeness', () => {
       },
       600,
     ],
-    [
-      'poor players until one is left',
-      {
-        startingFunds: 2000,
-        startingVehicle: 'motorbike',
-      },
-      // Random play spends many steps choosing the dice count.
-      5000,
-    ],
   ];
 
   it.each(configs)('holds for random games: %s', (_, config, maxSteps) => {
-    let finished = 0;
-    for (const seed of [1, 2, 3, 4, 5]) {
-      const start = newTestGame({ config, playerCount: 4, seed });
-      const end = playRandomGame(start, seed, maxSteps).state;
-      if (end.turn.phase.kind === 'gameOver') finished++;
-    }
-    expect(finished).toBeGreaterThan(0);
+    expectRandomGamesHold(config, maxSteps);
   });
+
+  // Rent goes into deposits, so last-standing games run long, and random play spends many steps
+  // choosing the dice count; this takes a few seconds, more under coverage.
+  it('holds for random games: poor players until one is left', () => {
+    expectRandomGamesHold({ startingFunds: 2000, startingVehicle: 'motorbike' }, 5000);
+  }, 30_000);
 
   it('holds through bankruptcy auctions', () => {
     // Random play rarely gets there: rent goes into deposits, so cash only ever falls and bidders
