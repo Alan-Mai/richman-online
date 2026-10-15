@@ -35,7 +35,13 @@ export function testLoopAmounts(
   };
 }
 
-const CORNER_NAMES = ['起點', '測試空地 A', '測試空地 B', '測試空地 C'] as const;
+/** Corners clockwise from the start; the second and fourth are banks. */
+const CORNERS = [
+  { kind: 'blank', name: '起點' },
+  { kind: 'bank', name: '測試銀行 A' },
+  { kind: 'blank', name: '測試空地' },
+  { kind: 'bank', name: '測試銀行 B' },
+] as const;
 
 /** One street per side; rent adds up over the street an owner has (docs/GAME_RULES.md §3). */
 const STREET_NAMES = ['測試北街', '測試東街', '測試南街', '測試西街'] as const;
@@ -65,7 +71,7 @@ function buildTiles(): TileDef[] {
     const links = [{ to: (i + 1) % TILE_COUNT }, { to: (i + TILE_COUNT - 1) % TILE_COUNT }];
     const pos = gridPos(i);
     if (offset === 0) {
-      tiles.push({ kind: 'blank', name: CORNER_NAMES[side] ?? '', links, pos });
+      tiles.push({ ...(CORNERS[side] ?? CORNERS[0]), links, pos });
     } else {
       const price = PRICES[side]?.[offset - 1] ?? 0;
       tiles.push({

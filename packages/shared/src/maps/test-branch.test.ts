@@ -34,6 +34,11 @@ describe('TEST_BRANCH_BOARD', () => {
     expect(tiles.some((tile) => tile.links.some((link) => link.blocked === true))).toBe(true);
   });
 
+  it('adds one bank of its own to the two loop banks', () => {
+    const banks = tiles.flatMap((tile, i) => (tile.kind === 'bank' ? [i] : []));
+    expect(banks).toEqual([5, 15, 23]);
+  });
+
   it('lets a player reach every tile from tile 0 in every direction', () => {
     for (const { to: firstPrev } of tiles[0]?.links ?? []) {
       const seen = new Set<string>();

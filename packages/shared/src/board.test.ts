@@ -251,5 +251,7 @@ describe('placement tiles', () => {
     expect(isPlaceable({ ...blank([1]), noRandomPlacement: true })).toBe(false);
     expect(isPlaceable({ ...blank([1]), noRandomPlacement: false })).toBe(true);
     expect(isPlaceable(unsupported([1]))).toBe(false);
+    // Banks can be a random start, as in the original game (docs/GAME_RULES.md §4).
+    expect(isPlaceable({ ...blank([1]), kind: 'bank' })).toBe(true);
   });
 });

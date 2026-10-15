@@ -23,7 +23,7 @@ const EXTRA: readonly TileDef[] = [
     links: [],
     pos: { x: 3, y: 3 },
   },
-  { kind: 'blank', name: '測試中路尾', links: [], pos: { x: 3, y: 4 } },
+  { kind: 'bank', name: '測試中路銀行', links: [], pos: { x: 3, y: 4 } },
   // Dead-end spur off the left edge (tile 17).
   { kind: 'property', name: '測試巷', ...testLoopAmounts(900, 0), links: [], pos: { x: 1, y: 3 } },
   { kind: 'blank', name: '測試巷底', links: [], pos: { x: 2, y: 3 } },

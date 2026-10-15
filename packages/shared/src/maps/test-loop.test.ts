@@ -8,13 +8,18 @@ describe('TEST_LOOP_BOARD', () => {
     expect(validateBoard(TEST_LOOP_BOARD, DEFAULT_RULE_CONFIG)).toEqual([]);
   });
 
-  it('is a 20-tile loop with blank corners and 16 properties', () => {
+  it('is a 20-tile loop with 16 properties, two blank corners and two bank corners', () => {
     const { tiles } = TEST_LOOP_BOARD;
     expect(tiles).toHaveLength(20);
     expect(tiles.filter((t) => t.kind === 'property')).toHaveLength(16);
-    for (const corner of [0, 5, 10, 15]) {
-      expect(tiles[corner]?.kind).toBe('blank');
-    }
+    expect(
+      tiles.map((t, i) => (t.kind === 'property' ? null : [i, t.kind])).filter(Boolean),
+    ).toEqual([
+      [0, 'blank'],
+      [5, 'bank'],
+      [10, 'blank'],
+      [15, 'bank'],
+    ]);
   });
 
   it('links each tile to its clockwise neighbour first, then the one behind', () => {
