@@ -55,7 +55,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 **Phase 3 前置**（Phase 3 開始前完成）：
 - [x] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**（已完成：LZ + 動態 Huffman，見 `ASSET_FORMATS.md`「MKF 壓縮」；462 個壓縮子檔全部通過驗證，`jump.mkf` 子檔 9–44 縮圖經使用者目視確認。）
 
-**下一步**：「銀行格與存提款」（見下方）的階段 2，依分批計畫 `docs/BANK_PLAN.md` 進行（批次 1 日曆與農曆 → 批次 2 存提款 → 批次 3 貸款與利息 → 批次 4 模擬器比較與收尾），進度寫在該檔。原版規則見 `GAME_RULES.md` 第 2 節「日」「日曆」、第 4 節銀行、第 8 節「貸款與破產」；逆向位址見 `local-assets/ghidra/notes.md`「步驟 10」「步驟 10b」。之後是「匯入資料表後，設定畫面改用原版檔位」。
+**下一步**：「銀行格與存提款」（見下方）的階段 2，依分批計畫 `docs/BANK_PLAN.md` 進行，進度寫在該檔文末。批次 1（日曆與農曆）已完成；接著是批次 2「存提款」：先做 2-1 前置查證（原版「加入電腦」選角色的範圍：12 個全選或只選未用的，限 0.5 輪，主 session 親自讀反組譯、記在 `local-assets/ghidra/notes.md`，查完停下回報），再依序做 2-2 銀行格 `TileDef` 與測試地圖、2-3 電腦角色比例與開局拆法、2-4 經過／停留的人類存提款（可暫停的 `advance`、`LegalAction` 範圍選項）、2-5 電腦重新分配（`Math.fround` 與精確乘法）；2-6 模擬器 `--tables` 之前，先另開 `chore` commit 讓 `/pre-push` 檢查每個 commit 都沒有 `tools/sim/out/` 與 `tables.json`；2-7 客戶端存提款畫面與日期顯示要停下等目視確認。原版規則見 `GAME_RULES.md` 第 2 節「日」「日曆」、第 4 節銀行、第 8 節「貸款與破產」；逆向位址見 `local-assets/ghidra/notes.md`「步驟 10」「步驟 10b」。之後是「匯入資料表後，設定畫面改用原版檔位」。
 
 **未解問題**：
 - 壓縮子檔中沒有已知 magic 的 308 個（`Data.mkf` 302、`Panel.mkf` 6）格式未知，需另外分析（可用 `decompressMkf` 解壓後再看）。
