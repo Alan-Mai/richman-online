@@ -99,6 +99,12 @@
     - 步行時送出 `setDiceCount` 回 `invalidAction`（不是 `wrongPhase`）：`engine.legal.test` 與模擬器「沒提供的動作類型」檢查因此對這一種改成預期 `invalidAction`，模擬器的 `unofferedNotRefused` 多記 `expected`。
     - `engine.legal.test` 的機車隨機對局常花步數在選顆數，步數上限改成 5000。
     - client 編譯修正：`DiceCountSet` 的紀錄文字（暫定）、顆數按鈕先用通用文字；設定畫面還沒有起始交通工具，所以目前不會出現，E4 再做。
+  - [x] E3。和計畫的差異與補充：
+    - 查證（逆向步驟 9，筆記在 `local-assets/ghidra/notes.md`）：只數第 1–5 步、重複踩到的格子每次都算、非地產不算、只看擁有者；在第一回合放置之後才選；只有電腦。寫回 `GAME_RULES.md` 第 9 節。
+    - 預抽的顆數放在 `awaitRoll` phase 的隱藏欄位 `computerDiceCount`（只在電腦騎機車或汽車時），`viewFor` 不送；不變量檢查只出現在電腦回合、範圍 1 到上限。
+    - 預覽步數與門檻是原版常數，放在 `RuleConfig.computerDice`；「汽車隨機 2 或 3、機車 2」寫成「`crowdedMinDice` 到上限之間隨機」，預設值下與原版相同；範圍只有 1 個值時不抽亂數（引擎細節）。
+    - `stepFrom` 移到新檔 `movement.ts`，加上 `previewPath`，避免 `computer.ts` 與 `engine.ts` 循環引用。
+    - 大型建築要計入預覽，記在 ROADMAP 大型建築項目。模擬器的外洩檢查加上 `computerDiceCount`。
 - [ ] F
 
 實作中發現的待補項目，直接寫進對應批次的條目。

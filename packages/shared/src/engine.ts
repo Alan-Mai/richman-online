@@ -2,12 +2,13 @@
 // state.rngState (see CLAUDE.md and .claude/rules/shared-engine.md).
 import type { Action, ActionType } from './actions';
 import { applyAuctionAction, auctionActions, startAuctions, type AuctionStep } from './auction';
-import { computerBid } from './computer';
+import { computerBid, drawComputerDiceCount } from './computer';
 import { isPlaceable, validateBoard, type Board, type BoardError } from './board';
 import { validateRuleConfig, type RuleConfig, type RuleConfigError } from './config';
 import type { RuleError } from './errors';
 import type { GameEndReason, GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
+import { stepFrom } from './movement';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
 import { buyPrice, netWorth, pay, rentFor, spend, spendable, upgradeCost } from './money';
 import type { Controller, GameState, Phase, PhaseKind, PlayerState } from './state';
@@ -251,8 +252,12 @@ export function computerAction(state: GameState, playerId: PlayerId): Action | n
   }
   const { phase } = state.turn;
   switch (phase.kind) {
-    case 'awaitRoll':
-      return { type: 'rollDice', playerId };
+    case 'awaitRoll': {
+      const count = phase.computerDiceCount;
+      return count === undefined || count === player.diceCount
+        ? { type: 'rollDice', playerId }
+        : { type: 'setDiceCount', playerId, count };
+    }
     case 'awaitBuyDecision':
       return { type: 'buyProperty', playerId };
     case 'awaitUpgradeDecision':
@@ -370,30 +375,6 @@ function rollDice(state: GameState): Step {
       ...landed.events,
     ],
   };
-}
-
-/**
- * Where one step from `position` leads, having come from `prev` (docs/GAME_RULES.md §2): any link
- * that is not blocked and does not lead back to prev; a random one of them at a fork; back to prev
- * at a dead end. Only forks draw from the RNG.
- */
-export function stepFrom(
-  board: Board,
-  position: TileIndex,
-  prev: TileIndex,
-  rng: RngState,
-): { to: TileIndex; rng: RngState } {
-  const candidates = at(board.tiles, position)
-    .links.filter((link) => link.blocked !== true && link.to !== prev)
-    .map((link) => link.to);
-  if (candidates.length === 0) {
-    return { to: prev, rng };
-  }
-  if (candidates.length === 1) {
-    return { to: at(candidates, 0), rng };
-  }
-  const [pick, next] = nextInt(rng, candidates.length);
-  return { to: at(candidates, pick), rng: next };
 }
 
 /**
@@ -591,7 +572,26 @@ function startTurn(state: GameState, playerId: PlayerId, round: number): Step {
     state: { ...state, turn: { current: playerId, round, phase: { kind: 'awaitRoll' } } },
     events: [{ type: 'TurnStarted', playerId, round }],
   };
-  return chain(started, (s) => placeIfOffBoard(s, playerId));
+  return chain(
+    chain(started, (s) => placeIfOffBoard(s, playerId)),
+    (s) => planComputerDice(s, playerId),
+  );
+}
+
+/**
+ * A computer on a motorbike or car picks its dice count as its turn starts, once it is on the
+ * board (docs/GAME_RULES.md §9); computerAction then sets it before rolling.
+ */
+function planComputerDice(state: GameState, playerId: PlayerId): Step {
+  if (playerOf(state, playerId).controller !== 'computer') {
+    return { state, events: [] };
+  }
+  const drawn = drawComputerDiceCount(state, playerId);
+  if (drawn === null) {
+    return { state, events: [] };
+  }
+  const phase: Phase = { kind: 'awaitRoll', computerDiceCount: drawn.count };
+  return { state: { ...state, rngState: drawn.rng, turn: { ...state.turn, phase } }, events: [] };
 }
 
 /**

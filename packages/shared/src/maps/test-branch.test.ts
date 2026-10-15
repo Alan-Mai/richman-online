@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { validateBoard } from '../board';
 import { DEFAULT_RULE_CONFIG } from '../config';
-import { stepFrom } from '../engine';
+import { stepFrom } from '../movement';
 import type { TileIndex } from '../ids';
 import { scriptedRng } from '../testing';
 import { TEST_BRANCH_BOARD } from './test-branch';

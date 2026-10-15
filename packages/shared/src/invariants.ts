@@ -122,8 +122,22 @@ function checkPhase(state: GameState, current: PlayerState): string[] {
   const { phase } = state.turn;
   const errors: string[] = [];
   switch (phase.kind) {
-    case 'awaitRoll':
+    case 'awaitRoll': {
+      const count = phase.computerDiceCount;
+      const prefix = 'phase awaitRoll: computerDiceCount';
+      if (count === undefined) break;
+      if (current.controller !== 'computer') {
+        errors.push(`${prefix} on the turn of ${current.id}, who is not a computer`);
+      } else if (current.vehicle === 'walk') {
+        errors.push(`${prefix} ${count} while ${current.id} is on foot`);
+      } else {
+        const most = config.vehicleMaxDice[current.vehicle];
+        if (!Number.isInteger(count) || count < 1 || count > most) {
+          errors.push(`${prefix} ${count} is outside 1..${most} for ${current.vehicle}`);
+        }
+      }
       break;
+    }
     case 'awaitBuyDecision':
     case 'awaitUpgradeDecision': {
       const prefix = `phase ${phase.kind}: `;

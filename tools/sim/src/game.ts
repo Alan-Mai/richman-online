@@ -86,7 +86,13 @@ export function controllersFor(mode: ControllerMode): Controller[] {
 export const MAX_AUCTION_ACTIONS = 5000;
 
 /** Hidden state that must never appear in a view, as JSON keys. */
-const HIDDEN_KEYS = ['rngState', 'queue', 'computerLimits', 'lotteryPool'] as const;
+const HIDDEN_KEYS = [
+  'rngState',
+  'queue',
+  'computerLimits',
+  'computerDiceCount',
+  'lotteryPool',
+] as const;
 
 /** Built-in boards the simulator can play, by Board.id. */
 export const BOARDS = {

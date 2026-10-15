@@ -102,6 +102,27 @@ describe('checkInvariants', () => {
       'player p2: vehicle bicycle is not a vehicle',
     ],
     [
+      'computer dice count on a human turn',
+      () => patchTurn(base(), { phase: { kind: 'awaitRoll', computerDiceCount: 1 } }),
+      'phase awaitRoll: computerDiceCount on the turn of p1, who is not a computer',
+    ],
+    [
+      'computer dice count on foot',
+      () =>
+        patchTurn(patchPlayer(base(), 'p1', { controller: 'computer' }), {
+          phase: { kind: 'awaitRoll', computerDiceCount: 1 },
+        }),
+      'phase awaitRoll: computerDiceCount 1 while p1 is on foot',
+    ],
+    [
+      'computer dice count above the limit',
+      () =>
+        patchTurn(patchPlayer(base(), 'p1', { controller: 'computer', vehicle: 'motorbike' }), {
+          phase: { kind: 'awaitRoll', computerDiceCount: 3 },
+        }),
+      'phase awaitRoll: computerDiceCount 3 is outside 1..2 for motorbike',
+    ],
+    [
       'tile off the board',
       () => placePlayer(base(), 'p2', 4, 3),
       'player p2: tile 4 is not on the board',

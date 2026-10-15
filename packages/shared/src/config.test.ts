@@ -139,6 +139,34 @@ describe('validateRuleConfig', () => {
     }
   });
 
+  it("uses the original's constants for the computer dice count", () => {
+    expect(DEFAULT_RULE_CONFIG.computerDice).toEqual({
+      previewSteps: 5,
+      crowdedBadTiles: 3,
+      crowdedMinDice: 2,
+      clearGoodTiles: 2,
+      clearBadTiles: 1,
+    });
+  });
+
+  it('requires whole numbers for the computer dice count, and at least 1 die', () => {
+    const dice = DEFAULT_RULE_CONFIG.computerDice;
+    expect(validateRuleConfig(withConfig({ computerDice: { ...dice, clearBadTiles: 0 } }))).toEqual(
+      [],
+    );
+    for (const computerDice of [
+      { ...dice, previewSteps: -1 },
+      { ...dice, crowdedBadTiles: 1.5 },
+      { ...dice, crowdedMinDice: 0 },
+      { ...dice, clearGoodTiles: NaN },
+      { ...dice, clearBadTiles: -1 },
+    ]) {
+      expect(validateRuleConfig(withConfig({ computerDice }))).toEqual([
+        { field: 'computerDice', reason: 'invalidComputerDice' },
+      ]);
+    }
+  });
+
   it('no longer has a default dice count', () => {
     expect(Object.keys(DEFAULT_RULE_CONFIG)).not.toContain('defaultDiceCount');
   });

@@ -46,6 +46,10 @@ export function viewFor(state: GameState, viewer: Viewer): PlayerView {
 }
 
 function viewPhase(phase: Phase): PhaseView {
+  if (phase.kind === 'awaitRoll') {
+    // The computer's chosen dice count stays hidden until it sets it.
+    return { kind: phase.kind };
+  }
   if (phase.kind !== 'auction') {
     return phase;
   }

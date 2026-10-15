@@ -49,6 +49,22 @@ export interface RuleConfig {
   auctionRaises: readonly number[];
   /** How computer players bid (docs/GAME_RULES.md §8; the original's constants). */
   computerBid: ComputerBidConfig;
+  /** How computer players on a motorbike or car choose their dice count (docs/GAME_RULES.md §9). */
+  computerDice: ComputerDiceConfig;
+}
+
+/**
+ * A computer on a motorbike or car looks at the property tiles its next previewSteps steps would
+ * land on: unowned or its own are good, anyone else's are bad. No good tile and at least
+ * crowdedBadTiles bad ones: a random count from crowdedMinDice to the vehicle's most. At least
+ * clearGoodTiles good and at most clearBadTiles bad: 1 die. Otherwise the vehicle's most.
+ */
+export interface ComputerDiceConfig {
+  previewSteps: number;
+  crowdedBadTiles: number;
+  crowdedMinDice: number;
+  clearGoodTiles: number;
+  clearBadTiles: number;
 }
 
 /**
@@ -92,6 +108,13 @@ export const DEFAULT_RULE_CONFIG: RuleConfig = {
     unownedSlope: 4,
     leaderCashMargin: 500,
   },
+  computerDice: {
+    previewSteps: 5,
+    crowdedBadTiles: 3,
+    crowdedMinDice: 2,
+    clearGoodTiles: 2,
+    clearBadTiles: 1,
+  },
 };
 
 export type RuleConfigErrorReason =
@@ -100,6 +123,7 @@ export type RuleConfigErrorReason =
   | 'lessThanMinPlayers'
   | 'notAscendingPositiveIntegers'
   | 'invalidComputerBid'
+  | 'invalidComputerDice'
   | 'invalidVehicle';
 
 export interface RuleConfigError {
@@ -151,6 +175,12 @@ export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
   const ranges = [streetFactor, landFactor].every(([low, high]) => low <= high);
   if (!amounts.every((n) => Number.isFinite(n) && n >= 0) || !ranges) {
     errors.push({ field: 'computerBid', reason: 'invalidComputerBid' });
+  }
+
+  const dice = config.computerDice;
+  const counts = [dice.previewSteps, dice.crowdedBadTiles, dice.clearGoodTiles, dice.clearBadTiles];
+  if (!counts.every(isNonNegativeInteger) || !isPositiveInteger(dice.crowdedMinDice)) {
+    errors.push({ field: 'computerDice', reason: 'invalidComputerDice' });
   }
 
   if (!VEHICLES.includes(config.startingVehicle)) {

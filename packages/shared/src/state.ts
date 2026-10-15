@@ -86,7 +86,15 @@ export interface AuctionPhase {
 
 /** What the game is waiting for. */
 export type Phase =
-  | { kind: 'awaitRoll' }
+  | {
+      kind: 'awaitRoll';
+      /**
+       * On a computer's turn on a motorbike or car: the dice count it chose as the turn started
+       * (docs/GAME_RULES.md §9), drawn ahead so computerAction stays a pure choice. Hidden from
+       * clients.
+       */
+      computerDiceCount?: number;
+    }
   | { kind: 'awaitBuyDecision'; tile: TileIndex; price: number }
   | { kind: 'awaitUpgradeDecision'; tile: TileIndex; cost: number }
   | AuctionPhase
