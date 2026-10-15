@@ -3,13 +3,17 @@ import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { inventory, type CommandContext } from './commands/inventory';
 import { map } from './commands/map';
+import { tables } from './commands/tables';
 import { view } from './commands/view';
 import { GameDirError, resolveGameDir } from './game-dir';
+import { ExeTablesError } from './exe-tables';
+import { PeFormatError } from './formats/pe';
 import { MapExportError } from './map-export';
 
 const COMMANDS: Record<string, (ctx: CommandContext) => Promise<void>> = {
   inventory,
   map,
+  tables,
   view,
 };
 
@@ -56,6 +60,9 @@ async function main(): Promise<void> {
     await command({ gameDir, outDir, args: process.argv.slice(3) });
   } catch (e) {
     if (e instanceof MapExportError) return fail(e.message);
+    if (e instanceof ExeTablesError || e instanceof PeFormatError) {
+      return fail(`unsupported rich4.exe: ${e.message}`);
+    }
     throw e;
   }
 }
