@@ -92,7 +92,7 @@
     - 檢查只保留結構與有依據的性質：每幀位移 > 0、起始資金 > 0、天數上限與淨值目標第 1 檔為 0。「幀長隨速度遞減」沒有規則依據，不檢查。
   - [x] E0b。`parseOriginalTables(json)` 回傳 `{ ok, tables }` 或可辨識聯合型別的錯誤清單（`unsupportedVersion`、`missing`、`wrongType`、`wrongLength`、`outOfRange`，`path` 以點與索引表示），一次收集全部錯誤、不 throw；版本不符時不檢查其餘欄位。筆數放在 `ORIGINAL_TABLE_LENGTHS`。範圍檢查：u8／u32／i32 的寬度、每幀位移與起始資金 > 0（兩者是除數）、天數上限與淨值目標倍數 ≥ 0、`cashPercent` 0–100、`id` 必須依序。本機匯出的 `tables.json` 經 scratch 腳本驗證通過。合併進 `RuleConfig`／客戶端的換算留到用到的批次（E1、E4、銀行）。
   - B2／D6 待補已查證，結果見下方「批次 E0」。
-- [ ] 批次 E：
+- [x] 批次 E：
   - [x] E1。`Vehicle` 與 `VEHICLES` 放在 `config.ts`；設定驗證新增 `invalidVehicle`（起始交通工具），`vehicleMaxDice` 每一項須為正整數；不變量檢查交通工具與顆數範圍。開局扣全場庫存延到 Phase 5（程式註解）。
   - [x] E2。和計畫的差異與補充：
     - `legalActions` 在 `awaitRoll` 列出 1 到上限的每一個顆數（含目前的顆數，選同一個也接受）；新事件 `DiceCountSet`。行動者是電腦時也提供（E3 由 `computerAction` 送出）。
@@ -105,7 +105,15 @@
     - 預覽步數與門檻是原版常數，放在 `RuleConfig.computerDice`；「汽車隨機 2 或 3、機車 2」寫成「`crowdedMinDice` 到上限之間隨機」，預設值下與原版相同；範圍只有 1 個值時不抽亂數（引擎細節）。
     - `stepFrom` 移到新檔 `movement.ts`，加上 `previewPath`，避免 `computer.ts` 與 `engine.ts` 循環引用。
     - 大型建築要計入預覽，記在 ROADMAP 大型建築項目。模擬器的外洩檢查加上 `computerDiceCount`。
+  - [x] E3 的查證由主 session 對照 `step9/dd/` 的反組譯親自核對關鍵指令（計數迴圈只讀 5 筆、型別碼範圍、擁有者位元組、預覽的起點與候選過濾、呼叫點在放置之後與人類分支），結論不變。
   - [x] 模擬器（E3 之後另一個 commit）：`--vehicle walk|motorbike|car`（起始交通工具）、統計各顆數的擲骰比例；失敗紀錄的動作顯示參數；`LOG_VERSION` 改成 5（設定移除 `defaultDiceCount`）。CLAUDE.md 指令段補上 `--vehicle`。
+  - [x] E4（使用者試玩確認，清單全部符合）。內容與查證：
+    - 查證（逆向步驟 9b，`notes.md`）：人類只能在自己回合、擲骰前改顆數；熱鍵預設 D；HUD 每顆一個直排按鈕、前 N 個亮起；步行顯示 1 個亮起的按鈕；沒有訊息。寫回 `GAME_RULES.md` 第 9 節。
+    - `timings.ts` 改成 `Pacing`（自訂值或 `pacingFromTables`）；移動依移動者的交通工具查每幀位移；機車、汽車的自訂每幀位移是非原版值。`DURATIONS` 依同一組幀長換算速度比例。
+    - `tables.json` 由設定畫面匯入（瀏覽器內讀取，重新整理前保留），只用動畫表。試玩回饋：原生檔案選擇框在成功後顯示「沒有選擇檔案」（讀完就清空以便重選同一檔），改成藏起原生選擇框、用自訂按鈕，成功時顯示「已匯入：檔名」；讀檔失敗也顯示訊息。
+    - display model 加 `vehicle`、`diceCount`（事件與 view 一致性測試加汽車＋電腦的局）。設定畫面加起始交通工具。
+    - 試玩用的 `TEMP-DEBUG` 掛勾 `richmanDebug.auction()`（只在 dev）：讓目前玩家下一次擲骰破產並開出有人能出價的拍賣；確認後已移除。
+    - 批次結束驗證：模擬器兩張圖 × 不限／100 日 × 步行／汽車各 1000 局沒有失敗（`GAME_RULES.md`「模擬器觀察」）；shared 覆蓋率 97.9%；`pnpm -F client build` 產物不含素材。
 - [ ] F
 
 實作中發現的待補項目，直接寫進對應批次的條目。

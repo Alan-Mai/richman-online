@@ -4,7 +4,13 @@ import type { DisplayModel } from '../model/display';
 import { BoardView } from '../render/board-view';
 import type { Rect } from '../render/layout';
 import type { AnimationStage } from '../render/phaser-animator';
-import { DEFAULT_GAME_SPEED, FAST_SPEED, type GameSpeed } from '../render/timings';
+import {
+  DEFAULT_GAME_SPEED,
+  FAST_SPEED,
+  PROJECT_PACING,
+  type GameSpeed,
+  type Pacing,
+} from '../render/timings';
 
 const MARGIN = 16;
 
@@ -13,6 +19,8 @@ export interface GameSceneInput {
   onPrimary(): void;
   /** Escape: decline the pending offer. */
   onDecline(): void;
+  /** D: the next dice count (the original's default key). */
+  onCycleDice(): void;
   /** A tile on the board was clicked or tapped. */
   onTileSelected(tile: number): void;
 }
@@ -25,6 +33,8 @@ export class GameScene extends Phaser.Scene implements AnimationStage {
   readonly ready: Promise<BoardView>;
   /** The player's game speed setting; changes apply from the next animation. */
   gameSpeed: GameSpeed = DEFAULT_GAME_SPEED;
+  /** Project values unless the original tables were imported before the game started. */
+  pacing: Pacing = PROJECT_PACING;
 
   constructor(
     private readonly board: Board,
@@ -56,6 +66,7 @@ export class GameScene extends Phaser.Scene implements AnimationStage {
       this.fastKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
       keyboard.on('keydown-ENTER', () => this.handlers.onPrimary());
       keyboard.on('keydown-ESC', () => this.handlers.onDecline());
+      keyboard.on('keydown-D', () => this.handlers.onCycleDice());
     }
     this.resolveReady(this.boardView);
   }

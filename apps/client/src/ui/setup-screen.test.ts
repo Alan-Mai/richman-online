@@ -1,6 +1,12 @@
 // @vitest-environment happy-dom
-import { TEST_BRANCH_BOARD, TEST_LOOP_BOARD, type GameSetup } from '@richman/shared';
+import {
+  ORIGINAL_TABLES_VERSION,
+  TEST_BRANCH_BOARD,
+  TEST_LOOP_BOARD,
+  type GameSetup,
+} from '@richman/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { readOriginalTables } from '../assets/original-tables';
 import { defaultSetupForm, type SetupForm } from './setup-form';
 import { renderSetupScreen } from './setup-screen';
 
@@ -58,6 +64,17 @@ describe('setup screen', () => {
     const [setup, form] = started[0]!;
     expect(setup.players.map((p) => p.controller)).toEqual(['human', 'computer', 'human', 'human']);
     expect(form.controllers[1]).toBe('computer');
+  });
+
+  it('offers the starting vehicle for everyone, on foot by default', () => {
+    const options = [...field<HTMLSelectElement>('vehicle').options].map((o) => o.textContent);
+    expect(options).toEqual(['步行', '機車', '汽車']);
+    submit();
+    expect(started[0]?.[0].config.startingVehicle).toBe('walk');
+    setValue('vehicle', 'car');
+    submit();
+    expect(started[1]?.[0].config.startingVehicle).toBe('car');
+    expect(started[1]?.[1].vehicle).toBe('car');
   });
 
   it('offers the built-in boards by name', () => {
@@ -130,5 +147,101 @@ describe('setup screen', () => {
     expect(field<HTMLSelectElement>('playerCount').value).toBe('3');
     expect(field<HTMLInputElement>('name2').value).toBe('丙');
     expect(field<HTMLInputElement>('seed').value).toBe('7');
+  });
+
+  it('prefills the starting vehicle', () => {
+    renderSetupScreen(root, {
+      initial: { ...defaultSetupForm(), vehicle: 'motorbike' },
+      onStart: (s, f) => started.push([s, f]),
+    });
+    expect(field<HTMLSelectElement>('vehicle').value).toBe('motorbike');
+  });
+
+  describe('original tables', () => {
+    /** Renders the section around `onPick`; returns its parts and what happened. */
+    function renderTables(onPick: (file: File) => Promise<string[]>, importedName: string | null) {
+      let cleared = 0;
+      renderSetupScreen(root, {
+        initial: defaultSetupForm(),
+        onStart: (s, f) => started.push([s, f]),
+        tables: { importedName, onPick, onClear: () => cleared++ },
+      });
+      const section = root.querySelector<HTMLElement>('.setup-tables')!;
+      const picker = field<HTMLInputElement>('tables');
+      const [pick, clear] = [...section.querySelectorAll('button')];
+      return { section, picker, pick: pick!, clear: clear!, cleared: () => cleared };
+    }
+
+    /** Simulates choosing a file in the native picker and waits for the import to settle. */
+    async function choose(picker: HTMLInputElement, file: File): Promise<void> {
+      Object.defineProperty(picker, 'files', { value: [file], configurable: true });
+      picker.dispatchEvent(new Event('change'));
+      for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+    }
+
+    it('hides the native picker behind a button that opens it', () => {
+      const { picker, pick } = renderTables(() => Promise.resolve([]), null);
+      expect(picker.hidden).toBe(true);
+      let opened = 0;
+      picker.click = () => void opened++;
+      pick.click();
+      expect(opened).toBe(1);
+      expect(pick.textContent).toBe('選擇 tables.json…');
+    });
+
+    it('names the imported file and goes back to project values', async () => {
+      const ui = renderTables(() => Promise.resolve([]), null);
+      expect(ui.section.textContent).toContain('未匯入');
+      expect(ui.clear.hidden).toBe(true);
+      await choose(ui.picker, new File(['{}'], 'tables.json'));
+      expect(ui.section.textContent).toContain('已匯入：tables.json');
+      expect(ui.clear.hidden).toBe(false);
+      ui.clear.click();
+      expect(ui.cleared()).toBe(1);
+      expect(ui.section.textContent).toContain('未匯入');
+    });
+
+    it('keeps showing the imported file when the screen comes back', () => {
+      const { section } = renderTables(() => Promise.resolve([]), 'my-tables.json');
+      expect(section.textContent).toContain('已匯入：my-tables.json');
+    });
+
+    it('lists the kind and path of each problem, without values, and imports nothing', async () => {
+      const ui = renderTables(async (file) => {
+        const read = readOriginalTables(await file.text());
+        return read.ok ? [] : read.problems;
+      }, null);
+      const broken = {
+        version: ORIGINAL_TABLES_VERSION,
+        animation: { frameTicks: [1, 2], stepPixels: { walk: 98765 } },
+      };
+      await choose(ui.picker, new File([JSON.stringify(broken)], 'broken.json'));
+      const problems = [...ui.section.querySelectorAll('.setup-errors li')].map(
+        (li) => li.textContent,
+      );
+      expect(problems).toContain('欄位 animation.frameTicks 不正確（應有 3 筆）');
+      expect(problems).toContain('欄位 animation.stepPixels.walk 不正確（超出範圍）');
+      expect(problems).toContain('欄位 items 不正確（缺少）');
+      expect(ui.section.textContent).not.toContain('98765');
+      expect(ui.section.textContent).toContain('未匯入');
+
+      await choose(ui.picker, new File(['{'], 'not-json.json'));
+      expect(ui.section.textContent).toContain('不是有效的 JSON 檔');
+    });
+
+    it('keeps the earlier import when a later one fails, and reports unreadable files', async () => {
+      let answer: Promise<string[]> = Promise.resolve(['欄位 x 不正確（缺少）']);
+      const ui = renderTables(() => answer, 'good.json');
+      await choose(ui.picker, new File(['x'], 'bad.json'));
+      expect(ui.section.textContent).toContain('已匯入：good.json');
+      expect(ui.section.textContent).toContain('欄位 x 不正確（缺少）');
+      answer = Promise.reject(new Error('unreadable'));
+      await choose(ui.picker, new File(['x'], 'bad.json'));
+      expect(ui.section.textContent).toContain('無法讀取這個檔案');
+    });
+  });
+
+  it('has no tables section unless asked to', () => {
+    expect(root.querySelector('.setup-tables')).toBeNull();
   });
 });

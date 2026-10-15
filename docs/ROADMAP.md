@@ -55,7 +55,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 **Phase 3 前置**（Phase 3 開始前完成）：
 - [x] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**（已完成：LZ + 動態 Huffman，見 `ASSET_FORMATS.md`「MKF 壓縮」；462 個壓縮子檔全部通過驗證，`jump.mkf` 子檔 9–44 縮圖經使用者目視確認。）
 
-**下一步**：引擎改造批次 E（`docs/ENGINE_REFACTOR_PLAN.md`「批次 E」），從 E1 開始（先寫測試：`vehicle`、`startingVehicle`、`vehicleMaxDice`，開局顆數為上限、移除 `defaultDiceCount`）：交通工具與選顆數，E4 的客戶端移動動畫在有匯入的 `tables.json` 時改用原版的幀長與每幀位移（速度 3 為每次觸發一幀）。批次 A–D、E0 已完成；引擎改造完成後第一項是銀行格與存提款（電腦依 `tables.json` 的角色比例）。
+**下一步**：引擎改造批次 F（`docs/ENGINE_REFACTOR_PLAN.md`「批次 F」）收尾文件；批次 A–E 已完成；引擎改造完成後第一項是銀行格與存提款（電腦依 `tables.json` 的角色比例）。
 
 **未解問題**：
 - 壓縮子檔中沒有已知 magic 的 308 個（`Data.mkf` 302、`Panel.mkf` 6）格式未知，需另外分析（可用 `decompressMkf` 解壓後再看）。

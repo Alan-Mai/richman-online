@@ -8,7 +8,7 @@ import {
 } from '@richman/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { applyEventToDisplay, displayFromView, type DisplayModel } from '../model/display';
-import { hotSeatSetup, playRandomGame } from '../testing/random-game';
+import { createHost, hotSeatSetup, playRandomGame } from '../testing/random-game';
 import type { Intent } from '../net/connection';
 import { describeEvent } from './event-text';
 import { Hud, actionLabel } from './hud';
@@ -359,6 +359,51 @@ describe('Hud game speed', () => {
     select.value = '3';
     select.dispatchEvent(new Event('change'));
     expect(changes).toEqual([3]);
+  });
+});
+
+describe('Hud dice count', () => {
+  function carGame(): ServerUpdate {
+    const setup = hotSeatSetup(52);
+    const car = { ...setup, config: { ...setup.config, startingVehicle: 'car' as const } };
+    const host = createHost(car);
+    const seen: ServerUpdate[] = [];
+    host.subscribe((m) => {
+      if (m.kind === 'update') seen.push(m.update);
+    });
+    host.start();
+    return seen[0]!;
+  }
+
+  it('shows the dice panel instead of one button per count, and cycles with D', () => {
+    const update = carGame();
+    hud.showModel(displayFromView(update.view));
+    hud.setReady(update);
+    expect(buttons().map((b) => b.dataset.action)).toEqual(['rollDice']);
+    const dice = [...root.querySelectorAll<HTMLButtonElement>('.hud-dice button')];
+    expect(dice.map((b) => b.textContent)).toEqual(['1', '2', '3']);
+    dice[0]?.click();
+    hud.cycleDice();
+    expect(acted).toEqual([
+      { type: 'setDiceCount', count: 1 },
+      { type: 'setDiceCount', count: 1 },
+    ]);
+  });
+
+  it('hides the dice panel while playing', () => {
+    const update = carGame();
+    hud.setReady(update);
+    hud.setReady(null);
+    expect(root.querySelector<HTMLElement>('.hud-dice')?.hidden).toBe(true);
+    hud.cycleDice();
+    expect(acted).toEqual([]);
+  });
+
+  it("shows each player's vehicle", () => {
+    const update = carGame();
+    hud.showModel(displayFromView(update.view));
+    const tags = [...root.querySelectorAll('.hud-vehicle')].map((n) => n.textContent);
+    expect(tags).toEqual(['汽車', '汽車', '汽車', '汽車']);
   });
 });
 

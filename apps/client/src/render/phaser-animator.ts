@@ -13,8 +13,9 @@ import {
   FIXED_MS,
   auctionActionMs,
   frameScale,
-  walkStepMs,
+  stepMs,
   type GameSpeed,
+  type Pacing,
 } from './timings';
 
 export interface AnimationStage {
@@ -25,6 +26,8 @@ export interface AnimationStage {
   readonly speed: number;
   /** The player's game speed setting, read before every animation. */
   readonly gameSpeed: GameSpeed;
+  /** Frame lengths and per-frame movement: project values or the imported original tables. */
+  readonly pacing: Pacing;
   showModel(model: DisplayModel): void;
 }
 
@@ -113,7 +116,7 @@ export class PhaserAnimator implements Animator {
 
   /** Converts a duration given at the default game speed to the current setting. */
   private scaled(ms: number): number {
-    return ms * frameScale(this.stage.gameSpeed);
+    return ms * frameScale(this.stage.gameSpeed, this.stage.pacing);
   }
 
   /** Applies fast-forward. */
@@ -222,7 +225,9 @@ export class PhaserAnimator implements Animator {
   ): Promise<void> {
     const token = board.token(playerId);
     if (!token) return;
-    let from = before.players.find((p) => p.id === playerId)?.tile ?? undefined;
+    const mover = before.players.find((p) => p.id === playerId);
+    const vehicle = mover?.vehicle ?? 'walk';
+    let from = mover?.tile ?? undefined;
     if (from !== undefined) {
       const at = board.tokenPosition(playerId, from);
       token.setPosition(at.x, at.y);
@@ -230,29 +235,31 @@ export class PhaserAnimator implements Animator {
     const hop = board.tileSize * 0.15;
     for (const tile of path) {
       const to = board.tokenPosition(playerId, tile);
-      // Original pacing: whole frames for the distance between the two tiles (walking for now).
-      const stepMs = walkStepMs(
+      // Original pacing: whole frames for the distance between the two tiles on this vehicle.
+      const ms = stepMs(
         from === undefined ? 1 : board.distance(from, tile),
+        vehicle,
         this.stage.gameSpeed,
+        this.stage.pacing,
       );
       from = tile;
       await Promise.all([
         this.tween({
           targets: token,
           x: to.x,
-          duration: this.duration(stepMs),
+          duration: this.duration(ms),
           ease: 'Linear',
         }),
         this.tween({
           targets: token,
           y: { from: token.y, to: to.y - hop },
-          duration: this.duration(stepMs / 2),
+          duration: this.duration(ms / 2),
           ease: 'Quad.easeOut',
         }).then(() =>
           this.tween({
             targets: token,
             y: to.y,
-            duration: this.duration(stepMs / 2),
+            duration: this.duration(ms / 2),
             ease: 'Quad.easeIn',
           }),
         ),

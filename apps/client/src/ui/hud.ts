@@ -19,6 +19,7 @@ import { GAME_SPEEDS, isGameSpeed, type GameSpeed } from '../render/timings';
 import { cssColor, playerColor } from '../theme';
 import { toIntent, type Intent } from '../net/connection';
 import { auctionBidder, renderAuctionPanel } from './auction-panel';
+import { cycleDiceIntent, dicePanelState, renderDicePanel } from './dice-panel';
 import { describeEvent } from './event-text';
 
 const LOG_LIMIT = 50;
@@ -97,6 +98,7 @@ export class Hud implements ControllerSink {
   private readonly limits = el('div', 'hud-limits');
   private readonly players = el('ol', 'hud-players');
   private readonly prompt = el('div', 'hud-prompt');
+  private readonly dice = el('div', 'hud-dice');
   private readonly actions = el('div', 'hud-actions');
   private readonly auction = el('section', 'hud-auction');
   private readonly tileInfo = el('section', 'hud-tile');
@@ -120,6 +122,7 @@ export class Hud implements ControllerSink {
       this.calendar,
       this.limits,
       this.prompt,
+      this.dice,
       this.actions,
       this.auction,
       this.players,
@@ -155,6 +158,8 @@ export class Hud implements ControllerSink {
           el('dd', 'hud-deposit', formatMoney(p.deposit)),
           el('dt', undefined, t('hud.netWorth')),
           el('dd', 'hud-networth', formatMoney(netWorth(view, p.id))),
+          el('dt', undefined, t('hud.vehicle')),
+          el('dd', 'hud-vehicle', t(`vehicle.${p.vehicle}`)),
         );
         item.append(swatch, name, money);
         if (p.bankrupt) item.append(el('span', 'hud-tag', t('hud.bankrupt')));
@@ -201,11 +206,20 @@ export class Hud implements ControllerSink {
     this.renderTile();
   }
 
+  /** The D key: the next dice count, when the player may choose one now. */
+  cycleDice(): void {
+    const update = this.ready;
+    if (!update || auctionBidder(update) !== null) return;
+    const intent = cycleDiceIntent(dicePanelState(update, this.options.config));
+    if (intent) this.options.onAct(intent);
+  }
+
   private renderActions(): void {
     const update = this.ready;
     if (!update) {
       this.prompt.textContent = this.model?.winners ? '' : t('hud.playing');
       this.actions.replaceChildren();
+      renderDicePanel(this.dice, null, () => {});
       return;
     }
     const bidder = auctionBidder(update);
@@ -215,8 +229,14 @@ export class Hud implements ControllerSink {
     this.prompt.textContent = !offered
       ? ''
       : t(bidder === null ? 'hud.yourTurn' : 'hud.auctionTurn', { name: actor.name });
-    // The auction panel has its own buttons.
-    const turnActions = bidder === null ? update.legalActions : [];
+    // The auction panel and the dice panel have their own buttons.
+    const turnActions =
+      bidder === null ? update.legalActions.filter((a) => a.type !== 'setDiceCount') : [];
+    renderDicePanel(
+      this.dice,
+      bidder === null ? dicePanelState(update, this.options.config) : null,
+      (intent) => this.options.onAct(intent),
+    );
     this.actions.replaceChildren(
       ...turnActions.map((action) => {
         const { type } = action;

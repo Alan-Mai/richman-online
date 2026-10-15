@@ -133,6 +133,49 @@ body {
   color: var(--muted);
 }
 
+.hud-dice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.hud-dice[hidden] {
+  display: none;
+}
+
+.hud-dice-title {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hud-dice button {
+  min-width: 44px;
+  min-height: 32px;
+  border: 2px solid var(--panel-border);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--muted);
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.hud-dice button.is-lit {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.hud-dice button:disabled {
+  cursor: default;
+}
+
+.hud-dice button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
 .hud-actions {
   display: flex;
   flex-wrap: wrap;
@@ -447,6 +490,23 @@ body {
 
 .setup details[open] > label {
   margin-top: 8px;
+}
+
+.setup-tables {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+.setup-tables p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.setup-tables button[hidden] {
+  display: none;
 }
 
 .setup-errors {

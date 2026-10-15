@@ -10,7 +10,17 @@ import {
 } from './display';
 
 function player(id: string, patch: Partial<DisplayPlayer> = {}): DisplayPlayer {
-  return { id, name: id, cash: 1000, deposit: 500, tile: 0, bankrupt: false, ...patch };
+  return {
+    id,
+    name: id,
+    cash: 1000,
+    deposit: 500,
+    tile: 0,
+    vehicle: 'walk',
+    diceCount: 1,
+    bankrupt: false,
+    ...patch,
+  };
 }
 
 function model(): DisplayModel {
@@ -35,6 +45,11 @@ function apply(...events: GameEvent[]): DisplayModel {
 }
 
 describe('applyEventToDisplay', () => {
+  it('DiceCountSet changes the dice count of that player only', () => {
+    const next = apply({ type: 'DiceCountSet', playerId: 'b', count: 3 });
+    expect(next.players.map((p) => p.diceCount)).toEqual([1, 3]);
+  });
+
   it('DayAdvanced sets the day and the price index', () => {
     const next = apply({ type: 'DayAdvanced', day: 4, priceIndex: 3 });
     expect(next).toMatchObject({ day: 4, priceIndex: 3 });
@@ -260,6 +275,12 @@ describe('events reproduce the views', () => {
     ['last standing', hotSeatSetup(22, 'lastStanding')],
     ['low cash', withConfig(hotSeatSetup(24, 'lastStanding'), { startingFunds: 4000 })],
     ['two players', hotSeatSetup(27, 'lastStanding', 2)],
+    [
+      'cars with computers',
+      withConfig(hotSeatSetup(28, 'dayLimit', 4, ['human', 'computer', 'human', 'computer']), {
+        startingVehicle: 'car',
+      }),
+    ],
   ];
 
   it.each(cases)('%s', (_, setup) => {
@@ -286,5 +307,6 @@ describe('events reproduce the views', () => {
     expect(types).toContain('PlayerPlaced');
     expect(types).toContain('PropertyUpgraded');
     expect(types).toContain('DayAdvanced');
+    expect(types).toContain('DiceCountSet');
   });
 });

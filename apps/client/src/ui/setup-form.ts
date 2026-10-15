@@ -6,6 +6,7 @@ import {
   type Board,
   type Controller,
   type GameSetup,
+  type Vehicle,
 } from '@richman/shared';
 import { t } from '../i18n';
 
@@ -31,6 +32,8 @@ export interface SetupForm {
   names: string[];
   /** Who plays each seat; seats past the list are human. */
   controllers: Controller[];
+  /** What everyone rides from the start (one setting for all, as in the original). */
+  vehicle: Vehicle;
   /** Empty means no day limit. */
   dayLimit: string;
   /** Multiple of the starting funds; empty means no target. */
@@ -54,6 +57,7 @@ export function defaultSetupForm(): SetupForm {
       t('setup.defaultName', { n: i + 1 }),
     ),
     controllers: Array.from({ length: DEFAULT_RULE_CONFIG.maxPlayers }, () => 'human'),
+    vehicle: DEFAULT_RULE_CONFIG.startingVehicle,
     dayLimit: '',
     netWorthTarget: '',
     startingFunds: String(DEFAULT_RULE_CONFIG.startingFunds),
@@ -120,6 +124,7 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
     setup: {
       config: {
         ...DEFAULT_RULE_CONFIG,
+        startingVehicle: form.vehicle,
         dayLimit,
         netWorthTargetMultiple,
         startingFunds,

@@ -1,5 +1,11 @@
 // The new-game form as DOM. Validation lives in setup-form.ts.
-import { DEFAULT_RULE_CONFIG, type Controller, type GameSetup } from '@richman/shared';
+import {
+  DEFAULT_RULE_CONFIG,
+  VEHICLES,
+  type Controller,
+  type GameSetup,
+  type Vehicle,
+} from '@richman/shared';
 import { t } from '../i18n';
 import {
   BOARDS,
@@ -38,6 +44,84 @@ export interface SetupScreenOptions {
   onPreview?: () => void;
   /** Injectable for tests. */
   makeSeed?: () => number;
+  /** Importing the original tables (tables.json) for the animations; hidden when absent. */
+  tables?: TablesImport;
+}
+
+export interface TablesImport {
+  /** Name of the imported file, or null when the project values are in use. */
+  importedName: string | null;
+  /** Reads the picked file; resolves to the problems found, none when it was imported. */
+  onPick(file: File): Promise<string[]>;
+  /** Goes back to the project values. */
+  onClear(): void;
+}
+
+/**
+ * Status line, a button that opens the file picker, and a way back to the project values. The
+ * native file input stays hidden: it is cleared after each pick (so the same file can be picked
+ * again), which would otherwise show "no file chosen" next to a successful import.
+ */
+function tablesSection(tables: TablesImport): HTMLElement {
+  const section = document.createElement('fieldset');
+  section.className = 'setup-tables';
+  const legend = document.createElement('legend');
+  legend.textContent = t('setup.tables');
+  const status = document.createElement('p');
+  const problems = document.createElement('ul');
+  problems.className = 'setup-errors';
+  problems.setAttribute('role', 'alert');
+  const picker = document.createElement('input');
+  picker.type = 'file';
+  picker.name = 'tables';
+  picker.accept = '.json,application/json';
+  picker.hidden = true;
+  const pick = document.createElement('button');
+  pick.type = 'button';
+  pick.className = 'secondary';
+  pick.textContent = t('setup.tables.pick');
+  pick.addEventListener('click', () => picker.click());
+  const clear = document.createElement('button');
+  clear.type = 'button';
+  clear.className = 'secondary';
+  clear.textContent = t('setup.tables.clear');
+
+  let importedName = tables.importedName;
+  const show = (lines: readonly string[] = []) => {
+    status.textContent =
+      importedName === null
+        ? t('setup.tables.none')
+        : t('setup.tables.imported', { name: importedName });
+    clear.hidden = importedName === null;
+    problems.replaceChildren(
+      ...lines.map((line) => {
+        const li = document.createElement('li');
+        li.textContent = line;
+        return li;
+      }),
+    );
+  };
+  picker.addEventListener('change', () => {
+    const file = picker.files?.[0];
+    picker.value = '';
+    if (!file) return;
+    // A failed import keeps whatever was imported before; the problems say what went wrong.
+    void tables.onPick(file).then(
+      (lines) => {
+        if (lines.length === 0) importedName = file.name;
+        show(lines);
+      },
+      () => show([t('setup.tables.error.read')]),
+    );
+  });
+  clear.addEventListener('click', () => {
+    tables.onClear();
+    importedName = null;
+    show();
+  });
+  show();
+  section.append(legend, status, picker, pick, clear, problems);
+  return section;
 }
 
 export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions): void {
@@ -95,6 +179,16 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     return label;
   });
 
+  const vehicle = document.createElement('select');
+  vehicle.name = 'vehicle';
+  for (const value of VEHICLES) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = t(`vehicle.${value}`);
+    vehicle.append(option);
+  }
+  vehicle.value = initial.vehicle;
+
   const dayLimit = input('dayLimit', initial.dayLimit, { inputmode: 'numeric' });
   const netWorthTarget = input('netWorthTarget', initial.netWorthTarget, { inputmode: 'numeric' });
 
@@ -125,6 +219,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     controllers: controllerSelects.map((s): Controller =>
       s.value === 'computer' ? 'computer' : 'human',
     ),
+    vehicle: VEHICLES.find((v): v is Vehicle => v === vehicle.value) ?? 'walk',
     dayLimit: dayLimit.value,
     netWorthTarget: netWorthTarget.value,
     startingFunds: funds.value,
@@ -161,9 +256,11 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     labelled(t('setup.board'), board),
     labelled(t('setup.playerCount'), count),
     ...nameLabels,
+    labelled(t('setup.vehicle'), vehicle),
     labelled(t('setup.dayLimit'), dayLimit),
     labelled(t('setup.netWorthTarget'), netWorthTarget),
     advanced,
+    ...(options.tables ? [tablesSection(options.tables)] : []),
     errors,
     start,
   );

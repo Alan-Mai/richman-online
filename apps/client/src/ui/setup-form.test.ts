@@ -54,6 +54,15 @@ describe('buildSetup', () => {
     expect(createGame(setup).ok).toBe(true);
   });
 
+  it('starts everyone on foot by default, or on the chosen vehicle', () => {
+    expect(ok(form()).config.startingVehicle).toBe('walk');
+    for (const vehicle of ['motorbike', 'car'] as const) {
+      const setup = ok(form({ vehicle }));
+      expect(setup.config.startingVehicle).toBe(vehicle);
+      expect(createGame(setup).ok).toBe(true);
+    }
+  });
+
   it('uses as many seats as the player count', () => {
     const setup = ok(form({ playerCount: 2 }));
     expect(setup.players.map((p) => p.id)).toEqual(['p1', 'p2']);

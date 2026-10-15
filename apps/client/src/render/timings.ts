@@ -1,7 +1,8 @@
 // Animation pacing, in one place. The structure follows the original game (docs/GAME_RULES.md
 // section 10): a frame length chosen by the game speed setting, and per-step frame counts that
-// depend on the distance between tiles. Values marked "project value" are our own defaults, not
-// the original's; the original tables will come from the local export (ROADMAP).
+// depend on the distance between tiles and the vehicle. Values marked "project value" are our own
+// defaults, not the original's; with an imported tables.json the original tables replace them.
+import type { OriginalTables, Vehicle } from '@richman/shared';
 
 /** Game speed setting, 0 (slowest) to 3 (fastest), like the original's four steps. */
 export const GAME_SPEEDS = [0, 1, 2, 3] as const;
@@ -9,8 +10,39 @@ export type GameSpeed = (typeof GAME_SPEEDS)[number];
 
 export const DEFAULT_GAME_SPEED: GameSpeed = 2;
 
-/** Length of one animation frame in milliseconds, per game speed. Project values. */
-export const FRAME_MS: Readonly<Record<GameSpeed, number>> = { 0: 110, 1: 75, 2: 45, 3: 25 };
+/** The original's animation timer period; logical frames are whole numbers of its ticks. */
+export const TIMER_TICK_MS = 20;
+
+/** Frame lengths and per-frame movement, from the project defaults or the original tables. */
+export interface Pacing {
+  source: 'project' | 'original';
+  /** Length of one animation frame in milliseconds, per game speed. */
+  frameMs: Readonly<Record<GameSpeed, number>>;
+  /** Map pixels moved per frame, per vehicle. */
+  pxPerFrame: Readonly<Record<Vehicle, number>>;
+}
+
+/** Project values, used without an imported tables.json. */
+export const PROJECT_PACING: Pacing = {
+  source: 'project',
+  frameMs: { 0: 110, 1: 75, 2: 45, 3: 25 },
+  pxPerFrame: { walk: 9, motorbike: 14, car: 20 },
+};
+
+/**
+ * The original's pacing (docs/GAME_RULES.md section 10): speeds 0-2 wait their table's number of
+ * timer ticks per frame, speed 3 runs a frame on every tick. A 0 in the table is taken as one tick
+ * (animation only; the exported table has none).
+ */
+export function pacingFromTables(animation: OriginalTables['animation']): Pacing {
+  const ticks = (speed: number) => Math.max(1, animation.frameTicks[speed] ?? 1) * TIMER_TICK_MS;
+  const { walk, motorbike, car } = animation.stepPixels;
+  return {
+    source: 'original',
+    frameMs: { 0: ticks(0), 1: ticks(1), 2: ticks(2), 3: TIMER_TICK_MS },
+    pxPerFrame: { walk, motorbike, car },
+  };
+}
 
 export const MOVE = {
   /**
@@ -18,8 +50,6 @@ export const MOVE = {
    * spacing between neighbouring tiles. Project value.
    */
   pxPerBoardUnit: 56,
-  /** Pixels per frame while walking. Project value; vehicles come with the engine rework. */
-  walkPxPerFrame: 9,
 } as const;
 
 /** Frames for one step: the original formula, at least one frame. */
@@ -27,14 +57,20 @@ export function stepFrames(distancePx: number, pxPerFrame: number): number {
   return Math.max(1, Math.trunc(distancePx / pxPerFrame));
 }
 
-/** Milliseconds for one walking step between tiles `boardDistance` board units apart. */
-export function walkStepMs(boardDistance: number, speed: GameSpeed): number {
-  return stepFrames(boardDistance * MOVE.pxPerBoardUnit, MOVE.walkPxPerFrame) * FRAME_MS[speed];
+/** Milliseconds for one step on `vehicle` between tiles `boardDistance` board units apart. */
+export function stepMs(
+  boardDistance: number,
+  vehicle: Vehicle,
+  speed: GameSpeed,
+  pacing: Pacing = PROJECT_PACING,
+): number {
+  const frames = stepFrames(boardDistance * MOVE.pxPerBoardUnit, pacing.pxPerFrame[vehicle]);
+  return frames * pacing.frameMs[speed];
 }
 
 /** Factor for durations given at the default game speed. */
-export function frameScale(speed: GameSpeed): number {
-  return FRAME_MS[speed] / FRAME_MS[DEFAULT_GAME_SPEED];
+export function frameScale(speed: GameSpeed, pacing: Pacing = PROJECT_PACING): number {
+  return pacing.frameMs[speed] / pacing.frameMs[DEFAULT_GAME_SPEED];
 }
 
 /**

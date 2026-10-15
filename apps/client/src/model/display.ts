@@ -1,6 +1,13 @@
 // What the screen currently shows. It advances one GameEvent at a time while animations play and
 // is checked against the authoritative PlayerView once a batch of events has been played.
-import type { AuctionBidder, GameEvent, PlayerId, PlayerView, TileIndex } from '@richman/shared';
+import type {
+  AuctionBidder,
+  GameEvent,
+  PlayerId,
+  PlayerView,
+  TileIndex,
+  Vehicle,
+} from '@richman/shared';
 
 export interface DisplayPlayer {
   id: PlayerId;
@@ -9,6 +16,9 @@ export interface DisplayPlayer {
   deposit: number;
   /** null until the player is placed on their first turn. */
   tile: TileIndex | null;
+  vehicle: Vehicle;
+  /** Dice the next roll uses. */
+  diceCount: number;
   bankrupt: boolean;
 }
 
@@ -52,14 +62,18 @@ export function displayFromView(view: PlayerView): DisplayModel {
     day: view.day,
     priceIndex: view.priceIndex,
     current: view.turn.current,
-    players: view.players.map(({ id, name, cash, deposit, location, bankrupt }) => ({
-      id,
-      name,
-      cash,
-      deposit,
-      tile: location.kind === 'onBoard' ? location.tile : null,
-      bankrupt,
-    })),
+    players: view.players.map(
+      ({ id, name, cash, deposit, location, vehicle, diceCount, bankrupt }) => ({
+        id,
+        name,
+        cash,
+        deposit,
+        tile: location.kind === 'onBoard' ? location.tile : null,
+        vehicle,
+        diceCount,
+        bankrupt,
+      }),
+    ),
     tiles: view.tiles.map(({ owner, level }) => ({ owner, level })),
     auction:
       phase.kind === 'auction'
@@ -120,6 +134,7 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
     case 'DayAdvanced':
       return { ...model, day: event.day, priceIndex: event.priceIndex };
     case 'DiceCountSet':
+      return updatePlayer(model, event.playerId, () => ({ diceCount: event.count }));
     case 'DiceRolled':
       return model;
     case 'PlayerMoved': {
@@ -215,7 +230,17 @@ export function diffDisplay(actual: DisplayModel, expected: DisplayModel): strin
   check('players.length', actual.players.length, expected.players.length);
   expected.players.forEach((e, i) => {
     const a = actual.players[i];
-    for (const key of ['id', 'name', 'cash', 'deposit', 'tile', 'bankrupt'] as const) {
+    const keys = [
+      'id',
+      'name',
+      'cash',
+      'deposit',
+      'tile',
+      'vehicle',
+      'diceCount',
+      'bankrupt',
+    ] as const;
+    for (const key of keys) {
       check(`players[${i}].${key}`, a?.[key], e[key]);
     }
   });

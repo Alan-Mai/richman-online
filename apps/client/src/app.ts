@@ -1,14 +1,16 @@
 // App lifecycle: setup screen → one hot-seat game → result dialog → back to setup, plus the
 // read-only preview of converted original maps.
 import Phaser from 'phaser';
-import type { ActionType, GameSetup } from '@richman/shared';
+import type { ActionType, GameSetup, OriginalTables } from '@richman/shared';
 import { devAssetSource, type AssetSource } from './assets/asset-source';
 import { loadMapPreview, type MapPreview } from './assets/map-preview';
+import { readOriginalTables } from './assets/original-tables';
 import { GameController } from './game-controller';
 import { t } from './i18n';
 import { toIntent, type Intent } from './net/connection';
 import { LocalGameHost } from './net/local-host';
 import { PhaserAnimator } from './render/phaser-animator';
+import { PROJECT_PACING, pacingFromTables, type Pacing } from './render/timings';
 import { BootScene } from './scenes/boot-scene';
 import { GameScene } from './scenes/game-scene';
 import { MapPreviewScene } from './scenes/map-preview-scene';
@@ -47,7 +49,12 @@ function createPhaserGame(
   });
 }
 
-function startGameSession(setup: GameSetup, elements: AppElements, onAgain: () => void): Session {
+function startGameSession(
+  setup: GameSetup,
+  elements: AppElements,
+  pacing: Pacing,
+  onAgain: () => void,
+): Session {
   const created = LocalGameHost.create(setup);
   if (!created.ok) {
     // The setup form validates everything createGame checks, so this is a client bug.
@@ -78,9 +85,11 @@ function startGameSession(setup: GameSetup, elements: AppElements, onAgain: () =
       if (primary) act(toIntent(primary));
     },
     onDecline: () => act({ type: 'decline' }),
+    onCycleDice: () => hud.cycleDice(),
     onTileSelected: (tile) => hud.showTile(tile),
   });
   scene.gameSpeed = gameSpeed;
+  scene.pacing = pacing;
   const game = createPhaserGame(elements.board, [BootScene, scene]);
   const gameOver = new GameOverDialog(elements.overlay, { seed: setup.seed, onAgain });
 
@@ -138,6 +147,8 @@ export function startApp(elements: AppElements): void {
   // The dev-server route only exists under `vite`; production builds rely on importing a folder.
   const devSource = import.meta.env.DEV ? devAssetSource() : null;
   let imported: AssetSource | null = null;
+  // The original tables picked on the setup screen; kept until the page reloads.
+  let tables: { data: OriginalTables; name: string } | null = null;
 
   const showOverlay = () => {
     session?.dispose();
@@ -154,10 +165,23 @@ export function startApp(elements: AppElements): void {
         elements.overlay.hidden = true;
         elements.overlay.replaceChildren();
         whenSized(elements.board, () => {
-          session = startGameSession(setup, elements, showSetup);
+          const pacing = tables ? pacingFromTables(tables.data.animation) : PROJECT_PACING;
+          session = startGameSession(setup, elements, pacing, showSetup);
         });
       },
       onPreview: () => showChooser(),
+      tables: {
+        importedName: tables?.name ?? null,
+        onPick: async (file) => {
+          const read = readOriginalTables(await file.text());
+          if (!read.ok) return read.problems;
+          tables = { data: read.tables, name: file.name };
+          return [];
+        },
+        onClear: () => {
+          tables = null;
+        },
+      },
     });
     elements.overlay.querySelector('select')?.focus();
   };
