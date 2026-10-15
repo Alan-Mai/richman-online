@@ -7,7 +7,15 @@ import type { DisplayModel } from '../model/display';
 import type { Animator } from '../model/event-queue';
 import { FONT_FAMILY, TEXT_RESOLUTION } from '../theme';
 import type { BoardView } from './board-view';
-import { DURATIONS, FIXED_MS, frameScale, walkStepMs, type GameSpeed } from './timings';
+import {
+  AUCTION,
+  DURATIONS,
+  FIXED_MS,
+  auctionActionMs,
+  frameScale,
+  walkStepMs,
+  type GameSpeed,
+} from './timings';
 
 export interface AnimationStage {
   readonly phaserScene: Phaser.Scene;
@@ -65,19 +73,26 @@ export class PhaserAnimator implements Animator {
           this.wait(FIXED_MS.bankrupt),
         ]);
         return;
-      case 'AuctionStarted':
+      case 'AuctionStarted': {
+        // The original shows an opening message, then one naming the first bidder (none when
+        // nobody may bid); later turns change without a message.
+        const messages = event.bidders.length > 0 ? 2 : 1;
         await Promise.all([
           this.floatAt(board.tileCenter(event.tile), t('float.auction'), '#f6d36b'),
-          this.wait(this.scaled(DURATIONS.auctionOpen)),
+          this.wait(messages * AUCTION.messageMs),
         ]);
         return;
+      }
       case 'AuctionRaised':
       case 'AuctionPassed':
       case 'AuctionWithdrawn':
-        // The auction panel shows the move; leave it on screen for a moment.
-        return this.wait(this.scaled(DURATIONS.auctionBid));
+        // The auction panel shows the move. Raise animations are not imported yet, so every move
+        // takes the original's minimum.
+        return this.wait(auctionActionMs(null));
       case 'AuctionWon':
-        // Like the original: a pause, the property changes hands, another pause.
+        // Like the original: the sale message and the winner's line, then a pause, the property
+        // changes hands, another pause. The winner's animation comes with imported assets.
+        await this.wait(2 * AUCTION.messageMs);
         await Promise.all([
           this.floatAt(board.tileCenter(event.tile), `-${formatMoney(event.price)}`, '#ff8a8a'),
           this.wait(FIXED_MS.auctionSale),
@@ -87,7 +102,7 @@ export class PhaserAnimator implements Animator {
       case 'AuctionUnsold':
         await Promise.all([
           this.floatAt(board.tileCenter(event.tile), t('float.unsold'), '#9fb3c8'),
-          this.wait(this.scaled(DURATIONS.auctionUnsold)),
+          this.wait(AUCTION.messageMs),
         ]);
         return;
       case 'GameEnded':

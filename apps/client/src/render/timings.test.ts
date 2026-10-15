@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AUCTION,
+  auctionActionMs,
   DEFAULT_GAME_SPEED,
   FRAME_MS,
   GAME_SPEEDS,
@@ -52,5 +54,20 @@ describe('game speed', () => {
     expect(isGameSpeed(2)).toBe(true);
     expect(isGameSpeed(4)).toBe(false);
     expect(isGameSpeed('2')).toBe(false);
+  });
+});
+
+describe('auctionActionMs', () => {
+  it('uses the minimum without imported animations', () => {
+    expect(auctionActionMs(null)).toBe(AUCTION.minActionTicks * AUCTION.tickMs);
+  });
+
+  it('lasts frames + 1 ticks when the raise animation is longer than the minimum', () => {
+    expect(auctionActionMs(AUCTION.minActionTicks - 1)).toBe(
+      AUCTION.minActionTicks * AUCTION.tickMs,
+    );
+    expect(auctionActionMs(AUCTION.minActionTicks + 4)).toBe(
+      (AUCTION.minActionTicks + 5) * AUCTION.tickMs,
+    );
   });
 });

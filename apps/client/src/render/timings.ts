@@ -45,8 +45,9 @@ export const DURATIONS = {
   /** Current player's token pulses when the turn starts. */
   turnStart: 350,
   /**
-   * A player's token drops onto the board on their first turn. Not from the original: how the
-   * original shows a player appearing is checked when its animation tables are exported (E0).
+   * A player's token drops onto the board on their first turn. Project value: the original plays a
+   * per-character appearance animation whose length lives in its animation file (GAME_RULES.md
+   * section 10; ROADMAP: animation frame counts).
    */
   placed: 500,
   /** Dice tumble before the result shows. */
@@ -57,19 +58,6 @@ export const DURATIONS = {
   property: 450,
   /** Pause after the game ends, before the result dialog. */
   gameEnd: 600,
-  /**
-   * A property goes up for auction, and one with nobody left to buy it is passed. Not from the
-   * original, whose auction dialog opens and closes with its own animations (checked with the
-   * animation tables, E0).
-   */
-  auctionOpen: 700,
-  auctionUnsold: 600,
-  /**
-   * One bid, pass or withdrawal stays readable before the next. Not from the original: there each
-   * bidder's character plays a short animation from its animation files (checked with the animation
-   * tables, E0a).
-   */
-  auctionBid: 600,
 } as const;
 
 /** Fixed waits taken from the original code; the game speed does not change them. */
@@ -81,6 +69,28 @@ export const FIXED_MS = {
   /** After a sale the original waits this long, hands the property over, and waits again. */
   auctionSale: 1000,
 } as const;
+
+/**
+ * The original auction dialog runs on its own timer, independent of the game speed (GAME_RULES.md
+ * section 10). Computers act on the tick their turn comes up, so there is no thinking pause.
+ */
+export const AUCTION = {
+  tickMs: 100,
+  /** Every dialog message holds the auction this long. */
+  messageMs: 2000,
+  /**
+   * Ticks one bid, pass or withdrawal is shown. A raise lasts max(frames + 1, this) ticks, where
+   * frames is the bidder's raise animation; without imported animation files the floor applies
+   * (ROADMAP: animation frame counts).
+   */
+  minActionTicks: 10,
+} as const;
+
+/** Milliseconds one auction move is shown; `raiseFrames` is known only from imported assets. */
+export function auctionActionMs(raiseFrames: number | null): number {
+  const ticks = Math.max(raiseFrames === null ? 0 : raiseFrames + 1, AUCTION.minActionTicks);
+  return ticks * AUCTION.tickMs;
+}
 
 /** Playback speed multiplier while Space is held. Not in the original. */
 export const FAST_SPEED = 4;
