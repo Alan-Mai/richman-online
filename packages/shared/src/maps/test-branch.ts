@@ -54,4 +54,15 @@ export const TEST_BRANCH_BOARD: Board = {
   id: 'test-branch',
   name: '分岔測試地圖',
   tiles: buildTiles(),
+  // Made-up holidays, one of each kind; the second is not a rest day.
+  holidays: [
+    { date: { kind: 'lunar', month: 8, day: 15 }, restDay: true, disabled: false, event: 0 },
+    {
+      date: { kind: 'nthWeekday', month: 11, nth: 2, weekday: 3 },
+      restDay: false,
+      disabled: false,
+      event: 0,
+    },
+    { date: { kind: 'solar', month: 10, day: 20 }, restDay: true, disabled: false, event: 0 },
+  ],
 };

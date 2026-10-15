@@ -89,7 +89,7 @@ interface PlayerState {
   bankrupt: boolean;
 }
 
-interface Board { id; name; tiles: TileDef[] }   // 沒有起點：每位玩家第一回合隨機放置
+interface Board { id; name; tiles: TileDef[]; holidays?: HolidayRule[] }   // 沒有起點：每位玩家第一回合隨機放置；holidays 是地圖的節日表（holidays.ts）
 // TileDef 為依 kind 區分的聯合型別：'property'（price、upgradeCost、rents）| 'blank' | 'unsupported'
 // （尚未支援的地圖內容，例如大型建築；可經過、停留沒有效果、不會被選為起點）。每格有無向的 links
 // （最多 4 個，兩端都要列出；可設 blocked = 不能從這一端走出去），可設 noRandomPlacement。

@@ -84,4 +84,8 @@ export const TEST_LOOP_BOARD: Board = {
   id: 'test-loop',
   name: '測試環狀地圖',
   tiles: buildTiles(),
+  // Made-up holidays, so loan due dates have something to move past.
+  holidays: [
+    { date: { kind: 'solar', month: 4, day: 1 }, restDay: true, disabled: false, event: 0 },
+  ],
 };

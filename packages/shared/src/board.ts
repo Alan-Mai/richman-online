@@ -1,4 +1,5 @@
 import type { RuleConfig } from './config';
+import { MAX_HOLIDAYS, isValidHoliday, type HolidayRule } from './holidays';
 import type { TileIndex } from './ids';
 
 /** Render position; the rule engine ignores it. */
@@ -66,10 +67,18 @@ export interface Board {
   id: string;
   name: string;
   tiles: readonly TileDef[];
+  /**
+   * The map's holiday table (docs/GAME_RULES.md §2 "日曆"), up to MAX_HOLIDAYS rules; none when
+   * absent. Original maps get theirs from the player's tables.json.
+   */
+  holidays?: readonly HolidayRule[];
 }
 
 export type BoardError =
   | { reason: 'empty' }
+  | { reason: 'tooManyHolidays'; count: number }
+  /** `holiday` is the rule's index in Board.holidays. */
+  | { reason: 'invalidHoliday'; holiday: number }
   /** Fewer placeable tiles than RuleConfig.maxPlayers, so a random start could find none. */
   | { reason: 'tooFewPlacementTiles'; count: number; required: number }
   | {
@@ -121,6 +130,16 @@ export function validateBoard(board: Board, config: RuleConfig): BoardError[] {
   }
 
   const errors: BoardError[] = [];
+
+  const holidays = board.holidays ?? [];
+  if (holidays.length > MAX_HOLIDAYS) {
+    errors.push({ reason: 'tooManyHolidays', count: holidays.length });
+  }
+  holidays.forEach((rule, i) => {
+    if (!isValidHoliday(rule)) {
+      errors.push({ reason: 'invalidHoliday', holiday: i });
+    }
+  });
 
   tiles.forEach((tile, i) => {
     const targets = tile.links.map((link) => link.to);
