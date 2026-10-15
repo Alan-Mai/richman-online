@@ -5,6 +5,7 @@ import { daysBetween, isValidDate, type CalendarDate } from './calendar';
 import { VEHICLES } from './config';
 import type { AuctionPhase, GameState, PlayerState } from './state';
 import { auctionStartPrice, buyPrice, upgradeCost } from './money';
+import { isValidProfile } from './profile';
 
 function isNonNegativeInteger(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0;
@@ -46,7 +47,11 @@ function checkCalendar({ config, day, date, priceIndex, lotteryPool }: GameState
 function checkPlayers(state: GameState): string[] {
   const { board, players, tiles } = state;
   const errors: string[] = [];
-  for (const { id, cash, deposit, location, vehicle, diceCount, bankrupt } of players) {
+  for (const player of players) {
+    const { id, cash, deposit, location, vehicle, diceCount, bankrupt } = player;
+    if (player.controller === 'computer' && !isValidProfile(player.profile)) {
+      errors.push(`player ${id}: a computer without a valid profile`);
+    }
     if (!isNonNegativeInteger(cash)) {
       errors.push(`player ${id}: cash ${cash} is not a non-negative integer`);
     }

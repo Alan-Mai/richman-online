@@ -66,6 +66,7 @@ export {
   type PlayerSetup,
 } from './engine';
 export type { RuleError } from './errors';
+export { PROVISIONAL_COMPUTER_PROFILE, isValidProfile, type CharacterProfile } from './profile';
 export { checkInvariants } from './invariants';
 export type { BankruptcyCause, GameEndReason, GameEvent, GameEventType } from './events';
 export {
@@ -83,6 +84,7 @@ export {
   viewFor,
   type AuctionPhaseView,
   type PhaseView,
+  type PlayerStateView,
   type PlayerView,
   type TurnView,
   type Viewer,

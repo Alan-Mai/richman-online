@@ -19,8 +19,9 @@ export interface RuleConfig {
   minPlayers: number;
   maxPlayers: number;
   /**
-   * The one starting amount of the original setup screen (docs/GAME_RULES.md §1). Each player gets
-   * floor(startingFunds / 2) as cash and as deposit; it is also the price index divisor.
+   * The one starting amount of the original setup screen (docs/GAME_RULES.md §1). Each human gets
+   * floor(startingFunds / 2) as cash and as deposit, each computer splits it by its profile
+   * (openingSplit); it is also the price index divisor.
    */
   startingFunds: number;
   /** Unused in Phase 2. */

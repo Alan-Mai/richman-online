@@ -10,6 +10,7 @@ import type { RuleError } from './errors';
 import type { GameEndReason, GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { stepFrom } from './movement';
+import { isValidProfile, openingSplit, type CharacterProfile } from './profile';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
 import { buyPrice, netWorth, pay, rentFor, spend, spendable, upgradeCost } from './money';
 import type { Controller, GameState, Phase, PhaseKind, PlayerState } from './state';
@@ -18,11 +19,15 @@ import { at, chain, findPlayer, playerOf, updatePlayer, updateTile, type Step } 
 type BuyDecision = Extract<Phase, { kind: 'awaitBuyDecision' }>;
 type UpgradeDecision = Extract<Phase, { kind: 'awaitUpgradeDecision' }>;
 
-export interface PlayerSetup {
+interface PlayerSetupBase {
   id: PlayerId;
   name: string;
-  controller: Controller;
 }
+
+/** One seat. Computer seats carry their character's profile, picked by the caller. */
+export type PlayerSetup =
+  | (PlayerSetupBase & { controller: 'human' })
+  | (PlayerSetupBase & { controller: 'computer'; profile: CharacterProfile });
 
 export interface GameSetup {
   config: RuleConfig;
@@ -40,6 +45,8 @@ export type CreateGameError =
   | { reason: 'emptyPlayerId'; seat: number }
   | { reason: 'duplicatePlayerId'; playerId: PlayerId }
   | { reason: 'invalidController'; seat: number }
+  /** A computer seat without a valid profile (isValidProfile). */
+  | { reason: 'invalidProfile'; seat: number }
   | { reason: 'invalidSeed' };
 
 export type CreateGameResult =
@@ -58,9 +65,12 @@ function validateSetup(setup: GameSetup): CreateGameError[] {
     errors.push({ reason: 'playerCount', count: players.length });
   }
   const seen = new Set<PlayerId>();
-  players.forEach(({ id, controller }, seat) => {
+  players.forEach((player, seat) => {
+    const { id, controller } = player;
     if (!CONTROLLERS.has(controller)) {
       errors.push({ reason: 'invalidController', seat });
+    } else if (controller === 'computer' && !isValidProfile(player.profile)) {
+      errors.push({ reason: 'invalidProfile', seat });
     }
     if (id === '') {
       errors.push({ reason: 'emptyPlayerId', seat });
@@ -88,16 +98,22 @@ export function createGame(setup: GameSetup): CreateGameResult {
   }
 
   const { config, board } = setup;
-  // Half each as cash and deposit; an odd one goes to neither (docs/GAME_RULES.md §1). Computer
-  // players split this way too for now (non-original); splitting by their character's ratio from
-  // the exported tables comes with the bank (ROADMAP).
+  // Humans get half each as cash and deposit, an odd one going to neither; computers split by
+  // their profile (docs/GAME_RULES.md §1).
   const dealt = Math.floor(config.startingFunds / 2);
-  const players = setup.players.map(({ id, name, controller }): PlayerState => ({
-    id,
-    name,
-    controller,
-    cash: dealt,
-    deposit: dealt,
+  const players = setup.players.map((player): PlayerState => ({
+    id: player.id,
+    name: player.name,
+    controller: player.controller,
+    ...(player.controller === 'computer'
+      ? {
+          profile: {
+            cashPercent: player.profile.cashPercent,
+            loanPercent: player.profile.loanPercent,
+          },
+          ...openingSplit(config.startingFunds, player.profile),
+        }
+      : { profile: null, cash: dealt, deposit: dealt }),
     points: config.startingPoints,
     location: { kind: 'offBoard' },
     // Everyone rides the starting vehicle with its most dice (docs/GAME_RULES.md §9). Taking one

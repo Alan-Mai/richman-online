@@ -2,6 +2,7 @@ import type { Board } from './board';
 import type { CalendarDate } from './calendar';
 import type { RuleConfig, Vehicle } from './config';
 import type { PlayerId, TileIndex } from './ids';
+import type { CharacterProfile } from './profile';
 import type { RngState } from './rng';
 
 /**
@@ -30,6 +31,11 @@ export interface PlayerState {
   id: PlayerId;
   name: string;
   controller: Controller;
+  /**
+   * Set for every computer player; null for humans, who do not pick a character yet (ROADMAP
+   * "人類座位選角色"). Hidden from clients.
+   */
+  profile: CharacterProfile | null;
   cash: number;
   deposit: number;
   points: number;

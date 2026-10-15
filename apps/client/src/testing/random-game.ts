@@ -1,11 +1,13 @@
 // Test helpers: hot-seat games on the built-in board, driven by random legal choices.
 import {
   DEFAULT_RULE_CONFIG,
+  PROVISIONAL_COMPUTER_PROFILE,
   TEST_LOOP_BOARD,
   createRng,
   nextInt,
   type Controller,
   type GameSetup,
+  type PlayerSetup,
   type ServerUpdate,
 } from '@richman/shared';
 import { toIntent } from '../net/connection';
@@ -21,11 +23,12 @@ export function hotSeatSetup(
   return {
     config: { ...DEFAULT_RULE_CONFIG, dayLimit: ending === 'dayLimit' ? 20 : null },
     board: TEST_LOOP_BOARD,
-    players: Array.from({ length: playerCount }, (_, i) => ({
-      id: `p${i + 1}`,
-      name: `玩家${i + 1}`,
-      controller: controllers[i] ?? 'human',
-    })),
+    players: Array.from({ length: playerCount }, (_, i): PlayerSetup => {
+      const base = { id: `p${i + 1}`, name: `玩家${i + 1}` };
+      return controllers[i] === 'computer'
+        ? { ...base, controller: 'computer', profile: PROVISIONAL_COMPUTER_PROFILE }
+        : { ...base, controller: 'human' };
+    }),
     seed,
   };
 }

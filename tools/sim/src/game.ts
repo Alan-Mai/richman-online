@@ -1,6 +1,7 @@
 // One simulated game: random legal actions, with every step checked.
 import {
   DEFAULT_RULE_CONFIG,
+  PROVISIONAL_COMPUTER_PROFILE,
   TEST_BRANCH_BOARD,
   TEST_LOOP_BOARD,
   actorOf,
@@ -22,6 +23,7 @@ import {
   type GameSetup,
   type GameState,
   type PlayerId,
+  type PlayerSetup,
   type RuleError,
   type TileIndex,
   type Vehicle,
@@ -247,11 +249,13 @@ export function gameSetup(
       netWorthTargetMultiple: spec.netWorthTargetMultiple,
     },
     board: BOARDS[spec.board],
-    players: Array.from({ length: PLAYER_COUNT }, (_, i) => ({
-      id: `p${i + 1}`,
-      name: `AI ${i + 1}`,
-      controller: controllers[i] ?? 'human',
-    })),
+    // Computers use the provisional profile until --tables supplies the original ones.
+    players: Array.from({ length: PLAYER_COUNT }, (_, i): PlayerSetup => {
+      const base = { id: `p${i + 1}`, name: `AI ${i + 1}` };
+      return controllers[i] === 'computer'
+        ? { ...base, controller: 'computer', profile: PROVISIONAL_COMPUTER_PROFILE }
+        : { ...base, controller: 'human' };
+    }),
     seed: spec.seed,
   };
 }

@@ -2,10 +2,11 @@
 import type { Action, ActionType } from './actions';
 import type { Board, PropertyTileDef, TileDef } from './board';
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from './config';
-import { applyAction, createGame } from './engine';
+import { applyAction, createGame, type PlayerSetup } from './engine';
 import type { GameEvent } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { TEST_LOOP_BOARD } from './maps/test-loop';
+import { PROVISIONAL_COMPUTER_PROFILE, type CharacterProfile } from './profile';
 import type { RngState } from './rng';
 import type {
   Controller,
@@ -52,6 +53,20 @@ export interface TestGameOptions {
   placement?: 'fixed' | 'engine';
   /** Seat by seat; missing seats are human. */
   controllers?: readonly Controller[];
+  /** Computer seats' profiles, seat by seat; missing ones are PROVISIONAL_COMPUTER_PROFILE. */
+  profiles?: readonly (CharacterProfile | undefined)[];
+}
+
+/** Seat `i` of a test game: p<i+1>, a computer with the given (or provisional) profile or human. */
+export function testPlayerSetup(
+  i: number,
+  controller: Controller = 'human',
+  profile: CharacterProfile = PROVISIONAL_COMPUTER_PROFILE,
+): PlayerSetup {
+  const base = { id: `p${i + 1}`, name: `玩家${i + 1}` };
+  return controller === 'computer'
+    ? { ...base, controller, profile }
+    : { ...base, controller: 'human' };
 }
 
 /**
@@ -74,11 +89,9 @@ export function newTestGame(options: TestGameOptions = {}): GameState {
   const result = createGame({
     config: { ...DEFAULT_RULE_CONFIG, ...options.config },
     board,
-    players: Array.from({ length: count }, (_, i) => ({
-      id: `p${i + 1}`,
-      name: `玩家${i + 1}`,
-      controller: options.controllers?.[i] ?? 'human',
-    })),
+    players: Array.from({ length: count }, (_, i) =>
+      testPlayerSetup(i, options.controllers?.[i], options.profiles?.[i]),
+    ),
     seed: options.seed ?? TEST_SEED,
   });
   if (!result.ok) {

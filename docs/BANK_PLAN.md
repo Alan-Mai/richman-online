@@ -144,3 +144,4 @@
 - 批次 2：進行中。
   - 2-1 查證完成（逆向步驟 10c，約 0.3 輪）：原版「加入電腦」只從尚未被任何座位使用的角色中均勻隨機選，角色不重複；已寫進 GAME_RULES 第 1 節。使用者決定：2-3、2-6、2-7 依種子為電腦**不重複**抽角色；人類座位目前沒有角色，只在電腦之間不重複。ROADMAP 另記「人類座位選角色」（Phase 4 之前）。
   - 2-2 銀行格完成：`BankTileDef`（`kind: 'bank'`，可放置）；環狀圖角落 5、15，分岔圖 23（原「測試中路尾」）改成銀行。效果尚未實作，現有測試不受影響、未調整。客戶端目前把銀行畫成空白格的顏色，畫面區分併入 2-7。
+  - 2-3 完成：`profile.ts`（`CharacterProfile`、`PROVISIONAL_COMPUTER_PROFILE`、`isValidProfile`、`openingSplit`）；`PlayerSetup` 改成聯合型別，新錯誤 `invalidProfile`；`PlayerState.profile`（人類 null）與不變量。與計畫的差異：`viewFor` 原本整筆展開玩家物件，加 `profile` 時會外洩，改成 `PlayerStateView` 逐欄複製。模擬器紀錄格式版本改為 7（舊檔說明缺 profile）。客戶端與模擬器的電腦座位暫用 `PROVISIONAL_COMPUTER_PROFILE`，`--tables` 與設定畫面接上在 2-6、2-7。

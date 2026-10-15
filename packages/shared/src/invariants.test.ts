@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { Vehicle } from './config';
 import { checkInvariants } from './invariants';
+import { PROVISIONAL_COMPUTER_PROFILE } from './profile';
 import type { AuctionPhase, GameState, Phase } from './state';
 import { loopBoard, newTestGame, patchPlayer, patchTile, patchTurn, placePlayer } from './testing';
 
 /** Tiles 0 and 3 are blank; tile 1 costs 1000 (upgrade 500 at the default 50%), tile 2 costs 2000. */
 const BOARD = loopBoard([null, 1000, 2000, null]);
+
+/** Turns a player into a computer with the provisional profile. */
+const COMPUTER = { controller: 'computer', profile: PROVISIONAL_COMPUTER_PROFILE } as const;
 
 /** Two players on BOARD; p1 is current and waiting to roll. */
 const base = (): GameState => newTestGame({ board: BOARD });
@@ -112,6 +116,20 @@ describe('checkInvariants', () => {
       'player p2: vehicle bicycle is not a vehicle',
     ],
     [
+      'computer without a profile',
+      () => patchPlayer(base(), 'p2', { controller: 'computer' }),
+      'player p2: a computer without a valid profile',
+    ],
+    [
+      'computer with an invalid profile',
+      () =>
+        patchPlayer(base(), 'p2', {
+          controller: 'computer',
+          profile: { cashPercent: 50, loanPercent: 101 },
+        }),
+      'player p2: a computer without a valid profile',
+    ],
+    [
       'computer dice count on a human turn',
       () => patchTurn(base(), { phase: { kind: 'awaitRoll', computerDiceCount: 1 } }),
       'phase awaitRoll: computerDiceCount on the turn of p1, who is not a computer',
@@ -119,7 +137,7 @@ describe('checkInvariants', () => {
     [
       'computer dice count on foot',
       () =>
-        patchTurn(patchPlayer(base(), 'p1', { controller: 'computer' }), {
+        patchTurn(patchPlayer(base(), 'p1', COMPUTER), {
           phase: { kind: 'awaitRoll', computerDiceCount: 1 },
         }),
       'phase awaitRoll: computerDiceCount 1 while p1 is on foot',
@@ -127,7 +145,7 @@ describe('checkInvariants', () => {
     [
       'computer dice count above the limit',
       () =>
-        patchTurn(patchPlayer(base(), 'p1', { controller: 'computer', vehicle: 'motorbike' }), {
+        patchTurn(patchPlayer(base(), 'p1', { ...COMPUTER, vehicle: 'motorbike' }), {
           phase: { kind: 'awaitRoll', computerDiceCount: 3 },
         }),
       'phase awaitRoll: computerDiceCount 3 is outside 1..2 for motorbike',

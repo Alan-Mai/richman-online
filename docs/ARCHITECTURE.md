@@ -37,7 +37,7 @@ type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 觀戰者（`{ kind: 'spectator' }`）先保留在型別中，觀戰模式尚未實作。用可辨識聯合型別而不是 `PlayerId | 'spectator'`，是因為 `PlayerId` 是字串，id 剛好叫 `'spectator'` 的玩家會和觀戰者混淆。
 
 - `applyAction` 自行驗證動作格式（日後來自網路），依動作種類逐一檢查參數（`bid.raise`、`setDiceCount.count` 必須是整數）：格式錯誤回傳 `invalidAction`，不 throw。錯誤優先順序 `invalidAction` > `gameOver` > `unknownPlayer` > `notYourTurn`（送出者不是 `actorOf`）> `wrongPhase` > 動作本身的檢查（參數不在允許範圍的 `invalidAction`，例：不在加價檔位內、步行時選顆數；`insufficientFunds`）。
-- `PlayerView` 的欄位逐一列出複製，新增的 state 欄位預設不會外洩。不送：`rngState`、`lotteryPool`（彩券獎池，Phase 5 再定）、拍賣尚未開拍的地塊清單（只送剩餘塊數 `remaining`）、電腦的隱藏欄位（拍賣 `computerLimits`、`awaitRoll` 的 `computerDiceCount`）。
+- `PlayerView` 的欄位逐一列出複製，新增的 state 欄位預設不會外洩。不送：`rngState`、`lotteryPool`（彩券獎池，Phase 5 再定）、拍賣尚未開拍的地塊清單（只送剩餘塊數 `remaining`）、電腦的隱藏欄位（拍賣 `computerLimits`、`awaitRoll` 的 `computerDiceCount`、玩家的 `profile`；玩家以 `PlayerStateView` 逐欄複製）。
 - 金錢相關邏輯在 `money.ts`：`pay()`（強制付款：現金 → 存款 → 破產；收款進債權人存款，系統債務破產時餘款進 `lotteryPool`）、`spend()`（購地、加蓋、得標，只用現金）、價格 helper `buyPrice`／`upgradeCost`／`rentFor`／`auctionStartPrice`（收 `PriceView`）與 `netWorth`（收 `NetWorthView`）。`GameState`、`PlayerView` 與客戶端的 display model 都符合，前後端算出同樣的數字。
 - 其他模組：`movement.ts`（`stepFrom` 走一步、`previewPath` 預覽，實際移動與電腦預覽共用）、`auction.ts`（破產拍賣）、`computer.ts`（電腦出價上限與選顆數的抽取、出價選擇）、`tables.ts`（`parseOriginalTables`，見下方「原版資料表」）、`invariants.ts`。
 
@@ -53,7 +53,7 @@ type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 ### 行動者與電腦玩家
 
 - 同一時間只有一位行動者：`actorOf(state)` 平常是 `turn.current`，拍賣中是輪到出價的人（`phase.bidder`），遊戲結束時是 `null`。`applyAction` 與 `legalActions` 都以它判斷是否輪到。
-- 每位玩家有 `controller: 'human' | 'computer'`（`PlayerSetup` 必填）。電腦的動作由 `computerAction(state, id)` 產生，結果一定在 `legalActions` 內，照樣送進 `applyAction`，所以動作紀錄與重播與人類相同。
+- 每位玩家有 `controller: 'human' | 'computer'`。`PlayerSetup` 是依 `controller` 區分的聯合型別，電腦座位必帶角色比例 `profile: CharacterProfile`（`profile.ts`，由呼叫端選，未匯入 `tables.json` 時用 `PROVISIONAL_COMPUTER_PROFILE`）；`PlayerState.profile` 在人類座位為 `null`，不送給客戶端。電腦的動作由 `computerAction(state, id)` 產生，結果一定在 `legalActions` 內，照樣送進 `applyAction`，所以動作紀錄與重播與人類相同。
 - 電腦決策需要的亂數，由引擎在決策開始時從 `rngState` 抽好、存成 phase 的隱藏欄位（拍賣開拍時的 `computerLimits`、電腦回合開始時的 `computerDiceCount`），`computerAction` 本身只是讀狀態的純函式，不消耗亂數。
 - 呼叫者：伺服器（Phase 4）、模擬器、客戶端的 `LocalGameHost`（hot-seat，扮演伺服器）。電腦購地與加蓋目前是非原版的暫定策略（有提供就買、就蓋），見 ROADMAP Phase 5。
 
@@ -82,6 +82,7 @@ interface GameState {
 
 interface PlayerState {
   id; name; controller: 'human' | 'computer';
+  profile: CharacterProfile | null;   // 電腦的角色比例（cashPercent、loanPercent）；人類為 null；viewFor 不送
   cash; deposit; points;
   location: { kind: 'offBoard' } | { kind: 'onBoard'; tile: TileIndex; prev: TileIndex };
   vehicle: 'walk' | 'motorbike' | 'car';

@@ -5,10 +5,13 @@ import { createGame, type GameSetup, type PlayerSetup } from './engine';
 import { TEST_LOOP_BOARD } from './maps/test-loop';
 import { createRng, nextInt, type RngState } from './rng';
 
-const PLAYERS = [
-  { id: 'p1', name: '甲', controller: 'human' as const },
-  { id: 'p2', name: '乙', controller: 'computer' as const },
-  { id: 'p3', name: '丙', controller: 'human' as const },
+/** A made-up profile for the computer seat. */
+const PROFILE = { cashPercent: 30, loanPercent: 20 };
+
+const PLAYERS: readonly PlayerSetup[] = [
+  { id: 'p1', name: '甲', controller: 'human' },
+  { id: 'p2', name: '乙', controller: 'computer', profile: PROFILE },
+  { id: 'p3', name: '丙', controller: 'human' },
 ];
 
 function setup(patch: Partial<GameSetup> = {}): GameSetup {
@@ -54,13 +57,18 @@ describe('createGame', () => {
     expect(state.config).toBe(DEFAULT_RULE_CONFIG);
     expect(state.board).toBe(TEST_LOOP_BOARD);
     // Only seat 0 is placed; the rest wait for their first turn (engine.place.test.ts).
+    // Humans get half the 40,000 each as cash and deposit; the computer keeps 30% as cash.
+    const money = [
+      { profile: null, cash: 20_000, deposit: 20_000 },
+      { profile: PROFILE, cash: 12_000, deposit: 28_000 },
+      { profile: null, cash: 20_000, deposit: 20_000 },
+    ];
     expect(state.players).toEqual(
       PLAYERS.map(({ id, name, controller }, seat) => ({
         id,
         name,
         controller,
-        cash: DEFAULT_RULE_CONFIG.startingFunds / 2,
-        deposit: DEFAULT_RULE_CONFIG.startingFunds / 2,
+        ...money[seat],
         points: DEFAULT_RULE_CONFIG.startingPoints,
         location: expect.objectContaining({ kind: seat === 0 ? 'onBoard' : 'offBoard' }) as unknown,
         vehicle: 'walk',
@@ -102,20 +110,36 @@ describe('createGame', () => {
     expect(result.state.players.map((p) => p.diceCount)).toEqual([4, 4, 4]);
   });
 
-  it('splits starting funds the same way for computer players (provisional, non-original)', () => {
-    // The original splits by a character ratio from an executable table not exported yet.
+  it("splits computer players' starting funds by their profile (docs/GAME_RULES.md §1)", () => {
+    // Humans lose the odd one; the computer's 30% of 15 is 4.5, rounded down, the rest deposited.
     const result = createGame(setup({ config: withConfig({ startingFunds: 15 }) }));
     if (!result.ok) throw new Error('expected ok');
     const [human, computer] = result.state.players;
-    expect(computer?.controller).toBe('computer');
-    expect(computer).toMatchObject({ cash: 7, deposit: 7 });
-    expect(human).toMatchObject({ cash: 7, deposit: 7 });
+    expect(computer).toMatchObject({ controller: 'computer', profile: PROFILE });
+    expect(computer).toMatchObject({ cash: 4, deposit: 11 });
+    expect(human).toMatchObject({ profile: null, cash: 7, deposit: 7 });
   });
 
   it('rejects an unknown controller', () => {
     const robot = { id: 'p2', name: 'b', controller: 'robot' } as unknown as PlayerSetup;
     const result = createGame(setup({ players: [PLAYERS[0] as PlayerSetup, robot] }));
     expect(result).toEqual({ ok: false, errors: [{ reason: 'invalidController', seat: 1 }] });
+  });
+
+  it('rejects computer seats without a valid profile', () => {
+    const computer = (profile: unknown) =>
+      ({ id: 'p2', name: 'b', controller: 'computer', profile }) as unknown as PlayerSetup;
+    for (const profile of [undefined, { cashPercent: 101, loanPercent: 0 }]) {
+      const result = createGame(setup({ players: [PLAYERS[0] as PlayerSetup, computer(profile)] }));
+      expect(result).toEqual({ ok: false, errors: [{ reason: 'invalidProfile', seat: 1 }] });
+    }
+  });
+
+  it("ignores a human seat's profile", () => {
+    const human = { id: 'p2', name: 'b', controller: 'human', profile: PROFILE } as PlayerSetup;
+    const result = createGame(setup({ players: [PLAYERS[0] as PlayerSetup, human] }));
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.state.players[1]).toMatchObject({ profile: null, cash: 20_000 });
   });
 
   it('starts the first turn with TurnStarted, then places seat 0', () => {

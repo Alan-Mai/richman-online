@@ -36,7 +36,10 @@ describe('viewFor', () => {
       viewer: { kind: 'player', id: 'p2' },
       config: state.config,
       board: state.board,
-      players: state.players,
+      // Everything but the profile (see below).
+      players: state.players.map((p) =>
+        Object.fromEntries(Object.entries(p).filter(([key]) => key !== 'profile')),
+      ),
       tiles: state.tiles,
       turn: state.turn,
       day: 4,
@@ -100,6 +103,15 @@ describe('viewFor', () => {
         'human',
         'computer',
       ]);
+    }
+  });
+
+  it("does not send computer players' profiles", () => {
+    const state = newTestGame({ controllers: ['human', 'computer'] });
+    expect(state.players[1]?.profile).not.toBeNull();
+    for (const viewer of [P1, SPECTATOR]) {
+      for (const player of viewFor(state, viewer).players)
+        expect(player).not.toHaveProperty('profile');
     }
   });
 

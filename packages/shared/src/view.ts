@@ -18,11 +18,14 @@ export type PhaseView = Exclude<Phase, AuctionPhase> | AuctionPhaseView;
 
 export type TurnView = Omit<TurnState, 'phase'> & { phase: PhaseView };
 
+/** A player as clients see them: everything but the computer's character profile. */
+export type PlayerStateView = Omit<PlayerState, 'profile'>;
+
 export interface PlayerView {
   viewer: Viewer;
   config: RuleConfig;
   board: Board;
-  players: readonly PlayerState[];
+  players: readonly PlayerStateView[];
   tiles: readonly TileState[];
   turn: TurnView;
   day: number;
@@ -32,7 +35,8 @@ export interface PlayerView {
 
 /**
  * Filters the state for one viewer. Hidden from everyone: rngState, the lottery pool, the drawn
- * properties still to be auctioned (sent only as a count) and the computers' pre-drawn choices.
+ * properties still to be auctioned (sent only as a count), the computers' pre-drawn choices and
+ * their character profiles.
  * Per-player secrets (hands of cards) will be filtered here per viewer.
  */
 export function viewFor(state: GameState, viewer: Viewer): PlayerView {
@@ -40,12 +44,28 @@ export function viewFor(state: GameState, viewer: Viewer): PlayerView {
     viewer: { ...viewer },
     config: state.config,
     board: state.board,
-    players: state.players.map((p) => ({ ...p, location: { ...p.location } })),
+    players: state.players.map(viewPlayer),
     tiles: state.tiles.map((t) => ({ ...t })),
     turn: { ...state.turn, phase: viewPhase(state.turn.phase) },
     day: state.day,
     date: { ...state.date },
     priceIndex: state.priceIndex,
+  };
+}
+
+/** Copied field by field: the profile stays hidden. */
+function viewPlayer(p: PlayerState): PlayerStateView {
+  return {
+    id: p.id,
+    name: p.name,
+    controller: p.controller,
+    cash: p.cash,
+    deposit: p.deposit,
+    points: p.points,
+    location: { ...p.location },
+    vehicle: p.vehicle,
+    diceCount: p.diceCount,
+    bankrupt: p.bankrupt,
   };
 }
 

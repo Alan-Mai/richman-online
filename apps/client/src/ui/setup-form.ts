@@ -1,11 +1,13 @@
 // New-game form: turns what the players typed into a GameSetup, or a list of problems.
 import {
   DEFAULT_RULE_CONFIG,
+  PROVISIONAL_COMPUTER_PROFILE,
   TEST_BRANCH_BOARD,
   TEST_LOOP_BOARD,
   type Board,
   type Controller,
   type GameSetup,
+  type PlayerSetup,
   type Vehicle,
 } from '@richman/shared';
 import { t } from '../i18n';
@@ -130,11 +132,13 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
         startingFunds,
       },
       board: BOARDS[form.board],
-      players: names.map((name, seat) => ({
-        id: `p${seat + 1}`,
-        name,
-        controller: form.controllers[seat] ?? 'human',
-      })),
+      // Computers use the provisional profile until tables.json supplies the original ones.
+      players: names.map((name, seat): PlayerSetup => {
+        const id = `p${seat + 1}`;
+        return form.controllers[seat] === 'computer'
+          ? { id, name, controller: 'computer', profile: PROVISIONAL_COMPUTER_PROFILE }
+          : { id, name, controller: 'human' };
+      }),
       seed,
     },
   };
