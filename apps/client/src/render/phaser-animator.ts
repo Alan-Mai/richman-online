@@ -74,8 +74,9 @@ export class PhaserAnimator implements Animator {
         ]);
         return;
       case 'AuctionStarted': {
-        // The original shows an opening message, then one naming the first bidder (none when
-        // nobody may bid); later turns change without a message.
+        // The original shows an opening message, then one naming the first bidder; later turns
+        // change without a message. Skipping the second one when nobody may bid is inferred, not
+        // checked in the original (GAME_RULES.md section 10).
         const messages = event.bidders.length > 0 ? 2 : 1;
         await Promise.all([
           this.floatAt(board.tileCenter(event.tile), t('float.auction'), '#f6d36b'),
