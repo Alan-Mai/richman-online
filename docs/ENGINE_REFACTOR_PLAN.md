@@ -92,7 +92,9 @@
     - 檢查只保留結構與有依據的性質：每幀位移 > 0、起始資金 > 0、天數上限與淨值目標第 1 檔為 0。「幀長隨速度遞減」沒有規則依據，不檢查。
   - [x] E0b。`parseOriginalTables(json)` 回傳 `{ ok, tables }` 或可辨識聯合型別的錯誤清單（`unsupportedVersion`、`missing`、`wrongType`、`wrongLength`、`outOfRange`，`path` 以點與索引表示），一次收集全部錯誤、不 throw；版本不符時不檢查其餘欄位。筆數放在 `ORIGINAL_TABLE_LENGTHS`。範圍檢查：u8／u32／i32 的寬度、每幀位移與起始資金 > 0（兩者是除數）、天數上限與淨值目標倍數 ≥ 0、`cashPercent` 0–100、`id` 必須依序。本機匯出的 `tables.json` 經 scratch 腳本驗證通過。合併進 `RuleConfig`／客戶端的換算留到用到的批次（E1、E4、銀行）。
   - B2／D6 待補已查證，結果見下方「批次 E0」。
-- [ ] E、F
+- [ ] 批次 E：
+  - [x] E1。`Vehicle` 與 `VEHICLES` 放在 `config.ts`；設定驗證新增 `invalidVehicle`（起始交通工具），`vehicleMaxDice` 每一項須為正整數；不變量檢查交通工具與顆數範圍。開局扣全場庫存延到 Phase 5（程式註解）。
+- [ ] F
 
 實作中發現的待補項目，直接寫進對應批次的條目。
 

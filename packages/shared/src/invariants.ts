@@ -1,6 +1,7 @@
 // Consistency checks on a GameState, shared by tests, tools/sim and a future server debug mode.
 // Total money is deliberately not checked: payouts and bonuses create money (docs/DECISIONS.md).
 import { isLinked } from './board';
+import { VEHICLES } from './config';
 import type { AuctionPhase, GameState, PlayerState } from './state';
 import { auctionStartPrice, buyPrice, upgradeCost } from './money';
 
@@ -35,12 +36,20 @@ function checkCalendar({ day, priceIndex, lotteryPool }: GameState): string[] {
 function checkPlayers(state: GameState): string[] {
   const { board, players, tiles } = state;
   const errors: string[] = [];
-  for (const { id, cash, deposit, location, bankrupt } of players) {
+  for (const { id, cash, deposit, location, vehicle, diceCount, bankrupt } of players) {
     if (!isNonNegativeInteger(cash)) {
       errors.push(`player ${id}: cash ${cash} is not a non-negative integer`);
     }
     if (!isNonNegativeInteger(deposit)) {
       errors.push(`player ${id}: deposit ${deposit} is not a non-negative integer`);
+    }
+    if (!VEHICLES.includes(vehicle)) {
+      errors.push(`player ${id}: vehicle ${vehicle} is not a vehicle`);
+    } else {
+      const most = state.config.vehicleMaxDice[vehicle];
+      if (!Number.isInteger(diceCount) || diceCount < 1 || diceCount > most) {
+        errors.push(`player ${id}: diceCount ${diceCount} is outside 1..${most} for ${vehicle}`);
+      }
     }
     if (location.kind === 'onBoard') {
       const { tile, prev } = location;

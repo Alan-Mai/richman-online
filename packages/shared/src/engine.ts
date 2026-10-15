@@ -98,7 +98,10 @@ export function createGame(setup: GameSetup): CreateGameResult {
     deposit: dealt,
     points: config.startingPoints,
     location: { kind: 'offBoard' },
-    diceCount: config.defaultDiceCount,
+    // Everyone rides the starting vehicle with its most dice (docs/GAME_RULES.md §9). Taking one
+    // from the shop stock per player comes with the stock itself (Phase 5).
+    vehicle: config.startingVehicle,
+    diceCount: config.vehicleMaxDice[config.startingVehicle],
     bankrupt: false,
   }));
   const state: GameState = {

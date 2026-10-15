@@ -20,11 +20,13 @@ export { TEST_BRANCH_BOARD } from './maps/test-branch';
 export { TEST_LOOP_BOARD } from './maps/test-loop';
 export {
   DEFAULT_RULE_CONFIG,
+  VEHICLES,
   validateRuleConfig,
   type ComputerBidConfig,
   type RuleConfig,
   type RuleConfigError,
   type RuleConfigErrorReason,
+  type Vehicle,
 } from './config';
 export {
   actorOf,

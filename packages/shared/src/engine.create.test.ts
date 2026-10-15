@@ -63,7 +63,8 @@ describe('createGame', () => {
         deposit: DEFAULT_RULE_CONFIG.startingFunds / 2,
         points: DEFAULT_RULE_CONFIG.startingPoints,
         location: expect.objectContaining({ kind: seat === 0 ? 'onBoard' : 'offBoard' }) as unknown,
-        diceCount: DEFAULT_RULE_CONFIG.defaultDiceCount,
+        vehicle: 'walk',
+        diceCount: 1,
         bankrupt: false,
       })),
     );
@@ -75,14 +76,30 @@ describe('createGame', () => {
   });
 
   it('uses the configured starting values', () => {
-    const config = withConfig({
-      startingFunds: 16,
-      startingPoints: 9,
-      defaultDiceCount: 2,
-    });
+    const config = withConfig({ startingFunds: 16, startingPoints: 9 });
     const result = createGame(setup({ config }));
     if (!result.ok) throw new Error('expected ok');
-    expect(result.state.players[0]).toMatchObject({ cash: 8, deposit: 8, points: 9, diceCount: 2 });
+    expect(result.state.players[0]).toMatchObject({ cash: 8, deposit: 8, points: 9 });
+  });
+
+  it('puts everyone on the starting vehicle with as many dice as it allows', () => {
+    const expected = [
+      ['walk', 1],
+      ['motorbike', 2],
+      ['car', 3],
+    ] as const;
+    for (const [startingVehicle, diceCount] of expected) {
+      const result = createGame(setup({ config: withConfig({ startingVehicle }) }));
+      if (!result.ok) throw new Error('expected ok');
+      for (const player of result.state.players) {
+        expect(player).toMatchObject({ vehicle: startingVehicle, diceCount });
+      }
+    }
+    const limits = { walk: 2, motorbike: 4, car: 5 };
+    const config = withConfig({ startingVehicle: 'motorbike', vehicleMaxDice: limits });
+    const result = createGame(setup({ config }));
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.state.players.map((p) => p.diceCount)).toEqual([4, 4, 4]);
   });
 
   it('splits starting funds the same way for computer players (provisional, non-original)', () => {

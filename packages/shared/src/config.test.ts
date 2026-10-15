@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_RULE_CONFIG, validateRuleConfig, type RuleConfig } from './config';
+import {
+  DEFAULT_RULE_CONFIG,
+  VEHICLES,
+  validateRuleConfig,
+  type RuleConfig,
+  type Vehicle,
+} from './config';
 
 function withConfig(patch: Partial<RuleConfig>): RuleConfig {
   return { ...DEFAULT_RULE_CONFIG, ...patch };
@@ -31,11 +37,10 @@ describe('validateRuleConfig', () => {
 
   it('requires positive starting funds, dice and player counts', () => {
     const errors = validateRuleConfig(
-      withConfig({ startingFunds: 0, minPlayers: 0, defaultDiceCount: 0, diceFaces: 0 }),
+      withConfig({ startingFunds: 0, minPlayers: 0, diceFaces: 0 }),
     );
     expect(errors).toContainEqual({ field: 'startingFunds', reason: 'notPositiveInteger' });
     expect(errors).toContainEqual({ field: 'minPlayers', reason: 'notPositiveInteger' });
-    expect(errors).toContainEqual({ field: 'defaultDiceCount', reason: 'notPositiveInteger' });
     expect(errors).toContainEqual({ field: 'diceFaces', reason: 'notPositiveInteger' });
   });
 
@@ -103,6 +108,39 @@ describe('validateRuleConfig', () => {
         reason: 'notPositiveInteger',
       });
     }
+  });
+
+  it('starts everyone on foot, with the original dice limits per vehicle', () => {
+    expect(DEFAULT_RULE_CONFIG.startingVehicle).toBe('walk');
+    expect(DEFAULT_RULE_CONFIG.vehicleMaxDice).toEqual({ walk: 1, motorbike: 2, car: 3 });
+  });
+
+  it('takes any vehicle as the starting vehicle', () => {
+    for (const startingVehicle of VEHICLES) {
+      expect(validateRuleConfig(withConfig({ startingVehicle }))).toEqual([]);
+    }
+    const bike = 'bicycle' as unknown as Vehicle;
+    expect(validateRuleConfig(withConfig({ startingVehicle: bike }))).toEqual([
+      { field: 'startingVehicle', reason: 'invalidVehicle' },
+    ]);
+  });
+
+  it('requires a positive integer dice limit for every vehicle', () => {
+    const limits = DEFAULT_RULE_CONFIG.vehicleMaxDice;
+    for (const vehicleMaxDice of [
+      { ...limits, walk: 0 },
+      { ...limits, motorbike: 1.5 },
+      { ...limits, car: -3 },
+      { walk: 1, motorbike: 2 } as unknown as Record<Vehicle, number>,
+    ]) {
+      expect(validateRuleConfig(withConfig({ vehicleMaxDice }))).toEqual([
+        { field: 'vehicleMaxDice', reason: 'notPositiveInteger' },
+      ]);
+    }
+  });
+
+  it('no longer has a default dice count', () => {
+    expect(Object.keys(DEFAULT_RULE_CONFIG)).not.toContain('defaultDiceCount');
   });
 
   it('no longer has the round limit win condition', () => {

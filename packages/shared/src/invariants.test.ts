@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { Vehicle } from './config';
 import { checkInvariants } from './invariants';
 import type { AuctionPhase, GameState, Phase } from './state';
 import { loopBoard, newTestGame, patchPlayer, patchTile, patchTurn, placePlayer } from './testing';
@@ -79,6 +80,26 @@ describe('checkInvariants', () => {
       'negative deposit',
       () => patchPlayer(base(), 'p1', { deposit: -5 }),
       'player p1: deposit -5 is not a non-negative integer',
+    ],
+    [
+      'no dice',
+      () => patchPlayer(base(), 'p1', { diceCount: 0 }),
+      'player p1: diceCount 0 is outside 1..1 for walk',
+    ],
+    [
+      'more dice than the vehicle allows',
+      () => patchPlayer(base(), 'p2', { vehicle: 'motorbike', diceCount: 3 }),
+      'player p2: diceCount 3 is outside 1..2 for motorbike',
+    ],
+    [
+      'fractional dice count',
+      () => patchPlayer(base(), 'p1', { vehicle: 'car', diceCount: 1.5 }),
+      'player p1: diceCount 1.5 is outside 1..3 for car',
+    ],
+    [
+      'unknown vehicle',
+      () => patchPlayer(base(), 'p2', { vehicle: 'bicycle' as unknown as Vehicle }),
+      'player p2: vehicle bicycle is not a vehicle',
     ],
     [
       'tile off the board',

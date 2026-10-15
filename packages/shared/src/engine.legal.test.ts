@@ -82,7 +82,7 @@ describe('legalActions completeness', () => {
       'poor players until one is left',
       {
         startingFunds: 2000,
-        defaultDiceCount: 2,
+        startingVehicle: 'motorbike',
       },
       2000,
     ],
@@ -105,7 +105,12 @@ describe('legalActions completeness', () => {
     const board = loopBoard(Array.from({ length: 16 }, () => 2000));
     let auctionSteps = 0;
     for (const seed of [1, 2, 3, 4, 5]) {
-      let start = newTestGame({ board, playerCount: 4, seed, config: { defaultDiceCount: 2 } });
+      let start = newTestGame({
+        board,
+        playerCount: 4,
+        seed,
+        config: { startingVehicle: 'motorbike' },
+      });
       start.players.forEach((p, seat) => {
         start = patchPlayer(start, p.id, { cash: seat === 0 ? 3000 : 40_000, deposit: 0 });
         for (let k = 0; k < 4; k++)

@@ -101,6 +101,19 @@ describe('viewFor', () => {
     }
   });
 
+  it("sends each player's vehicle and dice count", () => {
+    const base = newTestGame({ playerCount: 3, config: { startingVehicle: 'car' } });
+    const state = patchPlayer(base, 'p2', { diceCount: 1 });
+    for (const viewer of [P1, SPECTATOR]) {
+      const players = viewFor(state, viewer).players;
+      expect(players.map((p) => [p.vehicle, p.diceCount])).toEqual([
+        ['car', 3],
+        ['car', 1],
+        ['car', 3],
+      ]);
+    }
+  });
+
   it('keeps a player whose id is "spectator" distinct from a spectator', () => {
     const state = newTestGame();
     expect(viewFor(state, { kind: 'player', id: 'spectator' }).viewer).toEqual({

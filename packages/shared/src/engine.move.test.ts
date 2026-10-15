@@ -38,7 +38,10 @@ describe('rollDice', () => {
   });
 
   it('rolls diceCount dice and moves by their total', () => {
-    const start = withFixedDice(patchPlayer(game(), 'p1', { diceCount: 3 }), [1, 2, 6]);
+    const start = withFixedDice(
+      patchPlayer(game(), 'p1', { vehicle: 'car', diceCount: 3 }),
+      [1, 2, 6],
+    );
     const { state, events } = applyOk(start, roll('p1'));
     expect(events[0]).toEqual({ type: 'DiceRolled', playerId: 'p1', dice: [1, 2, 6], total: 9 });
     expect(tileOf(state, 'p1')).toBe(9);

@@ -2,6 +2,11 @@
 // Defaults are provisional values chosen for this project, not values from the original game, unless
 // a field says it is the original's.
 
+/** How a player gets around (docs/GAME_RULES.md §9). The temporary vehicle is Phase 5. */
+export type Vehicle = 'walk' | 'motorbike' | 'car';
+
+export const VEHICLES: readonly Vehicle[] = ['walk', 'motorbike', 'car'];
+
 export interface RuleConfig {
   minPlayers: number;
   maxPlayers: number;
@@ -23,7 +28,13 @@ export interface RuleConfig {
    * null means no target, the original's first option.
    */
   netWorthTargetMultiple: number | null;
-  defaultDiceCount: number;
+  /**
+   * What every player rides from the start; one setting for all, as on the original setup screen
+   * (docs/GAME_RULES.md §9).
+   */
+  startingVehicle: Vehicle;
+  /** Most dice a player may roll on each vehicle (docs/GAME_RULES.md §9; the original's). */
+  vehicleMaxDice: Readonly<Record<Vehicle, number>>;
   diceFaces: number;
   maxLevel: number;
   /**
@@ -68,7 +79,8 @@ export const DEFAULT_RULE_CONFIG: RuleConfig = {
   startingPoints: 0,
   dayLimit: null,
   netWorthTargetMultiple: null,
-  defaultDiceCount: 1,
+  startingVehicle: 'walk',
+  vehicleMaxDice: { walk: 1, motorbike: 2, car: 3 },
   diceFaces: 6,
   maxLevel: 5,
   auctionPlotCount: 3,
@@ -87,7 +99,8 @@ export type RuleConfigErrorReason =
   | 'notPositiveInteger'
   | 'lessThanMinPlayers'
   | 'notAscendingPositiveIntegers'
-  | 'invalidComputerBid';
+  | 'invalidComputerBid'
+  | 'invalidVehicle';
 
 export interface RuleConfigError {
   field: keyof RuleConfig;
@@ -113,13 +126,7 @@ export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
     }
   }
 
-  const positive = [
-    'startingFunds',
-    'minPlayers',
-    'maxPlayers',
-    'defaultDiceCount',
-    'diceFaces',
-  ] as const;
+  const positive = ['startingFunds', 'minPlayers', 'maxPlayers', 'diceFaces'] as const;
   for (const field of positive) {
     if (!isPositiveInteger(config[field])) {
       errors.push({ field, reason: 'notPositiveInteger' });
@@ -144,6 +151,13 @@ export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
   const ranges = [streetFactor, landFactor].every(([low, high]) => low <= high);
   if (!amounts.every((n) => Number.isFinite(n) && n >= 0) || !ranges) {
     errors.push({ field: 'computerBid', reason: 'invalidComputerBid' });
+  }
+
+  if (!VEHICLES.includes(config.startingVehicle)) {
+    errors.push({ field: 'startingVehicle', reason: 'invalidVehicle' });
+  }
+  if (!VEHICLES.every((vehicle) => isPositiveInteger(config.vehicleMaxDice[vehicle]))) {
+    errors.push({ field: 'vehicleMaxDice', reason: 'notPositiveInteger' });
   }
 
   for (const field of ['dayLimit', 'netWorthTargetMultiple'] as const) {

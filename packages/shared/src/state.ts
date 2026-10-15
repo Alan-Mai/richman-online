@@ -1,5 +1,5 @@
 import type { Board } from './board';
-import type { RuleConfig } from './config';
+import type { RuleConfig, Vehicle } from './config';
 import type { PlayerId, TileIndex } from './ids';
 import type { RngState } from './rng';
 
@@ -33,6 +33,8 @@ export interface PlayerState {
   deposit: number;
   points: number;
   location: PlayerLocation;
+  vehicle: Vehicle;
+  /** How many dice the next roll uses: 1..RuleConfig.vehicleMaxDice of the vehicle. */
   diceCount: number;
   bankrupt: boolean;
 }
