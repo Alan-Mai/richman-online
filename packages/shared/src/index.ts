@@ -32,6 +32,7 @@ export {
   weekday,
   type CalendarDate,
 } from './calendar';
+export { lunarDate, type LunarDate } from './lunar';
 export { TEST_BRANCH_BOARD } from './maps/test-branch';
 export { TEST_LOOP_BOARD } from './maps/test-loop';
 export {
