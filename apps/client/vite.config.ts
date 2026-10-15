@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
-import { localAssetsPlugin } from './vite/local-assets';
+import { localAssetsPlugin } from './vite/local-assets.ts';
 
 /** Converted maps written by `pnpm -F extract cli map`; never imported or bundled. */
 const MAPS_DIR = fileURLToPath(new URL('../../local-assets/maps', import.meta.url));
