@@ -2,6 +2,37 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-15 引擎改造完成：controller 模型、只留原版做法、資料表介面、`unsupported` 格
+- **決策**（引擎改造批次 A–E 的最終結果；計畫時的決定見下方 2026-10-14「引擎改造：只實作原版規則…」）：
+  - **controller 模型**：
+    - `PlayerSetup.controller: 'human' | 'computer'` 必填，開局後不變；斷線代打的座位仍算人類（Phase 4）。
+    - 同一時間只有一位行動者，由 `actorOf(state)` 決定（拍賣中是輪到出價的人）；`applyAction`／`legalActions` 都以它判斷。
+    - 電腦動作由純函式 `computerAction(state, id)` 產生，結果一定在 `legalActions` 內、照樣走 `applyAction`。
+    - 需要亂數的電腦決策在決策開始時由引擎抽好、存成 phase 的隱藏欄位（拍賣的 `computerLimits`、`awaitRoll` 的 `computerDiceCount`），`viewFor` 不送。
+    - 呼叫者是伺服器、模擬器與客戶端的 `LocalGameHost`。
+  - **只留原版做法**：
+    - 移除的非原版選項：百分比加蓋費／過路費、`passStartBonus`、`board.start`、破產清屋、過路費進現金、`streetBonus`、物價指數開關、`purchaseFunds`、`bankruptcyPayout`、`upgradeOnOwnTile`、`maxRounds`／`richestAtRoundLimit`、`defaultDiceCount`。
+    - 電腦出價上限中 coef 乘兩次固定照原版，不做選項（取代步驟 5 決策中的「另做成參數」）；最高出價者在領先時不會再輪到，所以沒有「最高出價者退出」的分支（取代步驟 5 的 ❓）。
+    - 剩下的非原版只有：數值類的暫定預設（`startingFunds` 40,000 等）、電腦開局拆法暫用人類拆法、電腦購地與加蓋「有提供就買、就蓋」。前者等原版資料表接上，後兩者列在 ROADMAP（銀行格、Phase 5）。
+  - **資料表介面**：
+    - shared 只有 `OriginalTables` 型別與 `parseOriginalTables(json: unknown)`，一次回傳全部錯誤、不 throw；引擎不讀檔，`RuleConfig` 不引用表。
+    - 讀檔與換算在呼叫端。目前只有客戶端設定畫面匯入、只用動畫表；模擬器的 `--tables`、設定選項表、角色範本與道具表等到用到的功能（銀行、商店等）時再接，與計畫中「模擬器 `--tables`」的差異在此記錄。
+  - **`unsupported` 格**：
+    - `TileDef` 的 `kind: 'unsupported'`（`feature: 'largeBuilding'`）標記引擎尚未實作的地圖內容：可經過、停留沒有效果、不會被選為隨機起點、不能有擁有者。
+    - 原版地圖轉成可玩 `Board` 時（ROADMAP，尚未實作），大型建築轉成這種格並逐一發出警告，不靜默轉成空白格；實作大型建築後原版地圖不再有這種格。
+- **原因**：
+  - 動作紀錄要能完整重播電腦的行為，所以電腦也走 `applyAction`。
+  - 亂數先抽好，`computerAction` 才能是不消耗亂數的純函式。
+  - 只留原版做法可減少一半的測試與維護，也避免把慣例誤當原版。
+  - 資料表只在呼叫端讀取，倉庫與公開伺服器就不會碰到原版數值。
+  - 明確的暫時種類讓「還沒做」看得見。
+- **替代方案**：
+  - 引擎在 `applyAction` 內自動代打電腦。
+  - 電腦決策時再從 `rngState` 抽亂數（`computerAction` 就要回傳新狀態）。
+  - 原版與非原版模式並存。
+  - 引擎直接讀 `tables.json`。
+  - 尚未支援的格子轉成空白格。
+
 ## 2026-10-15 客戶端以設定畫面明確匯入 tables.json
 - **決策**：
   - 原版資料表由玩家在設定畫面選檔匯入（在瀏覽器內讀取、不上傳，重新整理前保留）；dev 與正式版相同，不自動讀取 `local-assets/tables.json`。

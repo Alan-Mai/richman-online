@@ -1,5 +1,5 @@
 // Rule engine entry point. Must stay pure and deterministic (see CLAUDE.md).
-export const ENGINE_VERSION = '0.0.0';
+export const ENGINE_VERSION = '0.1.0';
 
 export type { Action, ActionType } from './actions';
 export {

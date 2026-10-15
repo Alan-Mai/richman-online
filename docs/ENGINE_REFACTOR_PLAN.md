@@ -1,5 +1,7 @@
 # 引擎改造：分批計畫
 
+> **已完成，僅供歷史參考**（2026-10-15，批次 A–F 全部完成）。最終結果見 `DECISIONS.md` 2026-10-15「引擎改造完成」；後續工作見 `ROADMAP.md`。
+
 使用者核准的計畫（含修正版 6 點），對應 ROADMAP「引擎改造」。進度：
 
 - [x] 批次 A（`b541cf0`、`b3906c6`、`fd8cd41`）。和計畫的差異：`noRandomPlacement` 移到 B1 才加，因為只有放置規則用到。
@@ -114,7 +116,15 @@
     - display model 加 `vehicle`、`diceCount`（事件與 view 一致性測試加汽車＋電腦的局）。設定畫面加起始交通工具。
     - 試玩用的 `TEMP-DEBUG` 掛勾 `richmanDebug.auction()`（只在 dev）：讓目前玩家下一次擲骰破產並開出有人能出價的拍賣；確認後已移除。
     - 批次結束驗證：模擬器兩張圖 × 不限／100 日 × 步行／汽車各 1000 局沒有失敗（`GAME_RULES.md`「模擬器觀察」）；shared 覆蓋率 97.9%；`pnpm -F client build` 產物不含素材。
-- [ ] F
+- [x] 批次 F：
+  - [x] F1（使用者輸入 `/phase-check` 驗證通過後勾選 ROADMAP）。內容與差異：
+    - `GAME_RULES.md`：第 3、8、9 節的「引擎現況」改寫成「引擎：」段落（以目前程式碼逐條對照），寫作慣例同步改；第 1 節起始資金列註明角色範本已可匯出但未接上；第 2 節「日」補上 C4b 的檢查。「模擬器觀察」加上與 Phase 2 基準的比較表（隨機 AI、步行、兩張圖）。
+    - `ARCHITECTURE.md`：核心函式加 `actorOf`、`computerAction`、`checkInvariants`；新增「行動者與電腦玩家」「原版資料表」兩小節；型別、狀態轉移圖（含選顆數、破產的結束判斷與拍賣）、`viewFor` 不送的欄位、模組（`movement.ts` 等）、伺服器／客戶端／模擬器段落。
+    - `DECISIONS.md` 新增一則（controller 模型、只留原版做法、資料表介面、`unsupported` 格）。`ENGINE_VERSION` 改為 `0.1.0`。CLAUDE.md 指令段補上 `--max-steps`、`--max-failure-details`。
+    - 和計畫的差異：計畫的「模擬器 `--tables <path>`」沒有做；資料表目前只有客戶端的動畫表接上，角色範本（電腦開局拆法）排在銀行格批次，其他表等用到的功能。記在 `DECISIONS.md`。
+    - 「執行檔資料表匯出」勾選時改寫內文（使用者決定）：刪掉與 `DECISIONS.md` 矛盾的「引擎的原版規則模式讀取這些 JSON」；尚未接上的使用處移到各自的項目（角色比例與模擬器 `--tables` →「銀行格與存提款」、設定選項表 → 新增的「匯入資料表後，設定畫面改用原版檔位」、道具表 → Phase 5 商店）。
+    - 發現（程式註解，F1 只改文件，另開 commit 修正）：`view.ts` 的 `viewFor` 註解仍寫「Phase 2 沒有隱藏資訊、只去掉 rngState」；`engine.ts` 開局拆法的註解寫「角色表匯出後」，實際是「接上後」。
+    - `/phase-check` 另外發現：`pnpm test:coverage` 自 E2 起固定失敗（`engine.legal.test.ts` 一個隨機對局測試在開覆蓋率時超過 5 秒），另開 test commit 修正。
 
 實作中發現的待補項目，直接寫進對應批次的條目。
 
