@@ -138,3 +138,4 @@
 
 - 批次 1：進行中。
   - 1-1 日曆模型完成（`calendar.ts`、`RuleConfig.startDate`、`GameState.date`、`DayAdvanced.date`、不變量）。舊的模擬器失敗紀錄沒有 `startDate`，replay 時會被設定驗證拒絕（只在本機，不另做相容）。客戶端顯示日期併入 2-7。
+  - 1-2 與 1-4 合併成一個 commit（產生器說明要引用比對指令）：農曆演算法、產生器 `pnpm -F extract lunar-gen`、`packages/shared/src/lunar-data.ts`（1997–2199，列進 `.prettierignore`，由 extract 的測試確認與產生器一致）、`pnpm -F extract cli lunar-check`。本機比對 8399 筆全部一致；香港天文台抽樣 16 年 5841 日全部一致。

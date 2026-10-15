@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "cli": "tsx src/main.ts",
+    "lunar-gen": "tsx src/lunar/generate.ts",
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run"
   },

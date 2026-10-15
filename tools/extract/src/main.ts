@@ -2,6 +2,7 @@
 import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { inventory, type CommandContext } from './commands/inventory';
+import { lunarCheck } from './commands/lunar-check';
 import { map } from './commands/map';
 import { tables } from './commands/tables';
 import { view } from './commands/view';
@@ -12,6 +13,7 @@ import { MapExportError } from './map-export';
 
 const COMMANDS: Record<string, (ctx: CommandContext) => Promise<void>> = {
   inventory,
+  'lunar-check': lunarCheck,
   map,
   tables,
   view,

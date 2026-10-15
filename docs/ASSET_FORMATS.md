@@ -435,6 +435,7 @@
   - 角色範本只匯出 +0x19（u8，現金比例，單位百分比）：電腦開局拆現金（0x4071d6，÷ 100）與銀行重新分配（0x437b02，÷ 100）都讀玩家的這一欄，而玩家的這一欄在新局時由範本整筆複製。範本的這一欄沒有其他讀寫（範本基底的另外兩個參照只讀 +0）。其餘欄位不匯出。
   - 玩家的 +0x19 在遊戲中還有一個寫入者：選單開啟的玩家設定對話框（0x41e283，按確定時寫回），只列出人類座位、以 10 為一級調整。它只能在開局之後打開，不影響開局拆分；電腦座位一律用範本值。
   - 道具紀錄之前（`0x47fdf0` 起，30 筆，同樣 8 bytes）是另一張以相同格式排列的表（新局把 +6 複製到另一個庫存陣列），推測是卡片，Phase 5 再分析。
+  - **農曆表**（不匯出）：`0x47639c` 起，每日一筆 u32，以日序（1998/1/1 = 0）為索引；低 16 位元 = 月 << 8 | 日，高 16 位元程式不讀。筆數 8399（到下一個被程式參照的位址為止，約到 2020 年底）。唯一讀取者是節日比對的農曆分支（0x452285，逆向步驟 10b）。本專案改用自己的演算法產生農曆（`tools/extract/src/lunar/`，`DECISIONS.md` 2026-10-15「農曆」）；`pnpm -F extract cli lunar-check` 在本機和這張表逐筆比對，只印筆數，結果是 8399 筆全部一致，所以不匯出。
 - `tables.json`：`version`（目前 1）、`source`（檔名、大小、sha256，只供本機追查）、`animation`（`frameTicks`、`stepPixels{walk,motorbike,car,temporary}`、`diceAnimDelay`）、`items[{id,unknownAt0,unknownAt1,stock,points}]`、`setupOptions{startingFunds,dayLimit,netWorthTargetMultiple}`、`characters[{id,cashPercent}]`。一律存原始值（0 代表「不限」、觸發數、百分比），換算由使用處處理。
 - 證據：上表各指令由主 session 對照反組譯核對；本機匯出值與逆向步驟 7 的錄影（速度 2 的幀長、步行與汽車的每幀位移）及 `local-assets/ghidra/notes.md` 已記的值一致。表的範圍內沒有絕對位址形式的寫入。
 - 解析器：`tools/extract/src/formats/pe.ts`、`tools/extract/src/exe-tables.ts`（單元測試用合成的假 PE）。
