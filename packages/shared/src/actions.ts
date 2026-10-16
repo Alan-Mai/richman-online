@@ -24,7 +24,16 @@ export type Action =
    */
   | { type: 'bankTransfer'; playerId: PlayerId; direction: BankDirection; amount: number }
   /** Close the bank without moving money. */
-  | { type: 'leaveBank'; playerId: PlayerId };
+  | { type: 'leaveBank'; playerId: PlayerId }
+  /**
+   * At the loan counter after stopping on a bank (docs/GAME_RULES.md §4): borrow `amount` into the
+   * deposit, 1 to net worth minus the loan. Closes the counter.
+   */
+  | { type: 'borrow'; playerId: PlayerId; amount: number }
+  /** At the loan counter: pay `amount` of the loan back, deposit first. Closes the counter. */
+  | { type: 'repay'; playerId: PlayerId; amount: number }
+  /** Close the loan counter without borrowing or repaying. */
+  | { type: 'leaveCounter'; playerId: PlayerId };
 
 export type ActionType = Action['type'];
 
@@ -41,19 +50,43 @@ export interface BankTransferOption {
   max: number;
 }
 
+/** An offered borrowing or repayment at the loan counter: any whole amount 1..max. */
+export interface LoanOption {
+  type: 'borrow' | 'repay';
+  playerId: PlayerId;
+  max: number;
+}
+
+/** The offers that are a range of amounts rather than one action. */
+export type AmountOption = BankTransferOption | LoanOption;
+
 /**
  * What legalActions offers: exact actions, or a range where an amount cannot be listed one by one.
  * Use allows to check an action against an offer.
  */
-export type LegalAction = Exclude<Action, { type: 'bankTransfer' }> | BankTransferOption;
+export type LegalAction = Exclude<Action, { type: AmountOption['type'] }> | AmountOption;
+
+export function isAmountOption(option: LegalAction): option is AmountOption {
+  return option.type === 'bankTransfer' || option.type === 'borrow' || option.type === 'repay';
+}
+
+/** The action that takes `amount` from an amount offer. */
+export function actionFor(option: AmountOption, amount: number): Action {
+  const { playerId } = option;
+  return option.type === 'bankTransfer'
+    ? { type: 'bankTransfer', playerId, direction: option.direction, amount }
+    : { type: option.type, playerId, amount };
+}
 
 /** Whether `action` is what `option` offers: the same action, or an amount within the range. */
 export function allows(option: LegalAction, action: Action): boolean {
-  if (option.type === 'bankTransfer') {
+  if (isAmountOption(option)) {
     return (
-      action.type === 'bankTransfer' &&
+      action.type === option.type &&
       action.playerId === option.playerId &&
-      action.direction === option.direction &&
+      (option.type !== 'bankTransfer' ||
+        (action.type === 'bankTransfer' && action.direction === option.direction)) &&
+      'amount' in action &&
       Number.isSafeInteger(action.amount) &&
       action.amount >= 1 &&
       action.amount <= option.max

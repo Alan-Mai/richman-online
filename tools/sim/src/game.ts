@@ -4,9 +4,12 @@ import {
   PROVISIONAL_COMPUTER_PROFILE,
   TEST_BRANCH_BOARD,
   TEST_LOOP_BOARD,
+  actionFor,
   actorOf,
   allows,
   drawCharacters,
+  isAmountOption,
+  type AmountOption,
   applyAction,
   checkInvariants,
   computerAction,
@@ -138,6 +141,9 @@ const EXAMPLE_ACTIONS: Record<ActionType, (playerId: PlayerId) => Action> = {
     amount: 1,
   }),
   leaveBank: (playerId) => ({ type: 'leaveBank', playerId }),
+  borrow: (playerId) => ({ type: 'borrow', playerId, amount: 1 }),
+  repay: (playerId) => ({ type: 'repay', playerId, amount: 1 }),
+  leaveCounter: (playerId) => ({ type: 'leaveCounter', playerId }),
 };
 
 /**
@@ -145,10 +151,19 @@ const EXAMPLE_ACTIONS: Record<ActionType, (playerId: PlayerId) => Action> = {
  * range check in checkStep also tries max + 1.
  */
 function samplesOf(option: LegalAction): Action[] {
-  if (option.type !== 'bankTransfer') return [option];
-  const { playerId, direction, max } = option;
-  const amounts = [...new Set([1, Math.ceil(max / 2), max])];
-  return amounts.map((amount) => ({ type: 'bankTransfer', playerId, direction, amount }));
+  if (!isAmountOption(option)) return [option];
+  const amounts = [...new Set([1, Math.ceil(option.max / 2), option.max])];
+  return amounts.map((amount) => actionFor(option, amount));
+}
+
+/**
+ * How applyAction must refuse max + 1 of a range: more than there is is insufficientFunds, except
+ * repaying more than the loan, which the original cannot even type (invalidAction).
+ */
+function aboveRangeRefusal(state: GameState, option: AmountOption): RuleError['code'] {
+  if (option.type !== 'repay') return 'insufficientFunds';
+  const loan = state.players.find((p) => p.id === option.playerId)?.loan ?? 0;
+  return option.max + 1 > loan ? 'invalidAction' : 'insufficientFunds';
 }
 
 export interface GameSpec {
@@ -314,6 +329,8 @@ const MONEY_EVENTS: ReadonlySet<GameEventType> = new Set<GameEventType>([
   'PropertyUpgraded',
   'PlayerBankrupt',
   'AuctionWon',
+  'LoanBorrowed',
+  'LoanRepaid',
 ]);
 
 /**
@@ -479,11 +496,10 @@ export function checkStep(
         return { kind: 'legalActionRejected', action, error: result.error };
       }
     }
-    if (option.type === 'bankTransfer') {
-      const { playerId, direction, max } = option;
-      const action: Action = { type: 'bankTransfer', playerId, direction, amount: max + 1 };
+    if (isAmountOption(option)) {
+      const action = actionFor(option, option.max + 1);
       const result = engine.applyAction(state, action);
-      if (result.ok || result.error.code !== 'insufficientFunds') {
+      if (result.ok || result.error.code !== aboveRangeRefusal(state, option)) {
         return {
           kind: 'rangeNotEnforced',
           action,
@@ -523,6 +539,7 @@ const PHASE_ACTIONS: Readonly<Record<PhaseKind, readonly ActionType[]>> = {
   awaitUpgradeDecision: ['upgradeProperty', 'decline'],
   auction: ['bid', 'passRound', 'withdraw'],
   bank: ['bankTransfer', 'leaveBank'],
+  bankCounter: ['borrow', 'repay', 'leaveCounter'],
   gameOver: [],
 };
 
@@ -530,8 +547,9 @@ const PHASE_ACTIONS: Readonly<Record<PhaseKind, readonly ActionType[]>> = {
  * How an unoffered action type must be refused, following the error order in
  * docs/ARCHITECTURE.md: wrongPhase if the phase does not handle the type; otherwise the action's own
  * check, which is why it was not offered: no dice choice on foot (invalidAction), cash short of the
- * smallest raise or nothing to move at a bank (insufficientFunds). The other types are always
- * offered in their phases ('offered').
+ * smallest raise, nothing to move at a bank or nothing more to borrow (insufficientFunds), no loan
+ * to repay (invalidAction) or nothing to repay it with (insufficientFunds). The other types are
+ * always offered in their phases ('offered').
  */
 function expectedRefusal(state: GameState, type: ActionType): RuleError['code'] | 'offered' {
   if (!PHASE_ACTIONS[state.turn.phase.kind].includes(type)) {
@@ -542,7 +560,12 @@ function expectedRefusal(state: GameState, type: ActionType): RuleError['code'] 
       return 'invalidAction';
     case 'bid':
     case 'bankTransfer':
+    case 'borrow':
       return 'insufficientFunds';
+    case 'repay': {
+      const loan = state.players.find((p) => p.id === state.turn.current)?.loan ?? 0;
+      return loan === 0 ? 'invalidAction' : 'insufficientFunds';
+    }
     default:
       return 'offered';
   }
@@ -620,12 +643,11 @@ export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
         if (option === undefined) {
           throw new Error(`picked ${pick} of ${legal.length} actions`);
         }
-        if (option.type === 'bankTransfer') {
+        if (isAmountOption(option)) {
           // Any amount in the range, uniformly.
           const [amount, after] = nextInt(chooser, option.max);
           chooser = after;
-          const { playerId, direction } = option;
-          action = { type: 'bankTransfer', playerId, direction, amount: amount + 1 };
+          action = actionFor(option, amount + 1);
         } else {
           action = option;
         }

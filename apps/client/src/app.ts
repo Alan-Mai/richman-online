@@ -2,6 +2,7 @@
 // read-only preview of converted original maps.
 import Phaser from 'phaser';
 import {
+  isAmountOption,
   profilesFromTables,
   type ActionType,
   type GameSetup,
@@ -90,7 +91,7 @@ function startGameSession(
     // Keys only cover the turn's own choices; auction bids take a click.
     onPrimary: () => {
       const primary = controller?.available.find((a) => PRIMARY_ACTIONS.includes(a.type));
-      if (primary && primary.type !== 'bankTransfer') act(toIntent(primary));
+      if (primary && !isAmountOption(primary)) act(toIntent(primary));
     },
     onDecline: () => act({ type: 'decline' }),
     onCycleDice: () => hud.cycleDice(),

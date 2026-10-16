@@ -120,6 +120,11 @@ export type Phase =
    * (docs/GAME_RULES.md §4); they stand on `tile`.
    */
   | { kind: 'bank'; tile: TileIndex; trigger: BankTrigger }
+  /**
+   * A human who stopped on a bank, at its loan counter after the bank screen (docs/GAME_RULES.md
+   * §4): borrow, repay or leave, then the turn ends. They stand on `tile`.
+   */
+  | { kind: 'bankCounter'; tile: TileIndex }
   | { kind: 'awaitBuyDecision'; tile: TileIndex; price: number }
   | { kind: 'awaitUpgradeDecision'; tile: TileIndex; cost: number }
   | AuctionPhase

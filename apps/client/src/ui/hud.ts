@@ -2,6 +2,7 @@
 // from the legal actions of the latest fully played update.
 import {
   buyPrice,
+  isAmountOption,
   netWorth,
   rentFor,
   upgradeCost,
@@ -115,6 +116,12 @@ export function actionLabel(type: ActionType, update: ServerUpdate): string {
       return t('action.bankTransfer');
     case 'leaveBank':
       return t('action.leaveBank');
+    case 'borrow':
+      return t('action.borrow');
+    case 'repay':
+      return t('action.repay');
+    case 'leaveCounter':
+      return t('action.leaveCounter');
   }
 }
 
@@ -316,13 +323,12 @@ export class Hud implements ControllerSink {
     this.prompt.textContent = !offered
       ? ''
       : t(bidder === null ? 'hud.yourTurn' : 'hud.auctionTurn', { name: actor.name });
-    // The auction, dice and bank panels have their own buttons.
+    // The auction, dice and bank panels have their own buttons; amounts at the loan counter wait
+    // for its panel (docs/BANK_PLAN.md 3-9), so only leaving it is a button for now.
     const turnActions =
       bidder === null
         ? update.legalActions.flatMap((a) =>
-            a.type === 'setDiceCount' || a.type === 'bankTransfer' || a.type === 'leaveBank'
-              ? []
-              : [a],
+            isAmountOption(a) || a.type === 'setDiceCount' || a.type === 'leaveBank' ? [] : [a],
           )
         : [];
     renderDicePanel(

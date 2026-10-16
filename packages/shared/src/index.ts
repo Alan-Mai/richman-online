@@ -3,13 +3,18 @@ export const ENGINE_VERSION = '0.1.0';
 
 export {
   BANK_DIRECTIONS,
+  actionFor,
   allows,
+  isAmountOption,
   type Action,
   type ActionType,
+  type AmountOption,
   type BankDirection,
   type BankTransferOption,
   type LegalAction,
+  type LoanOption,
 } from './actions';
+export { LOAN_DAYS, borrowLimit, loanDueDate, repayLimit } from './loan';
 export {
   MAX_LINKS,
   isLinked,

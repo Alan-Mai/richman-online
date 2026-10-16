@@ -1,5 +1,11 @@
 // Test-only helpers. Not exported from index.ts; the only place that creates scripted RNG states.
-import type { Action, ActionType, LegalAction } from './actions';
+import {
+  actionFor,
+  isAmountOption,
+  type Action,
+  type ActionType,
+  type LegalAction,
+} from './actions';
 import type { Board, PropertyTileDef, TileDef } from './board';
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from './config';
 import { applyAction, createGame, type PlayerSetup } from './engine';
@@ -214,6 +220,7 @@ export const PHASE_ACTIONS: Readonly<Record<PhaseKind, readonly ActionType[]>> =
   awaitUpgradeDecision: ['upgradeProperty', 'decline'],
   auction: ['bid', 'passRound', 'withdraw'],
   bank: ['bankTransfer', 'leaveBank'],
+  bankCounter: ['borrow', 'repay', 'leaveCounter'],
   gameOver: [],
 };
 
@@ -221,7 +228,8 @@ export const PHASE_ACTIONS: Readonly<Record<PhaseKind, readonly ActionType[]>> =
  * How applyAction must refuse exampleAction(type) when legalActions does not offer that type,
  * following the error order in docs/ARCHITECTURE.md: wrongPhase if the phase does not handle the
  * type; otherwise the action's own check, which is why it was not offered: no dice choice on foot
- * (invalidAction), cash short of the smallest raise or nothing to move at a bank
+ * (invalidAction), cash short of the smallest raise, nothing to move at a bank or nothing more to
+ * borrow (insufficientFunds), no loan to repay (invalidAction) or nothing to repay it with
  * (insufficientFunds). The other types are always offered in their phases, so null means "should
  * have been offered".
  */
@@ -235,7 +243,12 @@ export function unofferedRefusal(state: GameState, type: ActionType): RuleError 
       return { code: 'invalidAction' };
     case 'bid':
     case 'bankTransfer':
+    case 'borrow':
       return { code: 'insufficientFunds' };
+    case 'repay':
+      return getPlayer(state, state.turn.current).loan === 0
+        ? { code: 'invalidAction' }
+        : { code: 'insufficientFunds' };
     default:
       return null;
   }
@@ -246,10 +259,9 @@ export function unofferedRefusal(state: GameState, type: ActionType): RuleError 
  * smallest and largest amounts.
  */
 export function sampleActions(option: LegalAction): Action[] {
-  if (option.type !== 'bankTransfer') return [option];
-  const { playerId, direction, max } = option;
-  const amounts = max === 1 ? [1] : [1, max];
-  return amounts.map((amount) => ({ type: 'bankTransfer', playerId, direction, amount }));
+  if (!isAmountOption(option)) return [option];
+  const amounts = option.max === 1 ? [1] : [1, option.max];
+  return amounts.map((amount) => actionFor(option, amount));
 }
 
 /** One concrete action for an offer: the action itself, or a range's largest amount. */
@@ -266,6 +278,9 @@ export function exampleAction(type: ActionType, playerId: PlayerId): Action {
       return { type, playerId, count: 1 };
     case 'bankTransfer':
       return { type, playerId, direction: 'withdraw', amount: 1 };
+    case 'borrow':
+    case 'repay':
+      return { type, playerId, amount: 1 };
     default:
       return { type, playerId };
   }

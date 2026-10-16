@@ -3,7 +3,9 @@ import {
   DEFAULT_RULE_CONFIG,
   PROVISIONAL_COMPUTER_PROFILE,
   TEST_LOOP_BOARD,
+  actionFor,
   createRng,
+  isAmountOption,
   nextInt,
   type Controller,
   type GameSetup,
@@ -61,10 +63,10 @@ export function playRandomGame(setup: GameSetup, maxSteps = 20_000): ServerUpdat
     const [pick, nextRng] = nextInt(rng, offered.length);
     rng = nextRng;
     const option = offered[pick]!;
-    if (option.type === 'bankTransfer') {
+    if (isAmountOption(option)) {
       const [amount, afterAmount] = nextInt(rng, option.max);
       rng = afterAmount;
-      host.send({ type: 'bankTransfer', direction: option.direction, amount: amount + 1 });
+      host.send(toIntent(actionFor(option, amount + 1)));
     } else {
       host.send(toIntent(option));
     }

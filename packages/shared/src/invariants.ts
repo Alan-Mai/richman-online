@@ -207,16 +207,21 @@ function checkPhase(state: GameState, current: PlayerState): string[] {
     case 'auction':
       errors.push(...checkAuction(state, phase).map((error) => `phase auction: ${error}`));
       break;
-    case 'bank': {
+    case 'bank':
+    case 'bankCounter': {
+      const prefix = `phase ${phase.kind}: `;
       const stands = current.location.kind === 'onBoard' ? current.location.tile : 'off board';
       if (current.controller !== 'human') {
-        errors.push(`phase bank: ${current.id} is not a human`);
+        errors.push(`${prefix}${current.id} is not a human`);
       }
       if (phase.tile !== stands) {
-        errors.push(`phase bank: tile ${phase.tile} is not where ${current.id} stands (${stands})`);
+        errors.push(`${prefix}tile ${phase.tile} is not where ${current.id} stands (${stands})`);
       }
       if (board.tiles[phase.tile]?.kind !== 'bank') {
-        errors.push(`phase bank: tile ${phase.tile} is not a bank`);
+        errors.push(`${prefix}tile ${phase.tile} is not a bank`);
+      }
+      if (phase.kind === 'bankCounter') {
+        break;
       }
       const { trigger } = phase;
       if (

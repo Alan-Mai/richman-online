@@ -172,6 +172,25 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
         deposit: p.deposit - moved,
       }));
     }
+    case 'CounterOpened':
+      return model;
+    case 'LoanBorrowed':
+      return updatePlayer(model, event.playerId, (p) => ({
+        deposit: p.deposit + event.amount,
+        loan: event.loan,
+        loanDue: { ...event.loanDue },
+      }));
+    case 'LoanRepaid':
+      // Deposit first, then cash, as the engine pays a loan back.
+      return updatePlayer(model, event.playerId, (p) => {
+        const fromDeposit = Math.min(p.deposit, event.amount);
+        return {
+          deposit: p.deposit - fromDeposit,
+          cash: p.cash - (event.amount - fromDeposit),
+          loan: event.loan,
+          loanDue: event.loanDue === null ? null : { ...event.loanDue },
+        };
+      });
     case 'PropertyBought': {
       const paid = updatePlayer(model, event.playerId, (p) => ({ cash: p.cash - event.price }));
       // A tile released by a bankruptcy keeps its buildings when bought.

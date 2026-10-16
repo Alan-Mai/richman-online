@@ -110,6 +110,26 @@ export function describeEvent(event: GameEvent, model: DisplayModel, board: Boar
         cash: formatMoney(event.cash),
         deposit: formatMoney(event.deposit),
       });
+    case 'CounterOpened':
+      return t('event.counterOpened', { name: name(event.playerId), tile: tile(event.tile) });
+    case 'LoanBorrowed':
+      return t('event.loanBorrowed', {
+        name: name(event.playerId),
+        amount: formatMoney(event.amount),
+        loan: formatMoney(event.loan),
+        ...event.loanDue,
+      });
+    case 'LoanRepaid':
+      return event.loan === 0
+        ? t('event.loanRepaidAll', {
+            name: name(event.playerId),
+            amount: formatMoney(event.amount),
+          })
+        : t('event.loanRepaid', {
+            name: name(event.playerId),
+            amount: formatMoney(event.amount),
+            loan: formatMoney(event.loan),
+          });
     case 'GameEnded':
       return t(`event.gameEnded.${event.reason}`);
   }

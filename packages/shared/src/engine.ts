@@ -12,6 +12,7 @@ import { rebalance } from './bank';
 import { computerBid, drawComputerDiceCount } from './computer';
 import { isPlaceable, validateBoard, type Board, type BoardError } from './board';
 import { nextDay } from './calendar';
+import { borrowLimit, loanDueDate, repayLimit } from './loan';
 import { validateRuleConfig, type RuleConfig, type RuleConfigError } from './config';
 import type { RuleError } from './errors';
 import type { GameEndReason, GameEvent } from './events';
@@ -162,6 +163,9 @@ const ACTION_TYPES: ReadonlySet<string> = new Set<ActionType>([
   'withdraw',
   'bankTransfer',
   'leaveBank',
+  'borrow',
+  'repay',
+  'leaveCounter',
 ]);
 
 const BANK_DIRECTION_SET: ReadonlySet<unknown> = new Set(BANK_DIRECTIONS);
@@ -202,7 +206,13 @@ function parseAction(raw: unknown): Action | null {
           }
         : null;
     case 'leaveBank':
+    case 'leaveCounter':
       return { type: actionType, playerId };
+    case 'borrow':
+    case 'repay':
+      return Number.isSafeInteger(amount)
+        ? { type: actionType, playerId, amount: amount as number }
+        : null;
   }
 }
 
@@ -270,6 +280,12 @@ export function applyAction(state: GameState, rawAction: Action): Result {
         : wrongPhase(phase.kind);
     case 'leaveBank':
       return phase.kind === 'bank' ? accept(closeBank(state, phase)) : wrongPhase(phase.kind);
+    case 'borrow':
+      return phase.kind === 'bankCounter' ? borrow(state, action.amount) : wrongPhase(phase.kind);
+    case 'repay':
+      return phase.kind === 'bankCounter' ? repay(state, action.amount) : wrongPhase(phase.kind);
+    case 'leaveCounter':
+      return phase.kind === 'bankCounter' ? accept(endTurn(state)) : wrongPhase(phase.kind);
   }
 }
 
@@ -317,6 +333,9 @@ export function computerAction(state: GameState, playerId: PlayerId): Action | n
       // Computers move money by themselves and never open a bank; this is for Phase 4 stand-ins
       // playing a human seat, whose behaviour there is still to be decided (ROADMAP Phase 4).
       return { type: 'leaveBank', playerId };
+    case 'bankCounter':
+      // As at the bank: computers borrow and repay by themselves, so only stand-ins get here.
+      return { type: 'leaveCounter', playerId };
     case 'gameOver':
       return null;
   }
@@ -364,6 +383,16 @@ export function legalActions(state: GameState, playerId: PlayerId): LegalAction[
         ),
         { type: 'leaveBank', playerId },
       ];
+    }
+    case 'bankCounter': {
+      // Nothing to repay with no cash and no deposit: left out like an empty bank mode
+      // (docs/GAME_RULES.md §4).
+      const offers: LegalAction[] = [];
+      const lend = borrowLimit(state, playerId);
+      if (lend > 0) offers.push({ type: 'borrow', playerId, max: lend });
+      const back = repayLimit(state, playerId);
+      if (back > 0) offers.push({ type: 'repay', playerId, max: back });
+      return [...offers, { type: 'leaveCounter', playerId }];
     }
     case 'gameOver':
       return [];
@@ -560,11 +589,65 @@ function bankTransfer(
   return accept(chain(transferred, (s) => closeBank(s, phase)));
 }
 
-/** Walks the rest of the roll after a bank on the way, or ends the turn after stopping on one. */
+/**
+ * Walks the rest of the roll after a bank on the way, or goes on to the loan counter after
+ * stopping on one (docs/GAME_RULES.md §4).
+ */
 function closeBank(state: GameState, phase: BankPhase): Step {
-  return phase.trigger.kind === 'pass'
-    ? walk(state, state.turn.current, phase.trigger.stepsLeft)
-    : endTurn(state);
+  if (phase.trigger.kind === 'pass') {
+    return walk(state, state.turn.current, phase.trigger.stepsLeft);
+  }
+  const playerId = state.turn.current;
+  return {
+    state: { ...state, turn: { ...state.turn, phase: { kind: 'bankCounter', tile: phase.tile } } },
+    events: [{ type: 'CounterOpened', playerId, tile: phase.tile }],
+  };
+}
+
+/**
+ * Borrows into the deposit (docs/GAME_RULES.md §4). The first loan sets the due date; borrowing
+ * again keeps it. One borrowing or repayment per visit, then the turn ends.
+ */
+function borrow(state: GameState, amount: number): Result {
+  const playerId = state.turn.current;
+  if (amount < 1) {
+    return reject({ code: 'invalidAction' });
+  }
+  if (amount > borrowLimit(state, playerId)) {
+    return reject({ code: 'insufficientFunds' });
+  }
+  const player = playerOf(state, playerId);
+  const loan = player.loan + amount;
+  const loanDue = player.loanDue ?? loanDueDate(state.date, state.board.holidays ?? []);
+  const borrowed: Step = {
+    state: updatePlayer(state, playerId, (p) => ({ deposit: p.deposit + amount, loan, loanDue })),
+    events: [{ type: 'LoanBorrowed', playerId, amount, loan, loanDue }],
+  };
+  return accept(chain(borrowed, endTurn));
+}
+
+/**
+ * Repays part or all of the loan, deposit first (docs/GAME_RULES.md §4); repaying all of it clears
+ * the due date. More than the loan cannot be typed in the original; more than cash and deposit is
+ * refused there with a message.
+ */
+function repay(state: GameState, amount: number): Result {
+  const playerId = state.turn.current;
+  const player = playerOf(state, playerId);
+  if (amount < 1 || amount > player.loan) {
+    return reject({ code: 'invalidAction' });
+  }
+  if (amount > player.cash + player.deposit) {
+    return reject({ code: 'insufficientFunds' });
+  }
+  const paid = pay(state, playerId, { kind: 'loan', amount });
+  const loan = playerOf(paid.state, playerId).loan;
+  const loanDue = loan === 0 ? null : player.loanDue;
+  const repaid: Step = {
+    state: updatePlayer(paid.state, playerId, () => ({ loanDue })),
+    events: [{ type: 'LoanRepaid', playerId, amount, loan, loanDue, by: 'counter' }],
+  };
+  return accept(chain(repaid, endTurn));
 }
 
 /** Effect of stopping on the current player's tile. */

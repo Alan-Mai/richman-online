@@ -274,6 +274,40 @@ describe('applyEventToDisplay', () => {
     expect(next.players[0]).toMatchObject({ loan: 0, loanDue: null, bankrupt: true });
   });
 
+  it('LoanBorrowed adds to the deposit and sets the loan; CounterOpened changes nothing', () => {
+    const due = { year: 2010, month: 4, day: 1 };
+    const next = apply(
+      { type: 'CounterOpened', playerId: 'a', tile: 1 },
+      { type: 'LoanBorrowed', playerId: 'a', amount: 300, loan: 300, loanDue: due },
+    );
+    expect(next.players[0]).toMatchObject({ cash: 1000, deposit: 800, loan: 300, loanDue: due });
+  });
+
+  it('LoanRepaid takes the deposit first, then cash, and sets the loan', () => {
+    const start = model();
+    const indebted: DisplayModel = {
+      ...start,
+      players: [
+        player('a', {
+          cash: 100,
+          deposit: 50,
+          loan: 300,
+          loanDue: { year: 2010, month: 4, day: 1 },
+        }),
+        player('b'),
+      ],
+    };
+    const next = applyEventToDisplay(indebted, {
+      type: 'LoanRepaid',
+      playerId: 'a',
+      amount: 120,
+      loan: 180,
+      loanDue: null,
+      by: 'counter',
+    });
+    expect(next.players[0]).toMatchObject({ cash: 30, deposit: 0, loan: 180, loanDue: null });
+  });
+
   it('GameEnded records the winners', () => {
     const next = apply({
       type: 'GameEnded',

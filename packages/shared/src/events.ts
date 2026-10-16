@@ -89,6 +89,28 @@ export type GameEvent =
    * cash and deposit are the new amounts. Only sent when something changed.
    */
   | { type: 'BankRebalanced'; playerId: PlayerId; tile: TileIndex; cash: number; deposit: number }
+  /** A human who stopped on a bank is at its loan counter (docs/GAME_RULES.md §4). */
+  | { type: 'CounterOpened'; playerId: PlayerId; tile: TileIndex }
+  /** Borrowed `amount` into the deposit; loan and loanDue are the new values. */
+  | {
+      type: 'LoanBorrowed';
+      playerId: PlayerId;
+      amount: number;
+      loan: number;
+      loanDue: CalendarDate;
+    }
+  /**
+   * Paid `amount` of the loan back, deposit first, then cash; loan and loanDue are the new values.
+   * `by` says why: at the counter.
+   */
+  | {
+      type: 'LoanRepaid';
+      playerId: PlayerId;
+      amount: number;
+      loan: number;
+      loanDue: CalendarDate | null;
+      by: 'counter';
+    }
   | {
       type: 'GameEnded';
       /**

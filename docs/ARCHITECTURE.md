@@ -36,7 +36,7 @@ type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 
 觀戰者（`{ kind: 'spectator' }`）先保留在型別中，觀戰模式尚未實作。用可辨識聯合型別而不是 `PlayerId | 'spectator'`，是因為 `PlayerId` 是字串，id 剛好叫 `'spectator'` 的玩家會和觀戰者混淆。
 
-- `applyAction` 自行驗證動作格式（日後來自網路），依動作種類逐一檢查參數（`bid.raise`、`setDiceCount.count`、`bankTransfer.amount` 必須是整數，`bankTransfer.direction` 必須是兩種之一）：格式錯誤回傳 `invalidAction`，不 throw。錯誤優先順序 `invalidAction` > `gameOver` > `unknownPlayer` > `notYourTurn`（送出者不是 `actorOf`）> `wrongPhase` > 動作本身的檢查（參數不在允許範圍的 `invalidAction`，例：不在加價檔位內、步行時選顆數、轉帳金額小於 1；錢不夠的 `insufficientFunds`，例：加價超過現金、轉帳超過可動用的金額）。
+- `applyAction` 自行驗證動作格式（日後來自網路），依動作種類逐一檢查參數（`bid.raise`、`setDiceCount.count`、`bankTransfer.amount`、`borrow.amount`、`repay.amount` 必須是整數，`bankTransfer.direction` 必須是兩種之一）：格式錯誤回傳 `invalidAction`，不 throw。錯誤優先順序 `invalidAction` > `gameOver` > `unknownPlayer` > `notYourTurn`（送出者不是 `actorOf`）> `wrongPhase` > 動作本身的檢查（參數不在允許範圍的 `invalidAction`，例：不在加價檔位內、步行時選顆數、金額小於 1、還款超過貸款餘額；錢不夠的 `insufficientFunds`，例：加價超過現金、轉帳超過可動用的金額、借款超過可借上限、還款超過現金 + 存款）。
 - `PlayerView` 的欄位逐一列出複製，新增的 state 欄位預設不會外洩。不送：`rngState`、`lotteryPool`（彩券獎池，Phase 5 再定）、拍賣尚未開拍的地塊清單（只送剩餘塊數 `remaining`）、電腦的隱藏欄位（拍賣 `computerLimits`、`awaitRoll` 的 `computerDiceCount`、玩家的 `profile`；玩家以 `PlayerStateView` 逐欄複製）。
 - 金錢相關邏輯在 `money.ts`：`pay()`（強制付款：現金 → 存款 → 破產；收款進債權人存款，系統債務破產時餘款進 `lotteryPool`；償還貸款的債務種類 `loan` 反過來先扣存款，破產時餘款不給任何人；任何破產都清掉貸款與到期日）、`spend()`（購地、加蓋、得標，只用現金）、價格 helper `buyPrice`／`upgradeCost`／`rentFor`／`auctionStartPrice`（收 `PriceView`）與 `netWorth`（收 `NetWorthView`）。`GameState`、`PlayerView` 與客戶端的 display model 都符合，前後端算出同樣的數字。
 - 其他模組：`movement.ts`（`stepFrom` 走一步、`previewPath` 預覽，實際移動與電腦預覽共用）、`auction.ts`（破產拍賣）、`computer.ts`（電腦出價上限與選顆數的抽取、出價選擇）、`tables.ts`（`parseOriginalTables`，見下方「原版資料表」）、`invariants.ts`。
@@ -102,15 +102,16 @@ interface Board { id; name; tiles: TileDef[]; holidays?: HolidayRule[] }   // �
 type Phase =
   | { kind: 'awaitRoll'; computerDiceCount?: number }        // 隱藏欄位只在電腦騎機車或汽車時有
   | { kind: 'bank'; tile; trigger: { kind: 'pass'; stepsLeft } | { kind: 'land' } }   // 人類在銀行，站在 tile 上
+  | { kind: 'bankCounter'; tile }                            // 人類停在銀行、存提款之後的貸款櫃檯
   | { kind: 'awaitBuyDecision'; tile; price }
   | { kind: 'awaitUpgradeDecision'; tile; cost }
   | { kind: 'auction'; tile; queue; startPrice; price; leader; bidder; bidders; computerLimits }
   | { kind: 'gameOver'; winners };
 ```
 
-動作：`rollDice`、`setDiceCount{count}`、`buyProperty`、`upgradeProperty`、`decline`、`bid{raise}`、`passRound`、`withdraw`、`bankTransfer{direction, amount}`、`leaveBank`。股票、道具、卡片、狀態效果、貸款在之後的階段加入。
+動作：`rollDice`、`setDiceCount{count}`、`buyProperty`、`upgradeProperty`、`decline`、`bid{raise}`、`passRound`、`withdraw`、`bankTransfer{direction, amount}`、`leaveBank`、`borrow{amount}`、`repay{amount}`、`leaveCounter`。股票、道具、卡片、狀態效果在之後的階段加入。
 
-`legalActions` 回傳 `LegalAction`：一般動作原樣列出；金額無法逐一列舉的動作改成範圍選項 `{ type: 'bankTransfer'; direction; max }`（金額 1..max）。`allows(option, action)` 判斷一個動作是否在選項允許內，伺服器（目前是 `LocalGameHost`）、模擬器與重播都用它比對。
+`legalActions` 回傳 `LegalAction`：一般動作原樣列出；金額無法逐一列舉的動作改成範圍選項 `AmountOption`：`{ type: 'bankTransfer'; direction; max }` 或 `{ type: 'borrow' | 'repay'; max }`（金額 1..max）。`allows(option, action)` 判斷一個動作是否在選項允許內，伺服器（目前是 `LocalGameHost`）、模擬器與重播都用它比對；`isAmountOption`、`actionFor(option, amount)` 供呼叫端處理範圍選項。
 
 ### 回合狀態轉移
 
@@ -126,7 +127,8 @@ awaitRoll ── setDiceCount{count}（機車、汽車；停在 awaitRoll）
               └ 人類經過銀行 → PlayerMoved 在此切開、BankOpened → bank（pass）：
                    bankTransfer（一次一筆）/ leaveBank → 走完剩下步數（可能再遇到銀行）
      停留格處理：
-       ├ 人類停在銀行 → BankOpened → bank（land）── bankTransfer / leaveBank → 回合結束
+       ├ 人類停在銀行 → BankOpened → bank（land）── bankTransfer / leaveBank
+       │    → CounterOpened → bankCounter ── borrow / repay / leaveCounter（一次一筆）→ 回合結束
        ├ 電腦停在銀行 → 重新分配（BankRebalanced）→ 回合結束
        ├ 無主地產且現金付得起 → awaitBuyDecision ── buyProperty / decline ─────────┐
        ├ 自己的地產、可加蓋且現金付得起 → awaitUpgradeDecision ── upgradeProperty / decline ─┤

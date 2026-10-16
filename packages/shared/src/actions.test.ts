@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allows, type Action, type LegalAction } from './actions';
+import { actionFor, allows, isAmountOption, type Action, type LegalAction } from './actions';
 
 const range: LegalAction = { type: 'bankTransfer', playerId: 'p1', direction: 'deposit', max: 300 };
 const transfer = (amount: number, patch: Partial<Action> = {}) =>
@@ -40,5 +40,27 @@ describe('allows', () => {
 
   it('does not treat a transfer as an exact offer', () => {
     expect(allows({ type: 'leaveBank', playerId: 'p1' }, transfer(1))).toBe(false);
+  });
+
+  it('allows borrowing and repaying within their own ranges', () => {
+    const lend: LegalAction = { type: 'borrow', playerId: 'p1', max: 50 };
+    expect(allows(lend, { type: 'borrow', playerId: 'p1', amount: 50 })).toBe(true);
+    expect(allows(lend, { type: 'borrow', playerId: 'p1', amount: 51 })).toBe(false);
+    expect(allows(lend, { type: 'borrow', playerId: 'p2', amount: 1 })).toBe(false);
+    expect(allows(lend, { type: 'repay', playerId: 'p1', amount: 1 })).toBe(false);
+    expect(allows(lend, transfer(1))).toBe(false);
+  });
+});
+
+describe('actionFor', () => {
+  it('builds the action taking an amount from a range', () => {
+    expect(actionFor(range, 7)).toEqual(transfer(7));
+    expect(actionFor({ type: 'repay', playerId: 'p1', max: 9 }, 3)).toEqual({
+      type: 'repay',
+      playerId: 'p1',
+      amount: 3,
+    });
+    expect(isAmountOption(range)).toBe(true);
+    expect(isAmountOption({ type: 'leaveCounter', playerId: 'p1' })).toBe(false);
   });
 });

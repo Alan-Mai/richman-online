@@ -165,7 +165,7 @@ describe('passing a bank', () => {
 });
 
 describe('stopping on a bank', () => {
-  it('opens the bank, and the turn ends once the player is done', () => {
+  it('opens the bank, then the loan counter once the player is done', () => {
     // Rolling 1 from tile 0 lands on bank 1.
     const { state, events } = rollTo(1);
     expect(events).toEqual([
@@ -179,11 +179,11 @@ describe('stopping on a bank', () => {
     const done = applyOk(state, deposit('p1', 100));
     expect(done.events).toEqual([
       { type: 'BankTransferred', playerId: 'p1', direction: 'deposit', amount: 100 },
-      { type: 'TurnStarted', playerId: 'p2', round: 1 },
+      { type: 'CounterOpened', playerId: 'p1', tile: 1 },
     ]);
     expect(getPlayer(done.state, 'p1')).toMatchObject({ cash: 19_900, deposit: 20_100 });
     expect(applyOk(state, leave('p1')).events).toEqual([
-      { type: 'TurnStarted', playerId: 'p2', round: 1 },
+      { type: 'CounterOpened', playerId: 'p1', tile: 1 },
     ]);
   });
 
