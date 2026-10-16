@@ -191,3 +191,4 @@
     - 之後同一批若再逾時，照 `.claude/rules/commit-workflow.md` 處理（先量耗時找原因：線性時間就改演算法另開 perf commit，慢在大量 `expect` 就改成最後一次比對，仍不夠才調個別時限）。
 - 批次 4：進行中。
   - 4-0 完成（批次 3 的待補項，計畫外新增）：`engine.legal.test.ts` 的 `ACTION_TYPES` 改成 `satisfies Record<ActionType, true>` 的物件（漏列時 typecheck 失敗，已確認），補上 `borrow`／`repay`／`leaveCounter`；範圍外的拒絕檢查一般化到所有範圍選項（0 為 `invalidAction`；max + 1 為 `insufficientFunds`，還款超過貸款時為 `invalidAction`，同模擬器）；隨機對局對所有範圍選項取隨機金額；並要求借款、還款範圍都至少被檢查到一次。暫時改壞引擎確認會在斷言失敗：借款上限 +1、借款接受 0、還款超過現金 + 存款、還款超過貸款回傳錯的錯誤碼、有額度時不提供借款。（把還款超過貸款的檢查放寬 1 的改法會先撞到 `pay` 的內部錯誤 throw，不算斷言失敗，所以改用錯誤碼的版本。）
+  - 4-1 完成：16 組（random 4 組、mixed 有無 `--tables` 各 4 組）各 1000 局全部通過、沒有未結束，數字寫進 GAME_RULES「模擬器觀察」2026-10-16，ROADMAP「遊戲節奏」未解問題同步更新。與計畫的差異：mixed 在 F1 表中沒有對應的數字，改用批次 E 的步行 mixed 局長當「銀行前」。待補項（發現於執行時，尚未處理）：`pnpm -F sim sim -- --tables local-assets/tables.json` 的相對路徑是從 `tools/sim` 解析（pnpm -F 的工作目錄），從倉庫根目錄給相對路徑會找不到檔案，要用絕對路徑；CLAUDE.md 的指令範例也是這個寫法。
