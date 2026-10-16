@@ -104,8 +104,11 @@ describe('bank entry', () => {
     ]);
     // A step picked on a small limit can show further along: 1 of 10 is 3.4 steps.
     expect(sliderStep(sliderAmount(1, 10), 10)).toBe(3);
-    // Exact where the double quotient would fall just short: 1 ÷ 34 × 34.
-    expect(sliderStep(1, 34)).toBe(1);
+    // Amounts exactly on a step land on it: in double precision (the original's FPU setting)
+    // fl(k ÷ 34) × 34 rounds back to k for every k, whatever the limit.
+    const steps = Array.from({ length: 35 }, (_, k) => k);
+    expect(steps.map((k) => sliderStep(k, 34))).toEqual(steps);
+    expect(steps.map((k) => sliderStep(k * 29_411_764, 999_999_976))).toEqual(steps);
     expect(sliderStep(0, 0)).toBe(0);
   });
 

@@ -62,12 +62,12 @@ export function bankAmount(entry: BankEntry): number {
 
 /**
  * Where the slider shows an amount, like the original after every change of the amount: filled
- * to trunc(amount ÷ limit × 34) steps, so an amount between steps shows the step below. Computed
- * exactly (the original divides in the FPU; its precision setting is not checked yet). A limit of
- * 0 is undefined in the original; it only comes with no mode offered here, and shows step 0.
+ * to trunc(amount ÷ limit × 34) steps, so an amount between steps shows the step below. Divided
+ * and multiplied in double precision like the original's FPU (53-bit precision control). A limit
+ * of 0 is undefined in the original; it only comes with no mode offered here, and shows step 0.
  */
 export function sliderStep(amount: number, max: number): number {
-  return max <= 0 ? 0 : Math.floor((amount * BANK_SLIDER_STEPS) / max);
+  return max <= 0 ? 0 : Math.trunc((amount / max) * BANK_SLIDER_STEPS);
 }
 
 /** The original's slider: step k is k × (⌊limit ÷ 34⌋ + 1), capped; the ends are 0 and the limit. */
