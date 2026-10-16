@@ -2,11 +2,14 @@
 import {
   DEFAULT_RULE_CONFIG,
   PROVISIONAL_COMPUTER_PROFILE,
+  drawCharacters,
   TEST_BRANCH_BOARD,
   TEST_LOOP_BOARD,
   type Board,
+  type CharacterProfile,
   type Controller,
   type GameSetup,
+  type PlayerId,
   type PlayerSetup,
   type Vehicle,
 } from '@richman/shared';
@@ -49,7 +52,41 @@ export type SetupError =
   | { field: 'name'; seat: number; reason: 'duplicate' }
   | { field: 'dayLimit' | 'netWorthTarget' | 'startingFunds' | 'seed'; reason: 'invalid' };
 
-export type BuildSetupResult = { ok: true; setup: GameSetup } | { ok: false; errors: SetupError[] };
+export type BuildSetupResult =
+  | {
+      ok: true;
+      setup: GameSetup;
+      /** Character numbers (from 1) drawn for the computer seats, by player; empty without tables. */
+      characters: Readonly<Record<PlayerId, number>>;
+    }
+  | { ok: false; errors: SetupError[] };
+
+/** The seats, in order, that the form gives to computers among the first playerCount. */
+function computerSeats(form: SetupForm, count: number): number[] {
+  return Array.from({ length: count }, (_, seat) => seat).filter(
+    (seat) => form.controllers[seat] === 'computer',
+  );
+}
+
+/**
+ * The character numbers (from 1) the computer seats would get with the seed typed in the form,
+ * seat by seat (null for humans); null when the seed is blank (drawn at start) or invalid.
+ */
+export function previewCharacters(
+  form: SetupForm,
+  characterCount: number,
+): (number | null)[] | null {
+  if (form.seed.trim() === '') return null;
+  const seed = parseWhole(form.seed, 0, UINT32_MAX);
+  const count = Math.min(DEFAULT_RULE_CONFIG.maxPlayers, form.playerCount);
+  const seats = computerSeats(form, count);
+  if (seed === null || seats.length > characterCount) return null;
+  const drawn = drawCharacters(characterCount, seats.length, seed);
+  return Array.from({ length: count }, (_, seat) => {
+    const index = drawn[seats.indexOf(seat)];
+    return index === undefined ? null : index + 1;
+  });
+}
 
 export function defaultSetupForm(): SetupForm {
   return {
@@ -85,8 +122,16 @@ export function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0]!;
 }
 
-/** Blank names fall back to the default "玩家 n"; names are trimmed and cut to the limit. */
-export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed): BuildSetupResult {
+/**
+ * Blank names fall back to the default "玩家 n"; names are trimmed and cut to the limit. Computer
+ * seats get different characters from `characters` (the imported tables.json) drawn by the seed,
+ * or the provisional profile without it.
+ */
+export function buildSetup(
+  form: SetupForm,
+  makeSeed: () => number = randomSeed,
+  characters: readonly CharacterProfile[] | null = null,
+): BuildSetupResult {
   const errors: SetupError[] = [];
   const count = Math.min(
     DEFAULT_RULE_CONFIG.maxPlayers,
@@ -121,8 +166,20 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
   ) {
     return { ok: false, errors };
   }
+  const seats = computerSeats(form, count);
+  const drawn =
+    characters === null || seats.length > characters.length
+      ? null
+      : drawCharacters(characters.length, seats.length, seed);
+  const characterOf = (seat: number): number | undefined => drawn?.[seats.indexOf(seat)];
   return {
     ok: true,
+    characters: Object.fromEntries(
+      names.flatMap((_, seat) => {
+        const index = characterOf(seat);
+        return index === undefined ? [] : [[`p${seat + 1}`, index + 1]];
+      }),
+    ),
     setup: {
       config: {
         ...DEFAULT_RULE_CONFIG,
@@ -132,12 +189,17 @@ export function buildSetup(form: SetupForm, makeSeed: () => number = randomSeed)
         startingFunds,
       },
       board: BOARDS[form.board],
-      // Computers use the provisional profile until tables.json supplies the original ones.
       players: names.map((name, seat): PlayerSetup => {
         const id = `p${seat + 1}`;
-        return form.controllers[seat] === 'computer'
-          ? { id, name, controller: 'computer', profile: PROVISIONAL_COMPUTER_PROFILE }
-          : { id, name, controller: 'human' };
+        if (form.controllers[seat] !== 'computer') return { id, name, controller: 'human' };
+        const index = characterOf(seat);
+        const drawnProfile = index === undefined ? undefined : characters?.[index];
+        return {
+          id,
+          name,
+          controller: 'computer',
+          profile: drawnProfile ?? PROVISIONAL_COMPUTER_PROFILE,
+        };
       }),
       seed,
     },

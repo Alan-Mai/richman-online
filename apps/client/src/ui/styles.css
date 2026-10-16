@@ -57,6 +57,10 @@ body {
   font-weight: bold;
 }
 
+.hud-date {
+  font-size: 15px;
+}
+
 .hud-calendar,
 .hud-limits {
   font-size: 13px;
@@ -330,6 +334,113 @@ body {
 }
 
 .auction-actions button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* The bank's deposit and withdrawal dialog. */
+.hud-bank {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding: 8px;
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.hud-bank[hidden] {
+  display: none;
+}
+
+.hud-bank h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.bank-balances {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.bank-balances dt {
+  color: var(--muted);
+}
+
+.bank-balances dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.bank-modes,
+.bank-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.bank-amount {
+  padding: 6px 8px;
+  border: 2px solid var(--panel-border);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.bank-limit {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: right;
+}
+
+.bank-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.bank-slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.hud-bank button {
+  min-height: 40px;
+  padding: 4px;
+  border: 2px solid var(--panel-border);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text);
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.hud-bank .bank-mode[aria-pressed='true'],
+.hud-bank .primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.hud-bank .secondary {
+  background: var(--panel-border);
+}
+
+.hud-bank button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.hud-bank button:focus-visible {
   outline: 3px solid #ffffff;
   outline-offset: 2px;
 }

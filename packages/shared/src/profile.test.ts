@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { PROVISIONAL_COMPUTER_PROFILE, isValidProfile, openingSplit } from './profile';
+import {
+  PROVISIONAL_COMPUTER_PROFILE,
+  drawCharacters,
+  isValidProfile,
+  openingSplit,
+  profilesFromTables,
+} from './profile';
+import type { OriginalTables } from './tables';
 
 const profile = (cashPercent: number) => ({ cashPercent, loanPercent: 0 });
 
@@ -7,6 +14,47 @@ describe('PROVISIONAL_COMPUTER_PROFILE', () => {
   it('is half cash and borrows half of net worth (non-original)', () => {
     expect(PROVISIONAL_COMPUTER_PROFILE).toEqual({ cashPercent: 50, loanPercent: 50 });
     expect(isValidProfile(PROVISIONAL_COMPUTER_PROFILE)).toBe(true);
+  });
+});
+
+describe('profilesFromTables', () => {
+  it("takes each character's cash share, with the provisional borrowing share", () => {
+    // Made-up values; only the characters are read.
+    const tables = {
+      characters: [
+        { id: 0, cashPercent: 35 },
+        { id: 1, cashPercent: 80 },
+      ],
+    } as unknown as OriginalTables;
+    expect(profilesFromTables(tables)).toEqual([
+      { cashPercent: 35, loanPercent: 50 },
+      { cashPercent: 80, loanPercent: 50 },
+    ]);
+  });
+});
+
+describe('drawCharacters', () => {
+  it('draws different characters, the same for the same seed', () => {
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 50; seed++) {
+      const drawn = drawCharacters(12, 3, seed);
+      expect(drawn).toHaveLength(3);
+      expect(new Set(drawn).size).toBe(3);
+      for (const index of drawn) expect(index).toBeGreaterThanOrEqual(0);
+      for (const index of drawn) expect(index).toBeLessThan(12);
+      expect(drawCharacters(12, 3, seed)).toEqual(drawn);
+      seen.add(drawn.join(','));
+    }
+    expect(seen.size).toBeGreaterThan(40);
+  });
+
+  it('can take every character, and none', () => {
+    expect([...drawCharacters(4, 4, 7)].sort()).toEqual([0, 1, 2, 3]);
+    expect(drawCharacters(4, 0, 7)).toEqual([]);
+  });
+
+  it('refuses to draw more characters than there are', () => {
+    expect(() => drawCharacters(2, 3, 1)).toThrow(RangeError);
   });
 });
 

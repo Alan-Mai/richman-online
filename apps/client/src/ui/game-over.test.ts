@@ -7,6 +7,7 @@ import { GameOverDialog } from './game-over';
 const model: DisplayModel = {
   round: 20,
   day: 19,
+  date: { year: 2010, month: 1, day: 20 },
   priceIndex: 1,
   current: 'p4',
   players: ['甲', '乙', '丙', '丁'].map((name, i) => ({

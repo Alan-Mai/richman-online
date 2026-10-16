@@ -1,7 +1,13 @@
 // App lifecycle: setup screen → one hot-seat game → result dialog → back to setup, plus the
 // read-only preview of converted original maps.
 import Phaser from 'phaser';
-import type { ActionType, GameSetup, OriginalTables } from '@richman/shared';
+import {
+  profilesFromTables,
+  type ActionType,
+  type GameSetup,
+  type OriginalTables,
+  type PlayerId,
+} from '@richman/shared';
 import { devAssetSource, type AssetSource } from './assets/asset-source';
 import { loadMapPreview, type MapPreview } from './assets/map-preview';
 import { readOriginalTables } from './assets/original-tables';
@@ -53,6 +59,7 @@ function startGameSession(
   setup: GameSetup,
   elements: AppElements,
   pacing: Pacing,
+  characters: Readonly<Record<PlayerId, number>>,
   onAgain: () => void,
 ): Session {
   const created = LocalGameHost.create(setup);
@@ -70,6 +77,7 @@ function startGameSession(
     board,
     config: setup.config,
     onAct: act,
+    characters,
     gameSpeed: {
       initial: gameSpeed,
       onChange: (speed) => {
@@ -94,10 +102,16 @@ function startGameSession(
   const gameOver = new GameOverDialog(elements.overlay, { seed: setup.seed, onAgain });
 
   controller = new GameController(host, new PhaserAnimator(scene), [scene, hud, gameOver]);
+  // The bank dialog takes typed digits, Backspace, Enter and Escape from anywhere on the page.
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (hud.handleKey(event.key)) event.preventDefault();
+  };
+  window.addEventListener('keydown', onKeyDown);
   host.start();
 
   return {
     dispose: () => {
+      window.removeEventListener('keydown', onKeyDown);
       controller?.dispose();
       game.destroy(true);
       elements.hud.replaceChildren();
@@ -160,13 +174,13 @@ export function startApp(elements: AppElements): void {
     showOverlay();
     renderSetupScreen(elements.overlay, {
       initial: lastForm,
-      onStart: (setup, form) => {
+      onStart: (setup, form, characters) => {
         lastForm = form;
         elements.overlay.hidden = true;
         elements.overlay.replaceChildren();
         whenSized(elements.board, () => {
           const pacing = tables ? pacingFromTables(tables.data.animation) : PROJECT_PACING;
-          session = startGameSession(setup, elements, pacing, showSetup);
+          session = startGameSession(setup, elements, pacing, characters, showSetup);
         });
       },
       onPreview: () => showChooser(),
@@ -181,6 +195,7 @@ export function startApp(elements: AppElements): void {
         onClear: () => {
           tables = null;
         },
+        characters: () => (tables === null ? null : profilesFromTables(tables.data)),
       },
     });
     elements.overlay.querySelector('select')?.focus();

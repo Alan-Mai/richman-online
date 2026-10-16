@@ -15,6 +15,7 @@ export const BOARD_COLORS = {
   background: 0x1d2b3a,
   property: 0xf3ead7,
   blank: 0xb9c8d8,
+  bank: 0x9fd8b5,
   tileBorder: 0x2c3e50,
   text: 0x1d2b3a,
 } as const;

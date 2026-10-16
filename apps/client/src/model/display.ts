@@ -2,6 +2,7 @@
 // is checked against the authoritative PlayerView once a batch of events has been played.
 import type {
   AuctionBidder,
+  CalendarDate,
   GameEvent,
   PlayerId,
   PlayerView,
@@ -45,6 +46,8 @@ export interface DisplayModel {
   round: number;
   /** Days gone by (GameState.day). */
   day: number;
+  /** Today's calendar date. */
+  date: CalendarDate;
   priceIndex: number;
   current: PlayerId;
   players: readonly DisplayPlayer[];
@@ -60,6 +63,7 @@ export function displayFromView(view: PlayerView): DisplayModel {
   return {
     round: view.turn.round,
     day: view.day,
+    date: { ...view.date },
     priceIndex: view.priceIndex,
     current: view.turn.current,
     players: view.players.map(
@@ -132,7 +136,7 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
     case 'TurnStarted':
       return { ...model, current: event.playerId, round: event.round };
     case 'DayAdvanced':
-      return { ...model, day: event.day, priceIndex: event.priceIndex };
+      return { ...model, day: event.day, date: { ...event.date }, priceIndex: event.priceIndex };
     case 'DiceCountSet':
       return updatePlayer(model, event.playerId, () => ({ diceCount: event.count }));
     case 'DiceRolled':

@@ -3,7 +3,6 @@ import {
   allows,
   type Action,
   type GameState,
-  type OriginalTables,
   type Result,
 } from '@richman/shared';
 import { describe, expect, it } from 'vitest';
@@ -11,11 +10,9 @@ import {
   BOARDS,
   ENGINE,
   MAX_AUCTION_ACTIONS,
-  characterProfiles,
   chooserSeedFor,
   gameSetup,
   gameSeedFor,
-  pickCharacters,
   runGame,
   type Engine,
   type GameRecord,
@@ -342,14 +339,10 @@ describe('runGame players', () => {
   });
 
   it('refuses more computer seats than characters', () => {
-    expect(() => pickCharacters([PROVISIONAL_COMPUTER_PROFILE], 2, 1)).toThrow(RangeError);
-  });
-
-  it('turns tables.json characters into profiles with the provisional borrowing share', () => {
-    const tables = { characters: [{ id: 0, cashPercent: 35 }] } as unknown as OriginalTables;
-    expect(characterProfiles(tables)).toEqual([
-      { cashPercent: 35, loanPercent: PROVISIONAL_COMPUTER_PROFILE.loanPercent },
-    ]);
+    const characters = { path: 'fake.json', profiles: [PROVISIONAL_COMPUTER_PROFILE] };
+    expect(() => gameSetup({ ...RICHEST, controllers: 'computer', characters })).toThrow(
+      RangeError,
+    );
   });
 
   it("plays computer seats with computerAction's choice", () => {

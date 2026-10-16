@@ -1,11 +1,19 @@
 import {
   DEFAULT_RULE_CONFIG,
+  PROVISIONAL_COMPUTER_PROFILE,
   TEST_BRANCH_BOARD,
   TEST_LOOP_BOARD,
   createGame,
+  drawCharacters,
 } from '@richman/shared';
 import { describe, expect, it } from 'vitest';
-import { buildSetup, defaultSetupForm, describeSetupError, type SetupForm } from './setup-form';
+import {
+  buildSetup,
+  defaultSetupForm,
+  describeSetupError,
+  previewCharacters,
+  type SetupForm,
+} from './setup-form';
 
 const fixedSeed = () => 1234;
 
@@ -35,6 +43,38 @@ describe('buildSetup', () => {
     const branch = ok(form({ board: 'test-branch' }));
     expect(branch.board).toBe(TEST_BRANCH_BOARD);
     expect(createGame(branch).ok).toBe(true);
+  });
+
+  it('gives computers the provisional profile without tables', () => {
+    const result = buildSetup(form({ controllers: ['human', 'computer'] }), fixedSeed);
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.setup.players[1]).toMatchObject({ profile: PROVISIONAL_COMPUTER_PROFILE });
+    expect(result.characters).toEqual({});
+  });
+
+  it('draws different characters from the tables for computers, by the seed', () => {
+    // Made-up profiles, told apart by their cash share.
+    const characters = Array.from({ length: 12 }, (_, i) => ({
+      cashPercent: i + 1,
+      loanPercent: 50,
+    }));
+    const values = form({ controllers: ['human', 'computer', 'computer', 'computer'] });
+    const result = buildSetup(values, fixedSeed, characters);
+    if (!result.ok) throw new Error('expected ok');
+    const drawn = drawCharacters(12, 3, 1234);
+    expect(result.characters).toEqual({ p2: drawn[0]! + 1, p3: drawn[1]! + 1, p4: drawn[2]! + 1 });
+    expect(
+      result.setup.players.slice(1).map((p) => p.controller === 'computer' && p.profile),
+    ).toEqual(drawn.map((i) => characters[i]));
+    expect(createGame(result.setup).ok).toBe(true);
+  });
+
+  it('previews the characters for a typed seed, and nothing for a blank one', () => {
+    const values = form({ controllers: ['human', 'computer', 'computer'], seed: '1234' });
+    const drawn = drawCharacters(12, 2, 1234);
+    expect(previewCharacters(values, 12)).toEqual([null, drawn[0]! + 1, drawn[1]! + 1, null]);
+    expect(previewCharacters({ ...values, seed: '' }, 12)).toBeNull();
+    expect(previewCharacters({ ...values, seed: 'x' }, 12)).toBeNull();
   });
 
   it('seats humans by default and computers where chosen', () => {

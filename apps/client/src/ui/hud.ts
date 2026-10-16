@@ -5,9 +5,12 @@ import {
   netWorth,
   rentFor,
   upgradeCost,
+  weekday,
   type ActionType,
   type Board,
+  type CalendarDate,
   type GameEvent,
+  type PlayerId,
   type RuleConfig,
   type ServerUpdate,
   type TileIndex,
@@ -19,6 +22,17 @@ import { GAME_SPEEDS, isGameSpeed, type GameSpeed } from '../render/timings';
 import { cssColor, playerColor } from '../theme';
 import { toIntent, type Intent } from '../net/connection';
 import { auctionBidder, renderAuctionPanel } from './auction-panel';
+import {
+  BankPanel,
+  bankKeyFor,
+  bankOffer,
+  confirmIntent,
+  initialBankEntry,
+  pressBankKey,
+  type BankEntry,
+  type BankKey,
+  type BankOffer,
+} from './bank-panel';
 import { cycleDiceIntent, dicePanelState, renderDicePanel } from './dice-panel';
 import { describeEvent } from './event-text';
 
@@ -31,6 +45,8 @@ export interface HudOptions {
   onAct(intent: Intent): void;
   /** Shows the game speed control when given. */
   gameSpeed?: { initial: GameSpeed; onChange(speed: GameSpeed): void };
+  /** Character numbers (from 1) of computer seats drawn from tables.json, by player. */
+  characters?: Readonly<Record<PlayerId, number>>;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -60,6 +76,12 @@ function gameSpeedControl(options: NonNullable<HudOptions['gameSpeed']>): HTMLLa
   const label = el('label', 'hud-speed');
   label.append(el('span', undefined, t('hud.gameSpeed')), select);
   return label;
+}
+
+/** A calendar date with its weekday, as the HUD shows it. */
+export function formatDate(date: CalendarDate): string {
+  const weekdayKey = `weekday.${weekday(date)}` as `weekday.${0 | 1 | 2 | 3 | 4 | 5 | 6}`;
+  return t('hud.date', { ...date, weekday: t(weekdayKey) });
 }
 
 /** Button text for an offered action, with the price or cost of the pending offer. */
@@ -98,6 +120,7 @@ export function actionLabel(type: ActionType, update: ServerUpdate): string {
 
 export class Hud implements ControllerSink {
   private readonly round = el('div', 'hud-round');
+  private readonly date = el('div', 'hud-date');
   private readonly calendar = el('div', 'hud-calendar');
   private readonly limits = el('div', 'hud-limits');
   private readonly players = el('ol', 'hud-players');
@@ -105,6 +128,10 @@ export class Hud implements ControllerSink {
   private readonly dice = el('div', 'hud-dice');
   private readonly actions = el('div', 'hud-actions');
   private readonly auction = el('section', 'hud-auction');
+  private readonly bank = el('section', 'hud-bank');
+  private readonly bankPanel: BankPanel;
+  private bankOffer: BankOffer | null = null;
+  private bankEntry: BankEntry | null = null;
   private readonly tileInfo = el('section', 'hud-tile');
   private readonly log = el('ol', 'hud-log');
   private model: DisplayModel | null = null;
@@ -118,16 +145,22 @@ export class Hud implements ControllerSink {
     this.players.setAttribute('aria-label', t('hud.players'));
     this.log.setAttribute('aria-label', t('hud.log'));
     this.log.setAttribute('aria-live', 'polite');
+    this.bankPanel = new BankPanel(this.bank, {
+      onKey: (key) => this.pressBank(key),
+      onAct: (intent) => options.onAct(intent),
+    });
     const logSection = el('section', 'hud-log-section');
     logSection.append(el('h2', undefined, t('hud.log')), this.log);
     this.renderLimits();
     root.replaceChildren(
       this.round,
+      this.date,
       this.calendar,
       this.limits,
       this.prompt,
       this.dice,
       this.actions,
+      this.bank,
       this.auction,
       this.players,
       this.tileInfo,
@@ -141,6 +174,7 @@ export class Hud implements ControllerSink {
   showModel(model: DisplayModel): void {
     this.model = model;
     this.round.textContent = t('hud.round', { round: model.round });
+    this.date.textContent = formatDate(model.date);
     this.calendar.textContent = t('hud.calendar', {
       day: model.day,
       priceIndex: model.priceIndex,
@@ -153,7 +187,14 @@ export class Hud implements ControllerSink {
         if (p.bankrupt) item.classList.add('is-bankrupt');
         const swatch = el('span', 'hud-swatch');
         swatch.style.background = cssColor(playerColor(seat));
-        const name = el('span', 'hud-name', p.name);
+        const character = this.options.characters?.[p.id];
+        const name = el(
+          'span',
+          'hud-name',
+          character === undefined
+            ? p.name
+            : t('hud.nameWithCharacter', { name: p.name, n: character }),
+        );
         const money = el('dl', 'hud-money');
         money.append(
           el('dt', undefined, t('hud.cash')),
@@ -173,6 +214,7 @@ export class Hud implements ControllerSink {
       }),
     );
     this.renderAuction();
+    this.renderBank();
     this.renderTile();
   }
 
@@ -183,6 +225,10 @@ export class Hud implements ControllerSink {
 
   setReady(update: ServerUpdate | null): void {
     this.ready = update;
+    // Every bank visit starts the dialog afresh.
+    this.bankOffer = bankOffer(update);
+    this.bankEntry = this.bankOffer === null ? null : initialBankEntry(this.bankOffer);
+    this.renderBank();
     this.renderActions();
     this.renderAuction();
     this.renderTile();
@@ -202,6 +248,43 @@ export class Hud implements ControllerSink {
     ];
     this.limits.textContent = parts.join('　');
     this.limits.hidden = parts.length === 0;
+  }
+
+  /**
+   * A key pressed anywhere on the page: the bank dialog takes digits, Backspace, Enter and Escape
+   * while it is open. Returns whether the key was used.
+   */
+  handleKey(key: string): boolean {
+    if (this.bankEntry === null) return false;
+    const action = bankKeyFor(key);
+    if (action === null) return false;
+    if (action === 'confirm') this.options.onAct(confirmIntent(this.bankEntry));
+    else if (action === 'cancel') this.options.onAct({ type: 'leaveBank' });
+    else this.pressBank(action);
+    return true;
+  }
+
+  private pressBank(key: BankKey): void {
+    if (this.bankOffer === null || this.bankEntry === null) return;
+    this.bankEntry = pressBankKey(this.bankEntry, key, this.bankOffer);
+    this.renderBank();
+  }
+
+  private renderBank(): void {
+    const offer = this.bankOffer;
+    const entry = this.bankEntry;
+    const player = this.model?.players.find((p) => p.id === this.model?.current);
+    if (offer === null || entry === null || player === undefined) {
+      this.bankPanel.render(null);
+      return;
+    }
+    this.bankPanel.render({
+      offer,
+      entry,
+      tileName: this.options.board.tiles[offer.tile]?.name ?? String(offer.tile),
+      cash: player.cash,
+      deposit: player.deposit,
+    });
   }
 
   /** Shows details of a tile (from a click on the board); null clears the panel. */
@@ -233,12 +316,13 @@ export class Hud implements ControllerSink {
     this.prompt.textContent = !offered
       ? ''
       : t(bidder === null ? 'hud.yourTurn' : 'hud.auctionTurn', { name: actor.name });
-    // The auction panel and the dice panel have their own buttons. Transfers need an amount; until
-    // the bank panel comes (docs/BANK_PLAN.md 2-7) a player at a bank can only leave.
+    // The auction, dice and bank panels have their own buttons.
     const turnActions =
       bidder === null
         ? update.legalActions.flatMap((a) =>
-            a.type === 'setDiceCount' || a.type === 'bankTransfer' ? [] : [a],
+            a.type === 'setDiceCount' || a.type === 'bankTransfer' || a.type === 'leaveBank'
+              ? []
+              : [a],
           )
         : [];
     renderDicePanel(
@@ -303,7 +387,9 @@ export class Hud implements ControllerSink {
       list.append(el('dt', undefined, term), el('dd', undefined, value));
     this.tileInfo.replaceChildren(
       el('h2', undefined, def.name),
-      def.kind === 'property' ? list : el('p', undefined, t('tile.notProperty')),
+      def.kind === 'property'
+        ? list
+        : el('p', undefined, t(def.kind === 'bank' ? 'tile.bank' : 'tile.notProperty')),
     );
   }
 }

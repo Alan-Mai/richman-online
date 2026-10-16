@@ -27,6 +27,7 @@ function model(): DisplayModel {
   return {
     round: 1,
     day: 0,
+    date: { year: 2010, month: 1, day: 1 },
     priceIndex: 1,
     current: 'a',
     players: [player('a'), player('b')],

@@ -109,6 +109,26 @@ describe('Hud players', () => {
     expect(root.querySelector('.hud-calendar')?.textContent).toBe('已過 12 天　物價指數 ×3');
   });
 
+  it('shows the calendar date with its weekday', () => {
+    const model = displayFromView(updates[0]!.view);
+    hud.showModel({ ...model, date: { year: 2010, month: 1, day: 3 } });
+    expect(root.querySelector('.hud-date')?.textContent).toBe('2010 年 1 月 3 日（星期日）');
+    hud.showModel({ ...model, date: { year: 2010, month: 1, day: 1 } });
+    expect(root.querySelector('.hud-date')?.textContent).toBe('2010 年 1 月 1 日（星期五）');
+  });
+
+  it('adds the character drawn for a computer seat to its name', () => {
+    hud = new Hud(root, {
+      board: TEST_LOOP_BOARD,
+      config: DEFAULT_RULE_CONFIG,
+      onAct: (intent) => acted.push(intent),
+      characters: { p2: 7 },
+    });
+    hud.showModel(displayFromView(updates[0]!.view));
+    const names = [...root.querySelectorAll('.hud-name')].map((n) => n.textContent);
+    expect(names.slice(0, 2)).toEqual(['玩家1', '玩家2（角色 7）']);
+  });
+
   it("shows each player's net worth, properties at their unindexed value", () => {
     const model = displayFromView(updates[0]!.view);
     // Tile 1 of the test loop: price 1000, upgrade cost 500.
@@ -221,6 +241,11 @@ describe('Hud tile info', () => {
   it('says a blank tile cannot be bought', () => {
     hud.showTile(0);
     expect(root.querySelector('.hud-tile')?.textContent).toContain('這一格不能購買');
+  });
+
+  it('says what a bank is for', () => {
+    hud.showTile(5);
+    expect(root.querySelector('.hud-tile')?.textContent).toContain('經過或停留時可以存提款');
   });
 });
 
@@ -435,5 +460,64 @@ describe('Hud during an auction', () => {
     expect(buttons()).toHaveLength(0);
     root.querySelector<HTMLButtonElement>('.hud-auction button[data-raise="100"]')?.click();
     expect(acted).toEqual([{ type: 'bid', raise: 100 }]);
+  });
+});
+
+describe('Hud at a bank', () => {
+  const atBank = find(
+    (u) =>
+      u.view.turn.phase.kind === 'bank' &&
+      u.legalActions.some((a) => a.type === 'bankTransfer' && a.direction === 'withdraw'),
+  );
+  const show = () => {
+    hud.showModel(displayFromView(atBank.view));
+    hud.setReady(atBank);
+  };
+  const bank = () => root.querySelector<HTMLElement>('.hud-bank')!;
+
+  it('opens the bank panel instead of action buttons', () => {
+    show();
+    expect(bank().hidden).toBe(false);
+    expect(buttons()).toHaveLength(0);
+    hud.setReady(null);
+    expect(bank().hidden).toBe(true);
+  });
+
+  it('types an amount on the keypad and confirms the transfer', () => {
+    show();
+    const key = (text: string) =>
+      [...bank().querySelectorAll<HTMLButtonElement>('.bank-key')].find(
+        (b) => b.textContent === text,
+      );
+    key('1')?.click();
+    key('0')?.click();
+    expect(bank().querySelector('.bank-amount')?.textContent).toBe('10');
+    bank().querySelector<HTMLButtonElement>('.bank-actions .primary')?.click();
+    expect(acted).toEqual([{ type: 'bankTransfer', direction: 'withdraw', amount: 10 }]);
+  });
+
+  it('takes digits, Backspace, Enter and Escape from the keyboard only while open', () => {
+    expect(hud.handleKey('5')).toBe(false);
+    show();
+    expect(['2', '5', 'Backspace', 'x'].map((k) => hud.handleKey(k))).toEqual([
+      true,
+      true,
+      true,
+      false,
+    ]);
+    expect(bank().querySelector('.bank-amount')?.textContent).toBe('2');
+    hud.handleKey('Enter');
+    hud.handleKey('Escape');
+    expect(acted).toEqual([
+      { type: 'bankTransfer', direction: 'withdraw', amount: 2 },
+      { type: 'leaveBank' },
+    ]);
+  });
+
+  it('starts afresh on every visit', () => {
+    show();
+    hud.handleKey('7');
+    hud.setReady(atBank);
+    expect(bank().querySelector('.bank-amount')?.textContent).toBe('0');
   });
 });

@@ -2,8 +2,10 @@
 import {
   DEFAULT_RULE_CONFIG,
   VEHICLES,
+  type CharacterProfile,
   type Controller,
   type GameSetup,
+  type PlayerId,
   type Vehicle,
 } from '@richman/shared';
 import { t } from '../i18n';
@@ -13,6 +15,7 @@ import {
   buildSetup,
   describeSetupError,
   isBoardChoice,
+  previewCharacters,
   randomSeed,
   type SetupForm,
 } from './setup-form';
@@ -38,13 +41,23 @@ const CONTROLLERS: readonly Controller[] = ['human', 'computer'];
 
 export interface SetupScreenOptions {
   initial: SetupForm;
-  /** Receives a valid setup together with the form values (to prefill the next game). */
-  onStart: (setup: GameSetup, form: SetupForm) => void;
+  /**
+   * Receives a valid setup together with the form values (to prefill the next game) and the
+   * character numbers drawn for the computer seats (empty without tables).
+   */
+  onStart: (
+    setup: GameSetup,
+    form: SetupForm,
+    characters: Readonly<Record<PlayerId, number>>,
+  ) => void;
   /** Opens the read-only preview of converted original maps. */
   onPreview?: () => void;
   /** Injectable for tests. */
   makeSeed?: () => number;
-  /** Importing the original tables (tables.json) for the animations; hidden when absent. */
+  /**
+   * Importing the original tables (tables.json) for the animations and the computer characters;
+   * hidden when absent.
+   */
   tables?: TablesImport;
 }
 
@@ -55,6 +68,8 @@ export interface TablesImport {
   onPick(file: File): Promise<string[]>;
   /** Goes back to the project values. */
   onClear(): void;
+  /** The character profiles of the imported file, in its order; null without one. */
+  characters(): readonly CharacterProfile[] | null;
 }
 
 /**
@@ -62,7 +77,7 @@ export interface TablesImport {
  * native file input stays hidden: it is cleared after each pick (so the same file can be picked
  * again), which would otherwise show "no file chosen" next to a successful import.
  */
-function tablesSection(tables: TablesImport): HTMLElement {
+function tablesSection(tables: TablesImport, onChange: () => void): HTMLElement {
   const section = document.createElement('fieldset');
   section.className = 'setup-tables';
   const legend = document.createElement('legend');
@@ -110,6 +125,7 @@ function tablesSection(tables: TablesImport): HTMLElement {
       (lines) => {
         if (lines.length === 0) importedName = file.name;
         show(lines);
+        onChange();
       },
       () => show([t('setup.tables.error.read')]),
     );
@@ -118,6 +134,7 @@ function tablesSection(tables: TablesImport): HTMLElement {
     tables.onClear();
     importedName = null;
     show();
+    onChange();
   });
   show();
   section.append(legend, status, picker, pick, clear, problems);
@@ -168,6 +185,13 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     }
     return select;
   });
+  // The character a computer seat gets from the imported tables.json (docs/GAME_RULES.md §1).
+  const characterTags = Array.from({ length: DEFAULT_RULE_CONFIG.maxPlayers }, () => {
+    const tag = document.createElement('span');
+    tag.className = 'setup-character';
+    tag.hidden = true;
+    return tag;
+  });
   const nameLabels = nameInputs.map((node, seat) => {
     const label = labelled(t('setup.playerName', { n: seat + 1 }), node);
     label.classList.add('setup-seat');
@@ -176,6 +200,8 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
       controller.setAttribute('aria-label', t('setup.controller', { n: seat + 1 }));
       label.append(controller);
     }
+    const character = characterTags[seat];
+    if (character) label.append(character);
     return label;
   });
 
@@ -229,14 +255,24 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
   const sync = () => {
     const values = read();
     nameLabels.forEach((label, seat) => (label.hidden = seat >= values.playerCount));
+    const characters = options.tables?.characters() ?? null;
+    const preview = characters === null ? null : previewCharacters(values, characters.length);
+    characterTags.forEach((tag, seat) => {
+      const computer = values.controllers[seat] === 'computer';
+      tag.hidden = characters === null || !computer;
+      const n = preview?.[seat] ?? null;
+      tag.textContent = n === null ? t('setup.character.atStart') : t('setup.character', { n });
+    });
   };
   count.addEventListener('change', sync);
+  seed.addEventListener('input', sync);
+  for (const select of controllerSelects) select.addEventListener('change', sync);
   sync();
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const values = read();
-    const result = buildSetup(values, makeSeed);
+    const result = buildSetup(values, makeSeed, options.tables?.characters() ?? null);
     if (!result.ok) {
       errors.replaceChildren(
         ...result.errors.map((e) => {
@@ -248,7 +284,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
       return;
     }
     errors.replaceChildren();
-    onStart(result.setup, values);
+    onStart(result.setup, values, result.characters);
   });
 
   form.append(
@@ -260,7 +296,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     labelled(t('setup.dayLimit'), dayLimit),
     labelled(t('setup.netWorthTarget'), netWorthTarget),
     advanced,
-    ...(options.tables ? [tablesSection(options.tables)] : []),
+    ...(options.tables ? [tablesSection(options.tables, sync)] : []),
     errors,
     start,
   );

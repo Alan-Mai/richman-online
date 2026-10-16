@@ -1,10 +1,9 @@
 // Runs a parsed command against injected I/O; main.ts supplies the real console and files.
-import { ENGINE_VERSION, parseOriginalTables } from '@richman/shared';
+import { ENGINE_VERSION, parseOriginalTables, profilesFromTables } from '@richman/shared';
 import type { Command, RunOptions } from './args';
 import {
   ENGINE,
   PLAYER_COUNT,
-  characterProfiles,
   type CharacterPool,
   gameSeedFor,
   runGame,
@@ -45,7 +44,7 @@ function loadCharacters(path: string, io: SimIO): CharacterPool | null {
     for (const error of parsed.errors) io.print(`  ${JSON.stringify(error)}`);
     return null;
   }
-  return { path, profiles: characterProfiles(parsed.tables) };
+  return { path, profiles: profilesFromTables(parsed.tables) };
 }
 
 function simulate(options: RunOptions, io: SimIO, engine: Engine): number {

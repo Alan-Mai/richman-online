@@ -6,6 +6,7 @@ import {
   TEST_LOOP_BOARD,
   actorOf,
   allows,
+  drawCharacters,
   applyAction,
   checkInvariants,
   computerAction,
@@ -29,7 +30,6 @@ import {
   type PlayerId,
   type PlayerSetup,
   type CharacterProfile,
-  type OriginalTables,
   type RuleError,
   type TileIndex,
   type Vehicle,
@@ -176,45 +176,6 @@ export interface GameSpec {
 export interface CharacterPool {
   path: string;
   profiles: readonly CharacterProfile[];
-}
-
-/**
- * One profile per character of the player's tables.json. tables.json v1 has no borrowing share yet
- * (batch 3-2 of docs/BANK_PLAN.md), so the provisional one fills in; it is unused until loans come.
- */
-export function characterProfiles(tables: OriginalTables): CharacterProfile[] {
-  return tables.characters.map(({ cashPercent }) => ({
-    cashPercent,
-    loanPercent: PROVISIONAL_COMPUTER_PROFILE.loanPercent,
-  }));
-}
-
-/** Seed of the RNG that picks characters for the computer seats; separate from the game's own. */
-export function characterSeedFor(gameSeed: number): number {
-  return (gameSeed ^ 0xc4a2) >>> 0;
-}
-
-/**
- * `count` different profiles, drawn uniformly without replacement, like the original's "add a
- * computer", which only picks characters no seat has (docs/GAME_RULES.md §1).
- */
-export function pickCharacters(
-  profiles: readonly CharacterProfile[],
-  count: number,
-  seed: number,
-): CharacterProfile[] {
-  if (count > profiles.length) {
-    throw new RangeError(`${count} computer seats but only ${profiles.length} characters`);
-  }
-  const left = [...profiles];
-  const picked: CharacterProfile[] = [];
-  let rng = createRng(seed);
-  for (let i = 0; i < count; i++) {
-    const [index, next] = nextInt(rng, left.length);
-    rng = next;
-    picked.push(...left.splice(index, 1));
-  }
-  return picked;
 }
 
 export type EndReason = GameEndReason;
@@ -435,10 +396,11 @@ export function gameSetup(
   const controllers = controllersFor(spec.controllers);
   const seats = Array.from({ length: PLAYER_COUNT }, (_, i) => controllers[i] ?? 'human');
   const computers = seats.filter((c) => c === 'computer').length;
+  const pool = spec.characters?.profiles;
   const profiles =
-    spec.characters === undefined
+    pool === undefined
       ? Array.from({ length: computers }, () => PROVISIONAL_COMPUTER_PROFILE)
-      : pickCharacters(spec.characters.profiles, computers, characterSeedFor(spec.seed));
+      : drawCharacters(pool.length, computers, spec.seed).map((i) => pool[i]);
   let nextProfile = 0;
   return {
     config: {

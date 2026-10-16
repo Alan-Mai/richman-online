@@ -111,7 +111,12 @@ export class BoardView {
     const { fontSize } = this;
     this.board.tiles.forEach((tile, i) => {
       const { x, y } = this.tileCenter(i);
-      const fill = tile.kind === 'property' ? BOARD_COLORS.property : BOARD_COLORS.blank;
+      const fill =
+        tile.kind === 'property'
+          ? BOARD_COLORS.property
+          : tile.kind === 'bank'
+            ? BOARD_COLORS.bank
+            : BOARD_COLORS.blank;
       const rect = this.scene.add
         .rectangle(x, y, size, size, fill)
         .setStrokeStyle(Math.max(1, size * 0.02), BOARD_COLORS.tileBorder)

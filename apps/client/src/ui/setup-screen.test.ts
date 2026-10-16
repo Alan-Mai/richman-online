@@ -3,6 +3,7 @@ import {
   ORIGINAL_TABLES_VERSION,
   TEST_BRANCH_BOARD,
   TEST_LOOP_BOARD,
+  drawCharacters,
   type GameSetup,
 } from '@richman/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -157,6 +158,47 @@ describe('setup screen', () => {
     expect(field<HTMLSelectElement>('vehicle').value).toBe('motorbike');
   });
 
+  describe('computer characters', () => {
+    // Made-up profiles.
+    const characters = Array.from({ length: 12 }, (_, i) => ({
+      cashPercent: i + 1,
+      loanPercent: 50,
+    }));
+
+    function render(imported: boolean) {
+      const drawn: Record<string, number>[] = [];
+      renderSetupScreen(root, {
+        initial: { ...defaultSetupForm(), controllers: ['human', 'computer', 'human', 'human'] },
+        onStart: (_s, _f, picked) => drawn.push({ ...picked }),
+        tables: {
+          importedName: imported ? 'tables.json' : null,
+          onPick: () => Promise.resolve([]),
+          onClear: () => {},
+          characters: () => (imported ? characters : null),
+        },
+      });
+      const tags = [...root.querySelectorAll<HTMLElement>('.setup-character')];
+      return { tags, drawn };
+    }
+
+    it('shows nothing without imported tables', () => {
+      expect(render(false).tags.every((tag) => tag.hidden)).toBe(true);
+    });
+
+    it('marks computer seats, previewing the character once a seed is typed', () => {
+      const { tags, drawn } = render(true);
+      expect(tags.map((tag) => tag.hidden)).toEqual([true, false, true, true]);
+      expect(tags[1]?.textContent).toBe('角色：開局時依種子抽選');
+      const seed = field<HTMLInputElement>('seed');
+      seed.value = '1234';
+      seed.dispatchEvent(new Event('input'));
+      const n = drawCharacters(12, 1, 1234)[0]! + 1;
+      expect(tags[1]?.textContent).toBe(`角色 ${n}`);
+      root.querySelector('form')!.dispatchEvent(new Event('submit'));
+      expect(drawn).toEqual([{ p2: n }]);
+    });
+  });
+
   describe('original tables', () => {
     /** Renders the section around `onPick`; returns its parts and what happened. */
     function renderTables(onPick: (file: File) => Promise<string[]>, importedName: string | null) {
@@ -164,7 +206,7 @@ describe('setup screen', () => {
       renderSetupScreen(root, {
         initial: defaultSetupForm(),
         onStart: (s, f) => started.push([s, f]),
-        tables: { importedName, onPick, onClear: () => cleared++ },
+        tables: { importedName, onPick, onClear: () => cleared++, characters: () => null },
       });
       const section = root.querySelector<HTMLElement>('.setup-tables')!;
       const picker = field<HTMLInputElement>('tables');
