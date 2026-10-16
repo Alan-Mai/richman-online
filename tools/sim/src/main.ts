@@ -2,6 +2,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { USAGE, parseCommand } from './args';
+import { invocationDir, withResolvedTables } from './paths';
 import { runCommand } from './simulate';
 
 /** tools/sim/out/, gitignored; shown relative to tools/sim, where `pnpm -F sim` runs. */
@@ -13,7 +14,8 @@ if (!parsed.ok) {
   console.error(USAGE);
   process.exitCode = 2;
 } else {
-  process.exitCode = runCommand(parsed.command, {
+  const command = withResolvedTables(parsed.command, invocationDir(process.env, process.cwd()));
+  process.exitCode = runCommand(command, {
     print: (text) => console.log(text),
     writeLog: (name, text) => {
       mkdirSync(OUT_DIR, { recursive: true });
