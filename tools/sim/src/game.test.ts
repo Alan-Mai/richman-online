@@ -1,17 +1,27 @@
-import { allows, type Action, type GameState, type Result } from '@richman/shared';
+import {
+  PROVISIONAL_COMPUTER_PROFILE,
+  allows,
+  type Action,
+  type GameState,
+  type OriginalTables,
+  type Result,
+} from '@richman/shared';
 import { describe, expect, it } from 'vitest';
 import {
   BOARDS,
   ENGINE,
   MAX_AUCTION_ACTIONS,
+  characterProfiles,
   chooserSeedFor,
   gameSetup,
   gameSeedFor,
+  pickCharacters,
   runGame,
   type Engine,
   type GameRecord,
   type GameSpec,
 } from './game';
+import { replay, reproduces, toGameLog } from './replay';
 
 const RICHEST: GameSpec = {
   board: 'test-loop',
@@ -113,6 +123,41 @@ describe('runGame failure detection', () => {
       step: 0,
       failure: { kind: 'createGame', errors: [{ reason: 'invalidSeed' }] },
     });
+  });
+
+  it('reports a transfer or rebalance that changes cash + deposit, and replays it', () => {
+    /** The engine, but the money moved at a bank grows by 1 for the mover. */
+    const leaky = (bankEvent: 'BankTransferred' | 'BankRebalanced'): Engine => ({
+      ...ENGINE,
+      applyAction: (state, action) => {
+        const result = ENGINE.applyAction(state, action);
+        const event = result.ok ? result.events.find((e) => e.type === bankEvent) : undefined;
+        if (!result.ok || event === undefined || !('playerId' in event)) return result;
+        const grow = (p: GameState['players'][number]) =>
+          p.id === event.playerId ? { ...p, cash: p.cash + 1 } : p;
+        const events = result.events.map((e) =>
+          e === event && e.type === 'BankRebalanced' ? { ...e, cash: e.cash + 1 } : e,
+        );
+        return {
+          ...result,
+          events,
+          state: { ...result.state, players: result.state.players.map(grow) },
+        };
+      },
+    });
+    const cases: [GameSpec, Engine][] = [
+      [RICHEST, leaky('BankTransferred')],
+      [{ ...RICHEST, controllers: 'computer' }, leaky('BankRebalanced')],
+    ];
+    for (const [spec, engine] of cases) {
+      const record = runGame(spec, engine);
+      const outcome = failureOf(record);
+      expect(outcome.failure).toMatchObject({ kind: 'bankChangedTotal' });
+      if (outcome.failure.kind !== 'bankChangedTotal') continue;
+      expect(outcome.failure.after).toBe(outcome.failure.before + 1);
+      const log = toGameLog(spec, record);
+      expect(reproduces(log, replay(log, engine))).toBe(true);
+    }
   });
 
   it('reports invariant violations with the step', () => {
@@ -264,6 +309,49 @@ describe('runGame players', () => {
     expect(controllers('mixed')).toEqual(['human', 'computer', 'human', 'computer']);
   });
 
+  it('gives computers the provisional profile without --tables', () => {
+    const profiles = gameSetup({ ...RICHEST, controllers: 'computer' }).players.map((p) =>
+      p.controller === 'computer' ? p.profile : null,
+    );
+    expect(profiles).toEqual([
+      null,
+      ...Array.from({ length: 3 }, () => PROVISIONAL_COMPUTER_PROFILE),
+    ]);
+  });
+
+  it('draws different characters per game from --tables, the same for the same seed', () => {
+    // Made-up profiles: cashPercent 10, 20, ..., 120 would be out of range, so 1..12.
+    const profiles = Array.from({ length: 12 }, (_, i) => ({
+      cashPercent: i + 1,
+      loanPercent: 50,
+    }));
+    const characters = { path: 'fake.json', profiles };
+    const drawn = (seed: number) =>
+      gameSetup({ ...RICHEST, seed, controllers: 'computer', characters }).players.flatMap((p) =>
+        p.controller === 'computer' ? [p.profile.cashPercent] : [],
+      );
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      const picks = drawn(seed);
+      expect(picks).toHaveLength(3);
+      expect(new Set(picks).size).toBe(3);
+      expect(drawn(seed)).toEqual(picks);
+      seen.add(picks.join(','));
+    }
+    expect(seen.size).toBeGreaterThan(20);
+  });
+
+  it('refuses more computer seats than characters', () => {
+    expect(() => pickCharacters([PROVISIONAL_COMPUTER_PROFILE], 2, 1)).toThrow(RangeError);
+  });
+
+  it('turns tables.json characters into profiles with the provisional borrowing share', () => {
+    const tables = { characters: [{ id: 0, cashPercent: 35 }] } as unknown as OriginalTables;
+    expect(characterProfiles(tables)).toEqual([
+      { cashPercent: 35, loanPercent: PROVISIONAL_COMPUTER_PROFILE.loanPercent },
+    ]);
+  });
+
   it("plays computer seats with computerAction's choice", () => {
     const spec: GameSpec = { ...RICHEST, controllers: 'mixed', dayLimit: 20 };
     const record = runGame(spec);
@@ -377,6 +465,19 @@ describe('runGame checks on computers, views and auctions', () => {
       kind: 'viewLeak',
       viewer: 'p1',
       key: 'lotteryPool',
+    });
+  });
+
+  it("reports a computer's profile in a view", () => {
+    // The real viewFor copies players field by field; this one sends them whole.
+    const engine: Engine = {
+      ...ENGINE,
+      viewFor: (state, viewer) => ({ ...ENGINE.viewFor(state, viewer), players: state.players }),
+    };
+    expect(failureOf(runGame({ ...RICHEST, controllers: 'computer' }, engine)).failure).toEqual({
+      kind: 'viewLeak',
+      viewer: 'p1',
+      key: 'profile',
     });
   });
 

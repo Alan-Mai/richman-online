@@ -149,3 +149,4 @@
   - calendar 兩世紀測試逾時：量得轉換是常數時間（約 0.5–1.3 µs），慢在 16 萬次 `expect`；使用者決定改寫測試（收集不一致後一次比對，約 26 ms），另開 `test(shared)` commit。
   - 2-5 完成：`bank.ts` 的 `rebalance`（`Math.fround`、精確乘法）與 `BankRebalanced`；電腦經過與停留銀行都觸發，經過時有改變才切開 `PlayerMoved`；不消耗亂數（DECISIONS 2026-10-16）。精確乘法和倍精度只在總額超過約 2^29 時才可能不同（原版 32 位元金額達不到），測試用大金額案例涵蓋。客戶端顯示模型與事件紀錄處理新事件。模擬器紀錄格式版本改為 9。
   - 2-6 前置：`/pre-push` 的逐 commit 素材檢查加上 `tools/sim/out/` 與任何 `tables.json`（現有歷史中沒有這類檔案）。
+  - 2-6 完成：`--tables <path>`（`parseOriginalTables` 讀取；每局以 `characterSeedFor(遊戲種子)` 為電腦座位不重複抽角色，紀錄檔的 `players` 含抽到的比例，replay 不需要原檔）；統計每局人類開啟銀行（經過／停留）、提款／存款次數與平均金額、離開次數、電腦重新分配次數；新檢查 `bankChangedTotal`（重新分配用事件的新金額、轉帳用動作後的狀態比對現金 + 存款，replay 同樣檢查）；`HIDDEN_KEYS` 加 `profile`。與計畫的差異：`tables.json` v1 沒有借款比例，電腦的 `loanPercent` 暫用暫定值，批次 3-2 匯出 v2 後改用原版。隨機 AI 的銀行動作已在 2-4 做完。兩張圖 × 三種座位 × 有無 `--tables` 各 1000 局全部通過。

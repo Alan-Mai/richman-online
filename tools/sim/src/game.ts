@@ -22,11 +22,14 @@ import {
   type CreateGameError,
   type GameEndReason,
   type GameEvent,
+  type GameEventType,
   type GameSetup,
   type GameState,
   type LegalAction,
   type PlayerId,
   type PlayerSetup,
+  type CharacterProfile,
+  type OriginalTables,
   type RuleError,
   type TileIndex,
   type Vehicle,
@@ -98,6 +101,7 @@ const HIDDEN_KEYS = [
   'computerLimits',
   'computerDiceCount',
   'lotteryPool',
+  'profile',
 ] as const;
 
 /** Built-in boards the simulator can play, by Board.id. */
@@ -164,6 +168,53 @@ export interface GameSpec {
   maxDays: number;
   /** Runaway guard: a game that needs more actions than this is a failure. */
   maxSteps: number;
+  /** Character profiles from --tables for the computer seats; provisional profiles without. */
+  characters?: CharacterPool;
+}
+
+/** The profiles read from a tables.json, and its path for the rerun command. */
+export interface CharacterPool {
+  path: string;
+  profiles: readonly CharacterProfile[];
+}
+
+/**
+ * One profile per character of the player's tables.json. tables.json v1 has no borrowing share yet
+ * (batch 3-2 of docs/BANK_PLAN.md), so the provisional one fills in; it is unused until loans come.
+ */
+export function characterProfiles(tables: OriginalTables): CharacterProfile[] {
+  return tables.characters.map(({ cashPercent }) => ({
+    cashPercent,
+    loanPercent: PROVISIONAL_COMPUTER_PROFILE.loanPercent,
+  }));
+}
+
+/** Seed of the RNG that picks characters for the computer seats; separate from the game's own. */
+export function characterSeedFor(gameSeed: number): number {
+  return (gameSeed ^ 0xc4a2) >>> 0;
+}
+
+/**
+ * `count` different profiles, drawn uniformly without replacement, like the original's "add a
+ * computer", which only picks characters no seat has (docs/GAME_RULES.md §1).
+ */
+export function pickCharacters(
+  profiles: readonly CharacterProfile[],
+  count: number,
+  seed: number,
+): CharacterProfile[] {
+  if (count > profiles.length) {
+    throw new RangeError(`${count} computer seats but only ${profiles.length} characters`);
+  }
+  const left = [...profiles];
+  const picked: CharacterProfile[] = [];
+  let rng = createRng(seed);
+  for (let i = 0; i < count; i++) {
+    const [index, next] = nextInt(rng, left.length);
+    rng = next;
+    picked.push(...left.splice(index, 1));
+  }
+  return picked;
 }
 
 export type EndReason = GameEndReason;
@@ -184,14 +235,18 @@ export type Failure =
   | { kind: 'legalActionRejected'; action: Action; error: RuleError }
   /** An amount just above an offered range was not refused as insufficientFunds. */
   | { kind: 'rangeNotEnforced'; action: Action; outcome: string }
-  /** An action type missing from legalActions was not refused with the expected error. */
-  /** expected 'offered': the type is always offered in this phase, but was not. */
+  /**
+   * An action type missing from legalActions was not refused with the expected error; expected
+   * 'offered' means the type is always offered in this phase, but was not.
+   */
   | {
       kind: 'unofferedNotRefused';
       action: Action;
       outcome: string;
       expected: RuleError['code'] | 'offered';
     }
+  /** A transfer or rebalance at a bank changed the player's cash + deposit. */
+  | { kind: 'bankChangedTotal'; playerId: PlayerId; before: number; after: number }
   | { kind: 'missingGameEnded' }
   | { kind: 'stepLimit'; maxSteps: number }
   | { kind: 'exception'; message: string; stack?: string };
@@ -225,6 +280,18 @@ export interface GameMetrics {
   deadEnds: number;
   /** Rolls by how many dice were rolled: diceRolls[n] rolls of n dice. */
   diceRolls: Record<number, number>;
+  /** Banks opened for humans, walking over them and stopping on them. */
+  bankOpensPassing: number;
+  bankOpensStopping: number;
+  /** Human transfers at banks, with the amounts moved. */
+  bankWithdrawals: number;
+  bankWithdrawn: number;
+  bankDeposits: number;
+  bankDeposited: number;
+  /** Banks a human left without moving money. */
+  bankLeaves: number;
+  /** Computer rebalances that changed something. */
+  bankRebalances: number;
 }
 
 export function emptyMetrics(): GameMetrics {
@@ -241,7 +308,97 @@ export function emptyMetrics(): GameMetrics {
     forks: 0,
     deadEnds: 0,
     diceRolls: {},
+    bankOpensPassing: 0,
+    bankOpensStopping: 0,
+    bankWithdrawals: 0,
+    bankWithdrawn: 0,
+    bankDeposits: 0,
+    bankDeposited: 0,
+    bankLeaves: 0,
+    bankRebalances: 0,
   };
+}
+
+/** Counts bank openings, transfers, leaves and rebalances from one action and its events. */
+export function countBanks(action: Action, events: readonly GameEvent[], metrics: GameMetrics) {
+  if (action.type === 'leaveBank') metrics.bankLeaves++;
+  for (const event of events) {
+    switch (event.type) {
+      case 'BankOpened':
+        if (event.trigger === 'pass') metrics.bankOpensPassing++;
+        else metrics.bankOpensStopping++;
+        break;
+      case 'BankTransferred':
+        if (event.direction === 'withdraw') {
+          metrics.bankWithdrawals++;
+          metrics.bankWithdrawn += event.amount;
+        } else {
+          metrics.bankDeposits++;
+          metrics.bankDeposited += event.amount;
+        }
+        break;
+      case 'BankRebalanced':
+        metrics.bankRebalances++;
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+/** Events that move a player's money in or out, as opposed to between cash and deposit. */
+const MONEY_EVENTS: ReadonlySet<GameEventType> = new Set<GameEventType>([
+  'RentPaid',
+  'PropertyBought',
+  'PropertyUpgraded',
+  'PlayerBankrupt',
+  'AuctionWon',
+]);
+
+/**
+ * Moving money at a bank keeps cash + deposit (docs/BANK_PLAN.md 2-6), checked over one action
+ * from the state before it. A rebalance carries the new amounts and comes before any payment in
+ * the action, so it is always checked; a transfer carries only the amount, so it is checked
+ * against the state after the action unless money went in or out for that player meanwhile.
+ */
+export function checkBankTotals(
+  before: GameState,
+  after: GameState,
+  events: readonly GameEvent[],
+): Failure | null {
+  const totalIn = (state: GameState, id: PlayerId) => {
+    const player = state.players.find((p) => p.id === id);
+    return player === undefined ? NaN : player.cash + player.deposit;
+  };
+  const touched = new Set<PlayerId>();
+  const transferred = new Set<PlayerId>();
+  for (const event of events) {
+    if (MONEY_EVENTS.has(event.type)) {
+      for (const value of Object.values(event)) {
+        if (typeof value === 'string') touched.add(value);
+      }
+    } else if (event.type === 'BankTransferred') {
+      transferred.add(event.playerId);
+    } else if (event.type === 'BankRebalanced' && !touched.has(event.playerId)) {
+      const total = totalIn(before, event.playerId);
+      if (event.cash + event.deposit !== total) {
+        const { playerId } = event;
+        return {
+          kind: 'bankChangedTotal',
+          playerId,
+          before: total,
+          after: event.cash + event.deposit,
+        };
+      }
+    }
+  }
+  for (const playerId of transferred) {
+    const [was, is] = [totalIn(before, playerId), totalIn(after, playerId)];
+    if (!touched.has(playerId) && was !== is) {
+      return { kind: 'bankChangedTotal', playerId, before: was, after: is };
+    }
+  }
+  return null;
 }
 
 export interface GameRecord {
@@ -266,10 +423,23 @@ export function chooserSeedFor(gameSeed: number): number {
 export function gameSetup(
   spec: Pick<
     GameSpec,
-    'board' | 'controllers' | 'vehicle' | 'seed' | 'dayLimit' | 'netWorthTargetMultiple'
+    | 'board'
+    | 'controllers'
+    | 'vehicle'
+    | 'seed'
+    | 'dayLimit'
+    | 'netWorthTargetMultiple'
+    | 'characters'
   >,
 ): GameSetup {
   const controllers = controllersFor(spec.controllers);
+  const seats = Array.from({ length: PLAYER_COUNT }, (_, i) => controllers[i] ?? 'human');
+  const computers = seats.filter((c) => c === 'computer').length;
+  const profiles =
+    spec.characters === undefined
+      ? Array.from({ length: computers }, () => PROVISIONAL_COMPUTER_PROFILE)
+      : pickCharacters(spec.characters.profiles, computers, characterSeedFor(spec.seed));
+  let nextProfile = 0;
   return {
     config: {
       ...DEFAULT_RULE_CONFIG,
@@ -278,12 +448,16 @@ export function gameSetup(
       netWorthTargetMultiple: spec.netWorthTargetMultiple,
     },
     board: BOARDS[spec.board],
-    // Computers use the provisional profile until --tables supplies the original ones.
-    players: Array.from({ length: PLAYER_COUNT }, (_, i): PlayerSetup => {
+    players: seats.map((controller, i): PlayerSetup => {
       const base = { id: `p${i + 1}`, name: `AI ${i + 1}` };
-      return controllers[i] === 'computer'
-        ? { ...base, controller: 'computer', profile: PROVISIONAL_COMPUTER_PROFILE }
-        : { ...base, controller: 'human' };
+      if (controller !== 'computer') {
+        return { ...base, controller };
+      }
+      const profile = profiles[nextProfile++];
+      if (profile === undefined) {
+        throw new Error(`no profile for computer seat ${i}`);
+      }
+      return { ...base, controller, profile };
     }),
     seed: spec.seed,
   };
@@ -498,10 +672,17 @@ export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
       if (!result.ok) {
         return fail({ kind: 'legalActionRejected', action, error: result.error });
       }
+      // Like replay: the step is the action's index, and the log keeps the action.
+      const bankFailure = checkBankTotals(state, result.state, result.events);
+      const failed = bankFailure === null ? null : fail(bankFailure);
       actions.push(action);
+      if (failed !== null) {
+        return failed;
+      }
       if (auction !== null) auction.actions++;
       countTurns(state, result.events, metrics);
       countDice(result.events, metrics);
+      countBanks(action, result.events, metrics);
       for (const event of result.events) {
         switch (event.type) {
           case 'PlayerBankrupt':

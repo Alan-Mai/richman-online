@@ -25,6 +25,8 @@ export interface RunOptions {
   maxDays: number;
   maxSteps: number;
   maxFailureDetails: number;
+  /** Path of the player's tables.json for computer character profiles; null without. */
+  tables: string | null;
 }
 
 export type Command = { kind: 'run'; options: RunOptions } | { kind: 'replay'; file: string };
@@ -39,6 +41,9 @@ export const USAGE = `usage:
                      [--vehicle walk|motorbike|car]
                      [--day-limit N] [--net-worth-target MULTIPLE] [--max-days 1000]
                      [--max-steps 20 x max-days] [--max-failure-details 5]
+                     [--tables <tables.json>]
+                       (computer seats get different characters' profiles, drawn per game;
+                        without it they use the provisional profile)
   pnpm -F sim sim -- replay <failure.json>`;
 
 const OPTION_NAMES = [
@@ -52,6 +57,7 @@ const OPTION_NAMES = [
   'max-days',
   'max-steps',
   'max-failure-details',
+  'tables',
 ] as const;
 type OptionName = (typeof OPTION_NAMES)[number];
 
@@ -173,6 +179,7 @@ export function parseCommand(argv: readonly string[]): ParseResult {
         maxDays,
         maxSteps,
         maxFailureDetails,
+        tables: values.get('tables') ?? null,
       },
     },
   };

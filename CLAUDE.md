@@ -49,7 +49,7 @@ pnpm -F extract cli lunar-check  # 本機比對農曆演算法與 rich4.exe 的�
 pnpm -F extract lunar-gen        # 重新產生 packages/shared/src/lunar-data.ts（不需要原版檔案）
 pnpm -F extract cli find-dword <hex> ...  # 逆向用：rich4.exe 中存放某個 32 位元值的位址（找指標表）
 pnpm -F extract cli imports [IAT 位址 ...] # 逆向用：rich4.exe 匯入的 Windows API 與其 IAT 位址
-pnpm -F sim sim -- --games 1000 [--seed 1] [--board test-branch] [--controllers random|computer|mixed] [--vehicle walk|motorbike|car] [--day-limit N] [--net-worth-target M] [--max-days 1000] [--max-steps N] [--max-failure-details 5]  # 終端機模擬器
+pnpm -F sim sim -- --games 1000 [--seed 1] [--board test-branch] [--controllers random|computer|mixed] [--vehicle walk|motorbike|car] [--day-limit N] [--net-worth-target M] [--max-days 1000] [--max-steps N] [--max-failure-details 5] [--tables local-assets/tables.json]  # 終端機模擬器（--tables：電腦依種子不重複抽原版角色比例）
 pnpm -F sim sim -- replay out/failure-<seed>.json                 # 重播失敗紀錄
 pnpm lint                 # ESLint + Prettier 檢查
 pnpm format               # Prettier 自動格式化（不含 *.md）

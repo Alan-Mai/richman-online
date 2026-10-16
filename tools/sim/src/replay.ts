@@ -11,6 +11,7 @@ import {
 import {
   BOARDS,
   ENGINE,
+  checkBankTotals,
   checkStep,
   exceptionFailure,
   gameSetup,
@@ -169,6 +170,10 @@ export function replay(log: GameLog, engine: Engine = ENGINE): ReplayResult {
           step,
           failure: { kind: 'legalActionRejected', action, error: result.error },
         };
+      }
+      const bankFailure = checkBankTotals(state, result.state, result.events);
+      if (bankFailure !== null) {
+        return { kind: 'failed', step, failure: bankFailure };
       }
       previous = state;
       state = result.state;

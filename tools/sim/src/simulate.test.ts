@@ -1,3 +1,4 @@
+import { ORIGINAL_TABLES_VERSION } from '@richman/shared';
 import { describe, expect, it } from 'vitest';
 import type { RunOptions } from './args';
 import { ENGINE, type Engine } from './game';
@@ -33,6 +34,7 @@ const OPTIONS: RunOptions = {
   maxDays: 1000,
   maxSteps: 20_000,
   maxFailureDetails: 5,
+  tables: null,
 };
 
 /** Every game fails once round 2 starts. */
@@ -40,6 +42,57 @@ const BROKEN: Engine = {
   ...ENGINE,
   checkInvariants: (state) => (state.turn.round >= 2 ? ['turn: broken'] : []),
 };
+
+/** A tables.json with invented values only. */
+function fakeTablesJson(): string {
+  return JSON.stringify({
+    version: ORIGINAL_TABLES_VERSION,
+    generatedAt: '2000-01-01T00:00:00.000Z',
+    source: { file: 'fake.exe', size: 1, sha256: '00' },
+    animation: {
+      frameTicks: [9, 7, 3],
+      stepPixels: { walk: 5, motorbike: 6, car: 7, temporary: 5 },
+      diceAnimDelay: [11, 12, 13, 0],
+    },
+    items: Array.from({ length: 13 }, (_, i) => ({
+      id: i + 1,
+      unknownAt0: 0,
+      unknownAt1: 0,
+      stock: i,
+      points: 20 + i,
+    })),
+    setupOptions: {
+      startingFunds: [111, 222, 333, 444, 555, 666],
+      dayLimit: [0, 31, 62, 93, 124, 155],
+      netWorthTargetMultiple: [0, 7, 6, 5, 4, 3],
+    },
+    characters: Array.from({ length: 12 }, (_, i) => ({ id: i, cashPercent: 5 + i * 8 })),
+  });
+}
+
+describe('runCommand run with --tables', () => {
+  it('plays clean games with characters drawn from the file', () => {
+    const { io, files, text } = fakeIO();
+    files.set('fake/tables.json', fakeTablesJson());
+    const options: RunOptions = { ...OPTIONS, controllers: 'computer', tables: 'fake/tables.json' };
+    expect(runCommand({ kind: 'run', options }, io)).toBe(0);
+    expect(text()).toContain('games: 20 (finished 20, unfinished 0, failed 0)');
+    expect(text()).toMatch(/banks per game: .*computer rebalances \d/);
+  });
+
+  it('refuses a missing or unusable file before playing', () => {
+    const missing = fakeIO();
+    const options: RunOptions = { ...OPTIONS, tables: 'fake/tables.json' };
+    expect(runCommand({ kind: 'run', options }, missing.io)).toBe(2);
+    expect(missing.text()).toContain('cannot read fake/tables.json');
+
+    const unusable = fakeIO();
+    unusable.files.set('fake/tables.json', JSON.stringify({ version: 999 }));
+    expect(runCommand({ kind: 'run', options }, unusable.io)).toBe(2);
+    expect(unusable.text()).toContain('fake/tables.json is not a usable tables.json');
+    expect(unusable.text()).not.toContain('games:');
+  });
+});
 
 describe('runCommand run', () => {
   it('plays clean games without writing files', () => {

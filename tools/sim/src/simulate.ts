@@ -1,9 +1,11 @@
 // Runs a parsed command against injected I/O; main.ts supplies the real console and files.
-import { ENGINE_VERSION } from '@richman/shared';
+import { ENGINE_VERSION, parseOriginalTables } from '@richman/shared';
 import type { Command, RunOptions } from './args';
 import {
   ENGINE,
   PLAYER_COUNT,
+  characterProfiles,
+  type CharacterPool,
   gameSeedFor,
   runGame,
   type Engine,
@@ -28,8 +30,30 @@ export function runCommand(command: Command, io: SimIO, engine: Engine = ENGINE)
     : replayFile(command.file, io, engine);
 }
 
+/** Reads --tables; null after printing why it cannot be used. */
+function loadCharacters(path: string, io: SimIO): CharacterPool | null {
+  let json: unknown;
+  try {
+    json = JSON.parse(io.readFile(path));
+  } catch (error) {
+    io.print(`cannot read ${path}: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+  const parsed = parseOriginalTables(json);
+  if (!parsed.ok) {
+    io.print(`${path} is not a usable tables.json:`);
+    for (const error of parsed.errors) io.print(`  ${JSON.stringify(error)}`);
+    return null;
+  }
+  return { path, profiles: characterProfiles(parsed.tables) };
+}
+
 function simulate(options: RunOptions, io: SimIO, engine: Engine): number {
   const start = io.now();
+  const characters = options.tables === null ? undefined : loadCharacters(options.tables, io);
+  if (characters === null) {
+    return 2;
+  }
   const records: GameRecord[] = [];
   let failures = 0;
   for (let index = 0; index < options.games; index++) {
@@ -42,6 +66,7 @@ function simulate(options: RunOptions, io: SimIO, engine: Engine): number {
       netWorthTargetMultiple: options.netWorthTargetMultiple,
       maxDays: options.maxDays,
       maxSteps: options.maxSteps,
+      ...(characters === undefined ? {} : { characters }),
     };
     const record = runGame(spec, engine);
     records.push(record);

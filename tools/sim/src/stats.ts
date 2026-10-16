@@ -46,6 +46,18 @@ export interface Stats {
   deadEndsPerGame: number | null;
   /** Rolls by dice count over the games that did not fail: diceRolls[n] rolls of n dice. */
   diceRolls: Record<number, number>;
+  /** Per game over the games that did not fail; null when all failed. */
+  banks: {
+    opensPassing: number;
+    opensStopping: number;
+    withdrawals: number;
+    deposits: number;
+    leaves: number;
+    rebalances: number;
+    /** Mean amount per transfer over all games; null when there was none. */
+    meanWithdrawal: number | null;
+    meanDeposit: number | null;
+  } | null;
   /** Most frequent first, each with the seed of the first game that showed it. */
   failureGroups: { key: string; count: number; seed: number }[];
 }
@@ -86,6 +98,7 @@ export function summarize(records: readonly GameRecord[], seats: number): Stats 
     forksPerGame: null,
     deadEndsPerGame: null,
     diceRolls: {},
+    banks: null,
     failureGroups: [],
   };
   const finishedRounds: number[] = [];
@@ -111,6 +124,19 @@ export function summarize(records: readonly GameRecord[], seats: number): Stats 
     stats.meanLotteryPool = mean(played.map((m) => m.lotteryPool));
     stats.forksPerGame = mean(played.map((m) => m.forks));
     stats.deadEndsPerGame = mean(played.map((m) => m.deadEnds));
+    const total = (pick: (m: GameMetrics) => number) => played.reduce((s, m) => s + pick(m), 0);
+    const withdrawals = total((m) => m.bankWithdrawals);
+    const deposits = total((m) => m.bankDeposits);
+    stats.banks = {
+      opensPassing: total((m) => m.bankOpensPassing) / played.length,
+      opensStopping: total((m) => m.bankOpensStopping) / played.length,
+      withdrawals: withdrawals / played.length,
+      deposits: deposits / played.length,
+      leaves: total((m) => m.bankLeaves) / played.length,
+      rebalances: total((m) => m.bankRebalances) / played.length,
+      meanWithdrawal: withdrawals > 0 ? total((m) => m.bankWithdrawn) / withdrawals : null,
+      meanDeposit: deposits > 0 ? total((m) => m.bankDeposited) / deposits : null,
+    };
     for (const m of played) {
       for (const [n, rolls] of Object.entries(m.diceRolls)) {
         stats.diceRolls[Number(n)] = (stats.diceRolls[Number(n)] ?? 0) + rolls;
@@ -190,6 +216,8 @@ export function failureKeys(failure: ReplayFailure): string[] {
       return [`unofferedNotRefused: ${failure.action.type} -> ${failure.outcome}`];
     case 'rangeNotEnforced':
       return [`rangeNotEnforced: ${failure.action.type} -> ${failure.outcome}`];
+    case 'bankChangedTotal':
+      return ['bankChangedTotal'];
     case 'notOffered':
       return [`notOffered: ${failure.action.type}`];
     case 'computerActionNotLegal':
@@ -227,6 +255,10 @@ export function describeFailure(failure: ReplayFailure): string[] {
     case 'unofferedNotRefused':
       return [
         `unoffered ${formatActions([failure.action])} was ${failure.outcome}, expected ${failure.expected}`,
+      ];
+    case 'bankChangedTotal':
+      return [
+        `a bank changed ${failure.playerId}'s cash + deposit from ${failure.before} to ${failure.after}`,
       ];
     case 'rangeNotEnforced':
       return [
@@ -284,7 +316,8 @@ export function rerunCommand(spec: GameSpec): string {
     spec.netWorthTargetMultiple === null
       ? ''
       : ` --net-worth-target ${spec.netWorthTargetMultiple}`;
-  return `pnpm -F sim sim -- --games 1 --seed ${spec.seed} --board ${spec.board} --controllers ${spec.controllers} --vehicle ${spec.vehicle}${days}${target} --max-days ${spec.maxDays} --max-steps ${spec.maxSteps}`;
+  const tables = spec.characters === undefined ? '' : ` --tables ${spec.characters.path}`;
+  return `pnpm -F sim sim -- --games 1 --seed ${spec.seed} --board ${spec.board} --controllers ${spec.controllers} --vehicle ${spec.vehicle}${days}${target} --max-days ${spec.maxDays} --max-steps ${spec.maxSteps}${tables}`;
 }
 
 export function formatFailureDetail(
@@ -321,6 +354,17 @@ function priceIndexLine({ priceIndex }: Stats): string {
   );
 }
 
+function bankLine(banks: Stats['banks']): string {
+  if (banks === null) return 'banks per game: n/a';
+  const amount = (value: number | null) => (value === null ? 'n/a' : value.toFixed(0));
+  return (
+    `banks per game: humans opened ${fixed(banks.opensPassing)} passing, ${fixed(banks.opensStopping)} stopping; ` +
+    `withdrew ${fixed(banks.withdrawals)} (mean ${amount(banks.meanWithdrawal)}), ` +
+    `deposited ${fixed(banks.deposits)} (mean ${amount(banks.meanDeposit)}), left ${fixed(banks.leaves)}; ` +
+    `computer rebalances ${fixed(banks.rebalances)}`
+  );
+}
+
 function auctionLine({ total, withBidders, sold, meanSaleRatio }: Stats['auctions']): string {
   const ratio = meanSaleRatio === null ? 'n/a' : meanSaleRatio.toFixed(2);
   return (
@@ -353,6 +397,7 @@ export function formatStats(stats: Stats, elapsedMs: number): string {
     `final day (games that did not fail): mean ${fixed(stats.finalDay)}`,
     priceIndexLine(stats),
     auctionLine(stats.auctions),
+    bankLine(stats.banks),
     `lottery pool at the end: mean ${fixed(stats.meanLotteryPool)}`,
     `moves per game: forks ${fixed(stats.forksPerGame)}, dead-end turnarounds ${fixed(stats.deadEndsPerGame)}`,
     diceLine(stats.diceRolls),

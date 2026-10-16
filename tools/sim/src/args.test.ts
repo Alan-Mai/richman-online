@@ -12,6 +12,7 @@ const DEFAULTS: RunOptions = {
   maxDays: 1000,
   maxSteps: 20_000,
   maxFailureDetails: 5,
+  tables: null,
 };
 
 describe('parseCommand', () => {
@@ -45,6 +46,8 @@ describe('parseCommand', () => {
       '50',
       '--max-failure-details',
       '0',
+      '--tables',
+      'some/tables.json',
     ];
     expect(parseCommand(argv)).toEqual({
       ok: true,
@@ -61,6 +64,7 @@ describe('parseCommand', () => {
           maxDays: 9,
           maxSteps: 50,
           maxFailureDetails: 0,
+          tables: 'some/tables.json',
         },
       },
     });

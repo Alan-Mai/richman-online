@@ -8,6 +8,7 @@ import {
   type Outcome,
 } from './game';
 import {
+  describeFailure,
   failureKeys,
   formatActions,
   formatFailureDetail,
@@ -199,6 +200,39 @@ describe('summarize', () => {
     expect(formatStats(summary, 0)).toContain('humanBankrupt 1 (33.3%), noHumansLeft 2 (66.7%)');
   });
 
+  it('averages bank use per game over games that did not fail', () => {
+    const games = [
+      record(1, { kind: 'unfinished' }, 9, 10, 0, {
+        bankOpensPassing: 4,
+        bankOpensStopping: 2,
+        bankWithdrawals: 2,
+        bankWithdrawn: 300,
+        bankDeposits: 1,
+        bankDeposited: 50,
+        bankLeaves: 3,
+        bankRebalances: 6,
+      }),
+      record(2, { kind: 'unfinished' }, 9, 10, 0, { bankWithdrawals: 1, bankWithdrawn: 600 }),
+      record(3, { kind: 'failed', step: 1, failure: { kind: 'missingGameEnded' } }, 1, 1, 0, {
+        bankOpensPassing: 99,
+      }),
+    ];
+    expect(summarize(games, 4).banks).toEqual({
+      opensPassing: 2,
+      opensStopping: 1,
+      withdrawals: 1.5,
+      deposits: 0.5,
+      leaves: 1.5,
+      rebalances: 3,
+      meanWithdrawal: 300,
+      meanDeposit: 50,
+    });
+    expect(formatStats(summarize(games, 4), 0)).toContain(
+      'banks per game: humans opened 2.0 passing, 1.0 stopping; withdrew 1.5 (mean 300), ' +
+        'deposited 0.5 (mean 50), left 1.5; computer rebalances 3.0',
+    );
+  });
+
   it('handles a run without finished games', () => {
     const empty = summarize([record(5, { kind: 'unfinished' }, 9)], 4);
     expect(empty.rounds).toBeNull();
@@ -242,6 +276,21 @@ describe('failureKeys', () => {
     expect(failureKeys({ kind: 'auctionTooLong', tile: 4, actions: 5000 })).toEqual([
       'auctionTooLong',
     ]);
+    const transfer = {
+      type: 'bankTransfer' as const,
+      playerId: 'p1',
+      direction: 'deposit' as const,
+      amount: 9,
+    };
+    expect(
+      failureKeys({ kind: 'rangeNotEnforced', action: transfer, outcome: 'accepted' }),
+    ).toEqual(['rangeNotEnforced: bankTransfer -> accepted']);
+    expect(
+      failureKeys({ kind: 'bankChangedTotal', playerId: 'p2', before: 100, after: 101 }),
+    ).toEqual(['bankChangedTotal']);
+    expect(
+      describeFailure({ kind: 'bankChangedTotal', playerId: 'p2', before: 100, after: 101 }),
+    ).toEqual(["a bank changed p2's cash + deposit from 100 to 101"]);
   });
 
   it('counts a repeated violation once per game', () => {
@@ -279,6 +328,19 @@ describe('formatting', () => {
         { type: 'bid', playerId: 'p3', raise: 500 },
       ]),
     ).toBe('p2:setDiceCount(2) p3:bid(500)');
+    expect(
+      formatActions([
+        { type: 'bankTransfer', playerId: 'p1', direction: 'withdraw', amount: 30 },
+        { type: 'bankTransfer', playerId: 'p1', direction: 'deposit', max: 70 },
+      ]),
+    ).toBe('p1:bankTransfer(withdraw 30) p1:bankTransfer(deposit 1..70)');
+  });
+
+  it('adds --tables to the rerun command when characters came from a file', () => {
+    const characters = { path: 'C:/x/tables.json', profiles: [] };
+    expect(rerunCommand({ ...spec, characters })).toBe(
+      `${rerunCommand(spec)} --tables C:/x/tables.json`,
+    );
   });
 
   it('builds a rerun command for one game', () => {
