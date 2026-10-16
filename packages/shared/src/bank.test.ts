@@ -39,11 +39,12 @@ describe('rebalance', () => {
     expect(rebalance(0, 1000, 95, MID)).toEqual({ cash: 949, deposit: 51 });
   });
 
-  it('multiplies the total by the single-precision target exactly before rounding down', () => {
-    // In double precision the product rounds up to 24629060042787.
-    expect(rebalance(0, 35_184_372_088_882, 70, MID)).toEqual({
-      cash: 24_629_060_042_786,
-      deposit: 35_184_372_088_882 - 24_629_060_042_786,
+  it('rounds total × target to double precision before rounding down, like the original FPU', () => {
+    // The exact product is 214748366.99999998...; the original's FPU (53-bit precision) and a
+    // double both round it to 214748367.
+    expect(rebalance(0, 2_147_483_638, 10, MID)).toEqual({
+      cash: 214_748_367,
+      deposit: 2_147_483_638 - 214_748_367,
     });
   });
 

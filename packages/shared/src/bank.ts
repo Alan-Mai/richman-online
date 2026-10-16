@@ -37,22 +37,8 @@ export function rebalance(
   if (off < 0.25 && off > -0.25 && cash !== 0) {
     return { cash, deposit };
   }
-  const kept = floorTimes(total, target);
+  // The original's FPU runs at 53-bit precision, so the product is rounded like a double before
+  // being truncated.
+  const kept = Math.trunc(total * target);
   return { cash: kept, deposit: total - kept };
-}
-
-/**
- * floor(n × x) computed exactly, for a non-negative integer n and a non-negative finite x: the
- * original multiplies in the FPU's extended precision, where the product of an integer and a
- * single-precision value is exact.
- */
-function floorTimes(n: number, x: number): number {
-  // x = mantissa / 2^shift with an integer mantissa; doubling is exact.
-  let mantissa = x;
-  let shift = 0;
-  while (!Number.isInteger(mantissa)) {
-    mantissa *= 2;
-    shift++;
-  }
-  return Number((BigInt(n) * BigInt(mantissa)) >> BigInt(shift));
 }
