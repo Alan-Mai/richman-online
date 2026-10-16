@@ -429,4 +429,15 @@ describe('bankruptcy auctions: rejected actions', () => {
       error: { code: 'insufficientFunds' },
     });
   });
+
+  it('offers no raise when cash covers the price but not the smallest raise, and refuses one as insufficientFunds', () => {
+    // 1050 stays in the auction at 1000 but cannot add 100; bidding is still an auction action, so
+    // the refusal comes from the cash check, not from the phase.
+    const state = auction({}, { p2: 1050 });
+    expect(legalActions(state, 'p2')).toEqual([pass('p2'), withdraw('p2')]);
+    expect(applyAction(state, bid('p2', 100))).toEqual({
+      ok: false,
+      error: { code: 'insufficientFunds' },
+    });
+  });
 });

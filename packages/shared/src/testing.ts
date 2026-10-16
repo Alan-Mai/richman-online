@@ -8,9 +8,11 @@ import type { PlayerId, TileIndex } from './ids';
 import { TEST_LOOP_BOARD } from './maps/test-loop';
 import { PROVISIONAL_COMPUTER_PROFILE, type CharacterProfile } from './profile';
 import type { RngState } from './rng';
+import type { RuleError } from './errors';
 import type {
   Controller,
   GameState,
+  PhaseKind,
   PlayerLocation,
   PlayerState,
   TileState,
@@ -202,6 +204,37 @@ export function applyOk(
     throw new Error(`action rejected: ${JSON.stringify(result.error)}`);
   }
   return { state: result.state, events: result.events };
+}
+
+/** The action types each phase handles; applyAction refuses any other type as wrongPhase. */
+export const PHASE_ACTIONS: Readonly<Record<PhaseKind, readonly ActionType[]>> = {
+  awaitRoll: ['rollDice', 'setDiceCount'],
+  awaitBuyDecision: ['buyProperty', 'decline'],
+  awaitUpgradeDecision: ['upgradeProperty', 'decline'],
+  auction: ['bid', 'passRound', 'withdraw'],
+  gameOver: [],
+};
+
+/**
+ * How applyAction must refuse exampleAction(type) when legalActions does not offer that type,
+ * following the error order in docs/ARCHITECTURE.md: wrongPhase if the phase does not handle the
+ * type; otherwise the action's own check, which is why it was not offered: no dice choice on foot
+ * (invalidAction) or cash short of the smallest raise (insufficientFunds). The other types are
+ * always offered in their phases, so null means "should have been offered".
+ */
+export function unofferedRefusal(state: GameState, type: ActionType): RuleError | null {
+  const phase = state.turn.phase.kind;
+  if (!PHASE_ACTIONS[phase].includes(type)) {
+    return { code: 'wrongPhase', phase };
+  }
+  switch (type) {
+    case 'setDiceCount':
+      return { code: 'invalidAction' };
+    case 'bid':
+      return { code: 'insufficientFunds' };
+    default:
+      return null;
+  }
 }
 
 /** A well-formed action of the given type, with made-up parameters where it takes any. */

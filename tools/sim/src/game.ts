@@ -15,6 +15,7 @@ import {
   viewFor,
   type Action,
   type ActionType,
+  type PhaseKind,
   type Board,
   type Controller,
   type CreateGameError,
@@ -162,7 +163,13 @@ export type Failure =
   | { kind: 'auctionTooLong'; tile: TileIndex; actions: number }
   | { kind: 'legalActionRejected'; action: Action; error: RuleError }
   /** An action type missing from legalActions was not refused with the expected error. */
-  | { kind: 'unofferedNotRefused'; action: Action; outcome: string; expected: RuleError['code'] }
+  /** expected 'offered': the type is always offered in this phase, but was not. */
+  | {
+      kind: 'unofferedNotRefused';
+      action: Action;
+      outcome: string;
+      expected: RuleError['code'] | 'offered';
+    }
   | { kind: 'missingGameEnded' }
   | { kind: 'stepLimit'; maxSteps: number }
   | { kind: 'exception'; message: string; stack?: string };
@@ -337,14 +344,34 @@ export function checkStep(
   return null;
 }
 
+/** The action types each phase handles; applyAction refuses any other type as wrongPhase. */
+const PHASE_ACTIONS: Readonly<Record<PhaseKind, readonly ActionType[]>> = {
+  awaitRoll: ['rollDice', 'setDiceCount'],
+  awaitBuyDecision: ['buyProperty', 'decline'],
+  awaitUpgradeDecision: ['upgradeProperty', 'decline'],
+  auction: ['bid', 'passRound', 'withdraw'],
+  gameOver: [],
+};
+
 /**
- * How an unoffered action type must be refused: wrongPhase, except the dice count while waiting to
- * roll, which is only unoffered on foot, where it is not a choice (invalidAction).
+ * How an unoffered action type must be refused, following the error order in
+ * docs/ARCHITECTURE.md: wrongPhase if the phase does not handle the type; otherwise the action's own
+ * check, which is why it was not offered: no dice choice on foot (invalidAction) or cash short of
+ * the smallest raise (insufficientFunds). The other types are always offered in their phases
+ * ('offered').
  */
-function expectedRefusal(state: GameState, type: ActionType): RuleError['code'] {
-  return type === 'setDiceCount' && state.turn.phase.kind === 'awaitRoll'
-    ? 'invalidAction'
-    : 'wrongPhase';
+function expectedRefusal(state: GameState, type: ActionType): RuleError['code'] | 'offered' {
+  if (!PHASE_ACTIONS[state.turn.phase.kind].includes(type)) {
+    return 'wrongPhase';
+  }
+  switch (type) {
+    case 'setDiceCount':
+      return 'invalidAction';
+    case 'bid':
+      return 'insufficientFunds';
+    default:
+      return 'offered';
+  }
 }
 
 export const sameAction = (a: Action, b: Action): boolean =>
