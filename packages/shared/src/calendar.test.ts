@@ -72,12 +72,24 @@ describe('day numbers', () => {
   });
 
   it('round-trip over two centuries', () => {
+    // Mismatches are collected and checked once: an expect per day made this test slow.
+    const mismatches: string[] = [];
     let expected = CALENDAR_EPOCH;
     for (let serial = 0; serial < 80_000; serial++) {
-      expect(fromSerial(serial)).toEqual(expected);
-      expect(toSerial(expected)).toBe(serial);
+      const date = fromSerial(serial);
+      if (compareDates(date, expected) !== 0) {
+        mismatches.push(
+          `fromSerial(${serial}) = ${JSON.stringify(date)}, expected ${JSON.stringify(expected)}`,
+        );
+      }
+      const back = toSerial(expected);
+      if (back !== serial) {
+        mismatches.push(`toSerial(${JSON.stringify(expected)}) = ${back}, expected ${serial}`);
+      }
       expected = nextDay(expected).date;
     }
+    expect(mismatches.slice(0, 10)).toEqual([]);
+    expect(mismatches).toHaveLength(0);
   });
 });
 
