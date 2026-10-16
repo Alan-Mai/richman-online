@@ -34,7 +34,8 @@ const ACTION_TYPES: readonly ActionType[] = [
 /**
  * Plays random legal actions (choices drawn from a separate seeded RNG) and checks at every step
  * that each offered action is accepted, nobody else is offered anything, and unoffered action
- * types are refused.
+ * types are refused. Problems are collected and compared once at the end: an expect per check
+ * made this test take seconds (docs/BANK_PLAN.md, batch 3 timeouts).
  */
 function playRandomGame(start: GameState, seed: number, maxSteps: number) {
   let state = start;
@@ -42,17 +43,33 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
   let steps = 0;
   let auctionSteps = 0;
   let bankSteps = 0;
+  const problems: string[] = [];
+  const at = () => `seed ${seed} step ${steps} (${state.turn.phase.kind})`;
+  const refusedAs = (action: Action, error: unknown) => {
+    const result = applyAction(state, action);
+    const expected = JSON.stringify({ ok: false, error });
+    if (JSON.stringify(result) !== expected) {
+      problems.push(
+        `${at()}: ${JSON.stringify(action)} gave ${JSON.stringify(result.ok ? 'ok' : result.error)}, expected ${expected}`,
+      );
+    }
+  };
   while (state.turn.phase.kind !== 'gameOver' && steps < maxSteps) {
-    expect(checkInvariants(state)).toEqual([]);
+    problems.push(...checkInvariants(state).map((e) => `${at()}: ${e}`));
     const current = actorOf(state) ?? '';
     for (const player of state.players) {
-      if (player.id !== current) expect(legalActions(state, player.id)).toEqual([]);
+      if (player.id !== current && legalActions(state, player.id).length > 0) {
+        problems.push(`${at()}: ${player.id} is offered actions out of turn`);
+      }
     }
 
     const legal = legalActions(state, current);
-    expect(legal.length).toBeGreaterThan(0);
+    expect(legal.length, `${at()}: nothing offered`).toBeGreaterThan(0);
     for (const option of legal) {
-      for (const action of sampleActions(option)) expect(applyAction(state, action).ok).toBe(true);
+      for (const action of sampleActions(option)) {
+        if (!applyAction(state, action).ok)
+          problems.push(`${at()}: ${JSON.stringify(action)} refused`);
+      }
       if (option.type === 'bankTransfer') {
         // A range allows exactly 1..max: below is malformed, above is more than there is.
         const outside: [number, string][] = [
@@ -60,8 +77,7 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
           [option.max + 1, 'insufficientFunds'],
         ];
         for (const [amount, code] of outside) {
-          const action = { ...concrete(option), amount } as Action;
-          expect(applyAction(state, action)).toEqual({ ok: false, error: { code } });
+          refusedAs({ ...concrete(option), amount } as Action, { code });
         }
         bankSteps++;
       }
@@ -69,11 +85,8 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
     for (const type of ACTION_TYPES) {
       if (!legal.some((a) => a.type === type)) {
         const error = unofferedRefusal(state, type);
-        expect(
-          error,
-          `${type} should have been offered in ${state.turn.phase.kind}`,
-        ).not.toBeNull();
-        expect(applyAction(state, exampleAction(type, current))).toEqual({ ok: false, error });
+        if (error === null) problems.push(`${at()}: ${type} should have been offered`);
+        else refusedAs(exampleAction(type, current), error);
       }
     }
 
@@ -91,7 +104,8 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
     state = result.state;
     steps++;
   }
-  expect(checkInvariants(state)).toEqual([]);
+  problems.push(...checkInvariants(state).map((e) => `${at()}: ${e}`));
+  expect(problems).toEqual([]);
   return { state, auctionSteps, bankSteps };
 }
 
