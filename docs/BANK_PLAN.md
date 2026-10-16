@@ -151,7 +151,7 @@
   - 2-6 前置：`/pre-push` 的逐 commit 素材檢查加上 `tools/sim/out/` 與任何 `tables.json`（現有歷史中沒有這類檔案）。
   - 2-6 完成：`--tables <path>`（`parseOriginalTables` 讀取；每局以 `characterSeedFor(遊戲種子)` 為電腦座位不重複抽角色，紀錄檔的 `players` 含抽到的比例，replay 不需要原檔）；統計每局人類開啟銀行（經過／停留）、提款／存款次數與平均金額、離開次數、電腦重新分配次數；新檢查 `bankChangedTotal`（重新分配用事件的新金額、轉帳用動作後的狀態比對現金 + 存款，replay 同樣檢查）；`HIDDEN_KEYS` 加 `profile`。與計畫的差異：`tables.json` v1 沒有借款比例，電腦的 `loanPercent` 暫用暫定值，批次 3-2 匯出 v2 後改用原版。隨機 AI 的銀行動作已在 2-4 做完。兩張圖 × 三種座位 × 有無 `--tables` 各 1000 局全部通過。
   - 2-7 完成（使用者目視確認）：`ui/bank-panel.ts`（提款／存款模式、數字鍵最多 9 位且超過上限改成上限、C／M／退格、34 格拉桿依原版公式、確認／取消；開著時實體鍵 0–9、Backspace、Enter、Esc 也可用；切換模式歸 0；確認金額 0 等於離開）；HUD 顯示日期與星期；銀行格在棋盤上用自己的顏色、格子資訊說明用途。匯入 `tables.json` 後設定畫面的電腦座位顯示「角色 N」（有填種子時預覽，空白時顯示開局時抽選），HUD 玩家名稱後加「（角色 N）」。與計畫的差異：抽角色與「資料表 → 比例」移到 shared（`drawCharacters`、`profilesFromTables`），模擬器改用它們（結果不變），兩者只在開局前由呼叫端使用。使用者回饋「拉桿會隨輸入的數字移動」，逆向步驟 10d 查證屬實（重畫時填滿到 trunc(金額 ÷ 上限 × 34) 格），照原版實作並寫進 GAME_RULES。上限 0 時原版未定義：使用者決定停用上限 0 的模式、預設開存款模式（為避開未定義行為的調整，寫在 GAME_RULES 第 4 節）；現行實作已是如此。
-- 批次 3：進行中。
+- 批次 3：完成。
   - 3-1 查證完成（逆向步驟 10e，約 0.6 輪，不 commit）：
     - 櫃檯每次停留最多成功借或還一筆，成功後關閉；取消（輸入 0、輸入框右鍵）與超過額度回到選單；還款金額超過現金 + 存款時提示「現金不足」後重新輸入。
     - 數字輸入框：鍵盤規則同存提款畫面，回傳 0..上限（0 = 取消），還款的上限是貸款餘額；拉桿 34 個位置，金額 = trunc(上限 × float32(i ÷ 33))，重畫填到 trunc(float32(金額 ÷ 上限) × 33)，H 鍵跳到第 17 個位置。
@@ -186,4 +186,6 @@
     - `tools/sim/src/game.test.ts` › BOARDS › plays clean games on the branch board（7265 ms）
     - `tools/sim/src/simulate.test.ts` › runCommand run with --tables › plays clean games with characters drawn from the file（5962 ms）
     - `tools/sim/src/simulate.test.ts` › runCommand run › plays clean games without writing files（5964 ms）
+    - session 收尾時在沒有背景工作的情況下量耗時：超過 2 秒的只有 holds through bankruptcy auctions（2065 ms），其中引擎只占約 180 ms，其餘是每步的 `expect`；`test(shared)` 改成收集不一致的項目最後比對一次，降到 245 ms（同檔 poor players until one is left 1581 → 226 ms）。其餘三個都在 1.7 秒以下。
+    - 待補項（量測時發現，尚未處理）：`engine.legal.test.ts` 的 `ACTION_TYPES` 沒有列 `borrow`／`repay`／`leaveCounter`（3-4 時漏改），所以這個隨機對局測試沒有檢查櫃檯動作未提供時的拒絕，範圍外（max + 1）的檢查也只做 `bankTransfer`。模擬器（`tools/sim`）有涵蓋。
     - 之後同一批若再逾時，照 `.claude/rules/commit-workflow.md` 處理（先量耗時找原因：線性時間就改演算法另開 perf commit，慢在大量 `expect` 就改成最後一次比對，仍不夠才調個別時限）。
