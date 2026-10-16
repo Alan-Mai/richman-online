@@ -34,6 +34,18 @@ import {
   type BankKey,
   type BankOffer,
 } from './bank-panel';
+import {
+  CounterPanel,
+  INITIAL_COUNTER_ENTRY,
+  confirmCounter,
+  counterDoneMessage,
+  counterKeyFor,
+  counterOffer,
+  pressCounterKey,
+  type CounterEntry,
+  type CounterKey,
+  type CounterOffer,
+} from './counter-panel';
 import { cycleDiceIntent, dicePanelState, renderDicePanel } from './dice-panel';
 import { describeEvent } from './event-text';
 
@@ -139,6 +151,12 @@ export class Hud implements ControllerSink {
   private readonly bankPanel: BankPanel;
   private bankOffer: BankOffer | null = null;
   private bankEntry: BankEntry | null = null;
+  private readonly counter = el('section', 'hud-counter');
+  private readonly counterPanel: CounterPanel;
+  private counterOffer: CounterOffer | null = null;
+  private counterEntry: CounterEntry | null = null;
+  /** The last counter opened, kept to show its closing message once the action has gone out. */
+  private lastCounterOffer: CounterOffer | null = null;
   private readonly tileInfo = el('section', 'hud-tile');
   private readonly log = el('ol', 'hud-log');
   private model: DisplayModel | null = null;
@@ -156,6 +174,11 @@ export class Hud implements ControllerSink {
       onKey: (key) => this.pressBank(key),
       onAct: (intent) => options.onAct(intent),
     });
+    this.counterPanel = new CounterPanel(this.counter, {
+      onKey: (key) => this.pressCounter(key),
+      onConfirm: () => this.confirmCounterEntry(),
+      onAct: (intent) => options.onAct(intent),
+    });
     const logSection = el('section', 'hud-log-section');
     logSection.append(el('h2', undefined, t('hud.log')), this.log);
     this.renderLimits();
@@ -168,6 +191,7 @@ export class Hud implements ControllerSink {
       this.dice,
       this.actions,
       this.bank,
+      this.counter,
       this.auction,
       this.players,
       this.tileInfo,
@@ -208,6 +232,9 @@ export class Hud implements ControllerSink {
           el('dd', 'hud-cash', formatMoney(p.cash)),
           el('dt', undefined, t('hud.deposit')),
           el('dd', 'hud-deposit', formatMoney(p.deposit)),
+          ...(p.loan > 0
+            ? [el('dt', undefined, t('counter.loan')), el('dd', 'hud-loan', formatMoney(p.loan))]
+            : []),
           el('dt', undefined, t('hud.netWorth')),
           el('dd', 'hud-networth', formatMoney(netWorth(view, p.id))),
           el('dt', undefined, t('hud.vehicle')),
@@ -222,10 +249,29 @@ export class Hud implements ControllerSink {
     );
     this.renderAuction();
     this.renderBank();
+    this.renderCounter();
     this.renderTile();
   }
 
+  /**
+   * A borrowing or repayment at the counter keeps the counter open with its message while the
+   * event plays (the animator waits the original's 1500 ms), like the original.
+   */
+  eventStarted(event: GameEvent, model: DisplayModel): void {
+    const message = counterDoneMessage(event);
+    if (message === null || this.lastCounterOffer === null) return;
+    this.model = model;
+    this.counterOffer = this.lastCounterOffer;
+    this.counterEntry = { kind: 'done', message, notice: null };
+    this.renderCounter();
+  }
+
   eventPlayed(event: GameEvent, model: DisplayModel): void {
+    if (this.counterEntry?.kind === 'done' && counterDoneMessage(event) !== null) {
+      this.counterOffer = null;
+      this.counterEntry = null;
+      this.renderCounter();
+    }
     this.log.prepend(el('li', undefined, describeEvent(event, model, this.options.board)));
     while (this.log.children.length > LOG_LIMIT) this.log.lastElementChild?.remove();
   }
@@ -236,6 +282,11 @@ export class Hud implements ControllerSink {
     this.bankOffer = bankOffer(update);
     this.bankEntry = this.bankOffer === null ? null : initialBankEntry(this.bankOffer);
     this.renderBank();
+    // Every counter visit starts at its menu.
+    this.counterOffer = counterOffer(update);
+    this.counterEntry = this.counterOffer === null ? null : INITIAL_COUNTER_ENTRY;
+    if (this.counterOffer !== null) this.lastCounterOffer = this.counterOffer;
+    this.renderCounter();
     this.renderActions();
     this.renderAuction();
     this.renderTile();
@@ -259,9 +310,17 @@ export class Hud implements ControllerSink {
 
   /**
    * A key pressed anywhere on the page: the bank dialog takes digits, Backspace, Enter and Escape
-   * while it is open. Returns whether the key was used.
+   * while it is open, and the counter's amount field also C, M and H. Returns whether the key was
+   * used.
    */
   handleKey(key: string): boolean {
+    if (this.counterEntry?.kind === 'field') {
+      const action = counterKeyFor(key);
+      if (action === null) return false;
+      if (action === 'confirm') this.confirmCounterEntry();
+      else this.pressCounter(action);
+      return true;
+    }
     if (this.bankEntry === null) return false;
     const action = bankKeyFor(key);
     if (action === null) return false;
@@ -294,6 +353,43 @@ export class Hud implements ControllerSink {
     });
   }
 
+  private pressCounter(key: CounterKey): void {
+    if (this.counterOffer === null || this.counterEntry === null) return;
+    this.counterEntry = pressCounterKey(this.counterEntry, key, this.counterOffer);
+    this.renderCounter();
+  }
+
+  private confirmCounterEntry(): void {
+    if (this.counterOffer === null || this.counterEntry === null) return;
+    const result = confirmCounter(this.counterEntry, this.counterOffer);
+    if ('send' in result) {
+      this.options.onAct(result.send);
+      return;
+    }
+    this.counterEntry = result.entry;
+    this.renderCounter();
+  }
+
+  private renderCounter(): void {
+    const offer = this.counterOffer;
+    const entry = this.counterEntry;
+    const model = this.model;
+    const player = model?.players.find((p) => p.id === model.current);
+    if (offer === null || entry === null || model === null || player === undefined) {
+      this.counterPanel.render(null);
+      return;
+    }
+    this.counterPanel.render({
+      offer,
+      entry,
+      tileName: this.options.board.tiles[offer.tile]?.name ?? String(offer.tile),
+      cash: player.cash,
+      deposit: player.deposit,
+      loan: player.loan,
+      netWorth: netWorth({ ...model, board: this.options.board }, player.id),
+    });
+  }
+
   /** Shows details of a tile (from a click on the board); null clears the panel. */
   showTile(tile: TileIndex | null): void {
     this.selectedTile = tile;
@@ -323,12 +419,16 @@ export class Hud implements ControllerSink {
     this.prompt.textContent = !offered
       ? ''
       : t(bidder === null ? 'hud.yourTurn' : 'hud.auctionTurn', { name: actor.name });
-    // The auction, dice and bank panels have their own buttons; amounts at the loan counter wait
-    // for its panel (docs/BANK_PLAN.md 3-9), so only leaving it is a button for now.
+    // The auction, dice, bank and counter panels have their own buttons.
     const turnActions =
       bidder === null
         ? update.legalActions.flatMap((a) =>
-            isAmountOption(a) || a.type === 'setDiceCount' || a.type === 'leaveBank' ? [] : [a],
+            isAmountOption(a) ||
+            a.type === 'setDiceCount' ||
+            a.type === 'leaveBank' ||
+            a.type === 'leaveCounter'
+              ? []
+              : [a],
           )
         : [];
     renderDicePanel(

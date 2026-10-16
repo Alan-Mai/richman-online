@@ -184,6 +184,7 @@ GameController ◀── ServerUpdate {events, view, legalActions} ──┘
 
 - **不在客戶端判斷規則**：只有 `net/local-host.ts` 呼叫 `actorOf` / `legalActions` / `applyAction` / `computerAction`（它扮演伺服器；電腦座位每個動作送一次更新，電腦行動時不送可選動作）；其餘模組只讀 `ServerUpdate`。intent 帶完整參數（例：加價檔位、顆數、存提款金額），不帶 `playerId`，由主機補上（拍賣中是輪到出價的人）。
 - **事件驅動畫面**：`model/display.ts` 的 `applyEventToDisplay` 逐事件推進畫面狀態；測試確認「事件依序套在前一個 view 上必定得到下一個 view」，事件缺資訊時會被抓到。
+- **事件開始的通知**：`EventQueue` 在每個事件播放前通知 sinks（`eventStarted`），讓 DOM 面板配合動畫顯示內容（例：櫃檯借還款成功的訊息在播放期間留在櫃檯畫面，播完才關閉）。
 - **輸入鎖定**：`EventQueue` 播放期間 busy，按鈕全部移除；播完才以最新一筆更新的 `legalActions` 產生按鈕。動畫失敗會跳過，不卡住遊戲。
 - **分層**：Phaser 只畫棋盤、棋子、骰子與飄字（`scenes/`、`render/`）；HUD、設定畫面、結算框、原版地圖選單是 DOM（`ui/`），可用 Vitest + happy-dom 測試。版面為 CSS grid，寬度 ≤ 720px 時改為上下排列。
 - **動畫時間**集中在 `render/timings.ts`：結構照原版（`GAME_RULES.md` 第 10 節），幀長與每幀位移用 `Pacing`（專案自訂值，或設定畫面匯入 `tables.json` 後由 `pacingFromTables` 換算的原版值）；拍賣照原版的固定時間。

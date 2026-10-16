@@ -19,6 +19,8 @@ export interface EventQueueListener {
   onAnimationError(error: unknown, event: GameEvent): void;
   /** An event has finished playing; `model` is the display after it, `update` the one it came in. */
   onEventPlayed(event: GameEvent, model: DisplayModel, update: ServerUpdate): void;
+  /** An event is about to play; `model` is what it ends on. */
+  onEventStarted?(event: GameEvent, model: DisplayModel): void;
 }
 
 export class EventQueue {
@@ -73,6 +75,7 @@ export class EventQueue {
     for (const event of update.events) {
       const before = this.model ?? expected;
       const after = snapshot ? before : applyEventToDisplay(before, event);
+      this.listener.onEventStarted?.(event, after);
       try {
         await this.animator.play(event, before, after);
       } catch (error) {

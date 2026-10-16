@@ -90,6 +90,22 @@ describe('EventQueue', () => {
     expect(queue.display).toEqual(displayFromView(updates.at(-1)!.view));
   });
 
+  it('says when each event starts, before its animation, with the model it ends on', async () => {
+    const animator = new ManualAnimator();
+    const { listener } = recorder();
+    const started: [GameEvent['type'], number][] = [];
+    const queue = new EventQueue(animator, {
+      ...listener,
+      onEventStarted: (event) => started.push([event.type, animator.played.length]),
+    });
+    const [first] = updates;
+    queue.push(first!);
+    await animator.finishAll();
+    await idle(queue);
+    // Each start comes before the animator has played that event.
+    expect(started).toEqual(first!.events.map((e, i) => [e.type, i]));
+  });
+
   it('is busy while playing and offers actions only after the last event', async () => {
     const animator = new ManualAnimator();
     const { log, listener } = recorder();

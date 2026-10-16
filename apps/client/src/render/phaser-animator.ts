@@ -11,12 +11,28 @@ import {
   AUCTION,
   DURATIONS,
   FIXED_MS,
+  PROJECT_MS,
   auctionActionMs,
   frameScale,
   stepMs,
   type GameSpeed,
   type Pacing,
 } from './timings';
+
+function nameOf(model: DisplayModel, id: PlayerId): string {
+  return model.players.find((p) => p.id === id)?.name ?? id;
+}
+
+/** A computer's borrowing or repayment, as the message says it. */
+function describeLoan(
+  event: Extract<GameEvent, { type: 'LoanBorrowed' | 'LoanRepaid' }>,
+  before: DisplayModel,
+): string {
+  const params = { name: nameOf(before, event.playerId), amount: formatMoney(event.amount) };
+  return event.type === 'LoanBorrowed'
+    ? t('message.computerBorrowed', params)
+    : t('message.computerRepaid', params);
+}
 
 export interface AnimationStage {
   readonly phaserScene: Phaser.Scene;
@@ -109,9 +125,88 @@ export class PhaserAnimator implements Animator {
           this.wait(AUCTION.messageMs),
         ]);
         return;
+      case 'LoanBorrowed':
+      case 'LoanRepaid': {
+        this.stage.showModel(after);
+        // A computer's borrowing or repayment is a message on the board; at the counter the HUD
+        // shows it inside the counter for the same time before the counter closes.
+        return event.by === 'computer'
+          ? this.message([describeLoan(event, before)], FIXED_MS.message)
+          : this.wait(FIXED_MS.message);
+      }
+      case 'LoanReminder':
+        return this.message(
+          [
+            t('message.loanReminder', {
+              name: nameOf(before, event.playerId),
+              days: event.daysLeft,
+            }),
+          ],
+          event.daysLeft >= 3 ? PROJECT_MS.loanReminderScreen : FIXED_MS.message,
+        );
+      case 'LoanCalledIn':
+        this.stage.showModel(after);
+        return this.message(
+          [
+            t('message.loanCalledIn', {
+              name: nameOf(before, event.playerId),
+              amount: formatMoney(event.amount),
+            }),
+          ],
+          FIXED_MS.message,
+        );
+      case 'MonthStarted':
+        this.stage.showModel(after);
+        return this.message(
+          [
+            t('message.monthStarted', { month: after.date.month }),
+            ...event.players.map((line) =>
+              line.kind === 'interest'
+                ? t('message.monthInterest', {
+                    name: nameOf(before, line.playerId),
+                    deposit: formatMoney(
+                      after.players.find((p) => p.id === line.playerId)?.deposit ?? 0,
+                    ),
+                    amount: formatMoney(line.amount),
+                  })
+                : t('message.monthOnLoan', { name: nameOf(before, line.playerId) }),
+            ),
+          ],
+          PROJECT_MS.monthReport,
+        );
       case 'GameEnded':
         return this.wait(this.scaled(DURATIONS.gameEnd));
     }
+  }
+
+  /**
+   * A box of text over the middle of the board for `ms` (fast-forward applies), wrapped to fit the
+   * board's width.
+   */
+  private async message(lines: readonly string[], ms: number): Promise<void> {
+    const scene = this.stage.phaserScene;
+    const center = this.boardCenter();
+    const pad = 16;
+    const width = scene.scale.width;
+    const text = scene.add
+      .text(center.x, center.y, lines.join('\n'), {
+        color: '#ffffff',
+        fontFamily: FONT_FAMILY,
+        fontSize: `${Math.max(12, Math.min(18, Math.round(width / 28)))}px`,
+        align: 'center',
+        lineSpacing: 6,
+        resolution: TEXT_RESOLUTION,
+        wordWrap: { width: Math.max(80, width * 0.9 - 2 * pad), useAdvancedWrap: true },
+      })
+      .setOrigin(0.5)
+      .setDepth(31);
+    const box = scene.add
+      .rectangle(center.x, center.y, text.width + 2 * pad, text.height + 2 * pad, 0x1d2b3a, 0.92)
+      .setStrokeStyle(2, 0xf6d36b)
+      .setDepth(30);
+    await this.wait(ms);
+    text.destroy();
+    box.destroy();
   }
 
   /** Converts a duration given at the default game speed to the current setting. */

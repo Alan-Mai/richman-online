@@ -339,7 +339,8 @@ body {
 }
 
 /* The bank's deposit and withdrawal dialog. */
-.hud-bank {
+.hud-bank,
+.hud-counter {
   display: grid;
   min-width: 0;
   gap: 8px;
@@ -349,16 +350,19 @@ body {
   background: rgba(0, 0, 0, 0.25);
 }
 
-.hud-bank[hidden] {
+.hud-bank[hidden],
+.hud-counter[hidden] {
   display: none;
 }
 
-.hud-bank h2 {
+.hud-bank h2,
+.hud-counter h2 {
   margin: 0;
   font-size: 15px;
 }
 
-.bank-balances {
+.bank-balances,
+.counter-balances {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 2px 8px;
@@ -366,23 +370,27 @@ body {
   font-size: 13px;
 }
 
-.bank-balances dt {
+.bank-balances dt,
+.counter-balances dt {
   color: var(--muted);
 }
 
-.bank-balances dd {
+.bank-balances dd,
+.counter-balances dd {
   margin: 0;
   font-variant-numeric: tabular-nums;
 }
 
 .bank-modes,
-.bank-actions {
+.bank-actions,
+.counter-menu {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
 
-.bank-amount {
+.bank-amount,
+.counter-amount {
   padding: 6px 8px;
   border: 2px solid var(--panel-border);
   border-radius: 6px;
@@ -394,7 +402,8 @@ body {
   text-align: right;
 }
 
-.bank-limit {
+.bank-limit,
+.counter-limit {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
@@ -407,12 +416,14 @@ body {
   gap: 4px;
 }
 
-.bank-slider {
+.bank-slider,
+.counter-slider {
   width: 100%;
   accent-color: var(--accent);
 }
 
-.hud-bank button {
+.hud-bank button,
+.hud-counter button {
   min-height: 40px;
   padding: 4px;
   border: 2px solid var(--panel-border);
@@ -425,24 +436,52 @@ body {
 }
 
 .hud-bank .bank-mode[aria-pressed='true'],
-.hud-bank .primary {
+.hud-bank .primary,
+.hud-counter .primary {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--bg);
 }
 
-.hud-bank .secondary {
+.hud-bank .secondary,
+.hud-counter .secondary {
   background: var(--panel-border);
 }
 
-.hud-bank button:disabled {
+.hud-bank button:disabled,
+.hud-counter button:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 
-.hud-bank button:focus-visible {
+.hud-bank button:focus-visible,
+.hud-counter button:focus-visible {
   outline: 3px solid #ffffff;
   outline-offset: 2px;
+}
+
+.counter-menu {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.counter-body {
+  display: grid;
+  gap: 8px;
+}
+
+.counter-body h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.counter-notice {
+  margin: 0;
+  color: #ffb4a8;
+  font-size: 13px;
+}
+
+.counter-notice[hidden] {
+  display: none;
 }
 
 .hud-tile dl {

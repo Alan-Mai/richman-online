@@ -9,6 +9,8 @@ export interface ControllerSink {
   showModel?(model: DisplayModel): void;
   /** An event finished playing; `model` is the display after it, `update` the one it came in. */
   eventPlayed?(event: GameEvent, model: DisplayModel, update: ServerUpdate): void;
+  /** An event is about to play; `model` is the display it ends on. */
+  eventStarted?(event: GameEvent, model: DisplayModel): void;
   setBusy?(busy: boolean): void;
   /** The update whose legal actions may now be offered; null while playing. */
   setReady?(update: ServerUpdate | null): void;
@@ -34,6 +36,7 @@ export class GameController {
       onDisplay: (model) => this.sinks.forEach((s) => s.showModel?.(model)),
       onEventPlayed: (event, model, update) =>
         this.sinks.forEach((s) => s.eventPlayed?.(event, model, update)),
+      onEventStarted: (event, model) => this.sinks.forEach((s) => s.eventStarted?.(event, model)),
       onBusyChange: (busy) => {
         if (busy) this.setReady(null);
         this.sinks.forEach((s) => s.setBusy?.(busy));
