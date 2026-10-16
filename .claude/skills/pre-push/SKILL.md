@@ -22,6 +22,8 @@ disable-model-invocation: true
      - 原版副檔名：`mkf`、`exe`、`dll`、`avi`、`mid`、`wav`、`iso`（大小寫不拘；`tools/**/fixtures/` 除外）
      - `.env` 或 `.env.*`（`.env.example` 除外）
      - `local-assets/` 底下的任何檔案
+     - `tools/sim/out/` 底下的任何檔案（模擬器的失敗紀錄與 replay 檔，可能含匯入的原版角色比例）
+     - 任何目錄下名為 `tables.json` 的檔案（`tools/extract` 匯出的原版資料表；測試用的假資料請用別的檔名）
      - 超過 1 MB（1,048,576 bytes）的檔案
    - 對每個 commit 執行 `git grep -n TEMP-DEBUG <commit> -- . ':!*.md' ':!.claude/'`，結果必須為空（暫時除錯程式不得推送；文件與規則檔提到這個標記不算）。
    - 列出每個 commit 的檔案數與最大檔，作為佐證。
