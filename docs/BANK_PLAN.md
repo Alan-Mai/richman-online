@@ -189,3 +189,5 @@
     - session 收尾時在沒有背景工作的情況下量耗時：超過 2 秒的只有 holds through bankruptcy auctions（2065 ms），其中引擎只占約 180 ms，其餘是每步的 `expect`；`test(shared)` 改成收集不一致的項目最後比對一次，降到 245 ms（同檔 poor players until one is left 1581 → 226 ms）。其餘三個都在 1.7 秒以下。
     - 待補項（量測時發現，尚未處理）：`engine.legal.test.ts` 的 `ACTION_TYPES` 沒有列 `borrow`／`repay`／`leaveCounter`（3-4 時漏改），所以這個隨機對局測試沒有檢查櫃檯動作未提供時的拒絕，範圍外（max + 1）的檢查也只做 `bankTransfer`。模擬器（`tools/sim`）有涵蓋。
     - 之後同一批若再逾時，照 `.claude/rules/commit-workflow.md` 處理（先量耗時找原因：線性時間就改演算法另開 perf commit，慢在大量 `expect` 就改成最後一次比對，仍不夠才調個別時限）。
+- 批次 4：進行中。
+  - 4-0 完成（批次 3 的待補項，計畫外新增）：`engine.legal.test.ts` 的 `ACTION_TYPES` 改成 `satisfies Record<ActionType, true>` 的物件（漏列時 typecheck 失敗，已確認），補上 `borrow`／`repay`／`leaveCounter`；範圍外的拒絕檢查一般化到所有範圍選項（0 為 `invalidAction`；max + 1 為 `insufficientFunds`，還款超過貸款時為 `invalidAction`，同模擬器）；隨機對局對所有範圍選項取隨機金額；並要求借款、還款範圍都至少被檢查到一次。暫時改壞引擎確認會在斷言失敗：借款上限 +1、借款接受 0、還款超過現金 + 存款、還款超過貸款回傳錯的錯誤碼、有額度時不提供借款。（把還款超過貸款的檢查放寬 1 的改法會先撞到 `pay` 的內部錯誤 throw，不算斷言失敗，所以改用錯誤碼的版本。）

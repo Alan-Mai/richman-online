@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { Action, ActionType, LegalAction } from './actions';
+import {
+  actionFor,
+  isAmountOption,
+  type Action,
+  type ActionType,
+  type AmountOption,
+  type LegalAction,
+} from './actions';
 import type { RuleConfig } from './config';
 import { actorOf, applyAction, legalActions } from './engine';
 import { checkInvariants } from './invariants';
@@ -18,18 +25,32 @@ import {
   unofferedRefusal,
 } from './testing';
 
-const ACTION_TYPES: readonly ActionType[] = [
-  'rollDice',
-  'setDiceCount',
-  'buyProperty',
-  'upgradeProperty',
-  'decline',
-  'bid',
-  'passRound',
-  'withdraw',
-  'bankTransfer',
-  'leaveBank',
-];
+// A record rather than a list so that typecheck fails when an action type is left out.
+const ACTION_TYPES = Object.keys({
+  rollDice: true,
+  setDiceCount: true,
+  buyProperty: true,
+  upgradeProperty: true,
+  decline: true,
+  bid: true,
+  passRound: true,
+  withdraw: true,
+  bankTransfer: true,
+  leaveBank: true,
+  borrow: true,
+  repay: true,
+  leaveCounter: true,
+} satisfies Record<ActionType, true>) as ActionType[];
+
+/**
+ * How applyAction must refuse max + 1 of a range: more than there is is insufficientFunds, except
+ * repaying more than the loan, which the original cannot even type (invalidAction).
+ */
+function aboveRangeCode(state: GameState, option: AmountOption): string {
+  if (option.type !== 'repay') return 'insufficientFunds';
+  const { loan } = state.players.find((p) => p.id === option.playerId) ?? { loan: 0 };
+  return option.max + 1 > loan ? 'invalidAction' : 'insufficientFunds';
+}
 
 /**
  * Plays random legal actions (choices drawn from a separate seeded RNG) and checks at every step
@@ -42,7 +63,7 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
   let chooser: RngState = createRng(seed ^ 0x5eed);
   let steps = 0;
   let auctionSteps = 0;
-  let bankSteps = 0;
+  const rangeSteps = noRangeSteps();
   const problems: string[] = [];
   const at = () => `seed ${seed} step ${steps} (${state.turn.phase.kind})`;
   const refusedAs = (action: Action, error: unknown) => {
@@ -70,16 +91,16 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
         if (!applyAction(state, action).ok)
           problems.push(`${at()}: ${JSON.stringify(action)} refused`);
       }
-      if (option.type === 'bankTransfer') {
+      if (isAmountOption(option)) {
         // A range allows exactly 1..max: below is malformed, above is more than there is.
         const outside: [number, string][] = [
           [0, 'invalidAction'],
-          [option.max + 1, 'insufficientFunds'],
+          [option.max + 1, aboveRangeCode(state, option)],
         ];
         for (const [amount, code] of outside) {
-          refusedAs({ ...concrete(option), amount } as Action, { code });
+          refusedAs(actionFor(option, amount), { code });
         }
-        bankSteps++;
+        rangeSteps[option.type]++;
       }
     }
     for (const type of ACTION_TYPES) {
@@ -93,11 +114,12 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
     if (state.turn.phase.kind === 'auction') auctionSteps++;
     const [pick, next] = nextInt(chooser, legal.length);
     chooser = next;
-    let action = concrete(legal[pick] as LegalAction);
-    if (action.type === 'bankTransfer') {
-      const [amount, after] = nextInt(chooser, action.amount);
+    const option = legal[pick] as LegalAction;
+    let action = concrete(option);
+    if (isAmountOption(option)) {
+      const [amount, after] = nextInt(chooser, option.max);
       chooser = after;
-      action = { ...action, amount: amount + 1 };
+      action = actionFor(option, amount + 1);
     }
     const result = applyAction(state, action);
     if (!result.ok) throw new Error(JSON.stringify(result.error));
@@ -106,22 +128,32 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
   }
   problems.push(...checkInvariants(state).map((e) => `${at()}: ${e}`));
   expect(problems).toEqual([]);
-  return { state, auctionSteps, bankSteps };
+  return { state, auctionSteps, rangeSteps };
+}
+
+type RangeSteps = Record<AmountOption['type'], number>;
+
+function noRangeSteps(): RangeSteps {
+  return { bankTransfer: 0, borrow: 0, repay: 0 };
 }
 
 /** Plays seeds 1–5 and expects at least one of them to finish. */
 function expectRandomGamesHold(config: Partial<RuleConfig>, maxSteps: number): void {
   let finished = 0;
-  let bankSteps = 0;
+  const rangeSteps = noRangeSteps();
   for (const seed of [1, 2, 3, 4, 5]) {
     const start = newTestGame({ config, playerCount: 4, seed });
     const played = playRandomGame(start, seed, maxSteps);
     if (played.state.turn.phase.kind === 'gameOver') finished++;
-    bankSteps += played.bankSteps;
+    for (const type of Object.keys(rangeSteps) as AmountOption['type'][]) {
+      rangeSteps[type] += played.rangeSteps[type];
+    }
   }
   expect(finished).toBeGreaterThan(0);
-  // TEST_LOOP_BOARD has banks, so the transfer ranges get checked too.
-  expect(bankSteps).toBeGreaterThan(0);
+  // TEST_LOOP_BOARD has banks, so the transfer and loan ranges get checked too.
+  expect(rangeSteps.bankTransfer).toBeGreaterThan(0);
+  expect(rangeSteps.borrow).toBeGreaterThan(0);
+  expect(rangeSteps.repay).toBeGreaterThan(0);
 }
 
 describe('legalActions completeness', () => {
