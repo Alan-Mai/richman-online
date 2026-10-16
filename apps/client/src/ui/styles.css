@@ -218,6 +218,11 @@ body {
   background: rgba(0, 0, 0, 0.25);
 }
 
+/* display: grid above would otherwise show the empty panel outside auctions. */
+.hud-auction[hidden] {
+  display: none;
+}
+
 .hud-auction h2 {
   margin: 0;
   font-size: 15px;
