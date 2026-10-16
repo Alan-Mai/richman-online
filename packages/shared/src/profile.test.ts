@@ -18,17 +18,17 @@ describe('PROVISIONAL_COMPUTER_PROFILE', () => {
 });
 
 describe('profilesFromTables', () => {
-  it("takes each character's cash share, with the provisional borrowing share", () => {
+  it("takes each character's cash and borrowing shares", () => {
     // Made-up values; only the characters are read.
     const tables = {
       characters: [
-        { id: 0, cashPercent: 35 },
-        { id: 1, cashPercent: 80 },
+        { id: 0, cashPercent: 35, loanPercent: 0 },
+        { id: 1, cashPercent: 80, loanPercent: 25 },
       ],
     } as unknown as OriginalTables;
     expect(profilesFromTables(tables)).toEqual([
-      { cashPercent: 35, loanPercent: 50 },
-      { cashPercent: 80, loanPercent: 50 },
+      { cashPercent: 35, loanPercent: 0 },
+      { cashPercent: 80, loanPercent: 25 },
     ]);
   });
 });

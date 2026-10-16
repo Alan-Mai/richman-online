@@ -35,6 +35,7 @@ export async function tables({ gameDir, outDir }: CommandContext): Promise<void>
       `items ${t.items.length}`,
       `setup options ${t.setupOptions.startingFunds.length} × 3`,
       `characters ${t.characters.length}`,
+      `holidays ${t.holidays.length} × ${t.holidays[0]?.length ?? 0}`,
     ].join(', '),
   );
   console.log(`wrote ${outFile}`);

@@ -59,7 +59,7 @@ type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 
 ### 原版資料表
 
-- 執行檔資料表（動畫表、道具表、設定選項表、角色範本）由 `tools/extract` 的 `cli tables` 匯出成本機的 `local-assets/tables.json`，倉庫不放數值（`DECISIONS.md` 2026-10-14、2026-10-15）。
+- 執行檔資料表（動畫表、道具表、設定選項表、角色範本、各地圖的節日表）由 `tools/extract` 的 `cli tables` 匯出成本機的 `local-assets/tables.json`，倉庫不放數值（`DECISIONS.md` 2026-10-14、2026-10-15）。
 - shared 只提供型別 `OriginalTables` 與純函式 `parseOriginalTables(json: unknown)`：一次回傳全部錯誤的清單（可辨識聯合型別，含欄位路徑），不 throw。引擎不讀檔、`RuleConfig` 不直接引用這些表；讀檔與換算在呼叫端（目前只有客戶端設定畫面匯入，用於動畫表），公開伺服器不載入。
 
 ### 主要型別

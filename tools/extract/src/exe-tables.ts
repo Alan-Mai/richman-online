@@ -5,7 +5,10 @@
 import { codeReferencesRange, readPe, readVa, type PeImage } from './formats/pe';
 
 // Bump when a field is renamed or changes meaning; packages/shared parseOriginalTables checks it.
-export const TABLES_JSON_VERSION = 1;
+export const TABLES_JSON_VERSION = 2;
+
+const HOLIDAY_MAPS = 8;
+const HOLIDAYS_PER_MAP = 24;
 
 export class ExeTablesError extends Error {
   constructor(message: string) {
@@ -29,7 +32,8 @@ export type TableName =
   | 'startingFunds'
   | 'dayLimit'
   | 'netWorthTargetMultiple'
-  | 'characters';
+  | 'characters'
+  | 'holidays';
 
 export type ExeLayout = Record<TableName, TableSpec>;
 
@@ -48,6 +52,8 @@ export const RICH4_LAYOUT: ExeLayout = {
   dayLimit: { va: 0x0046cbe8, count: 6, stride: 4 },
   netWorthTargetMultiple: { va: 0x0046cc00, count: 6, stride: 4 },
   characters: { va: 0x0047e80c, count: 12, stride: 0x68 },
+  // 24 entries per map, maps 0-7 one after another (map index × 0x120).
+  holidays: { va: 0x0047ff4a, count: HOLIDAY_MAPS * HOLIDAYS_PER_MAP, stride: 12 },
 };
 
 export interface ExeTables {
@@ -62,7 +68,16 @@ export interface ExeTables {
   items: { id: number; unknownAt0: number; unknownAt1: number; stock: number; points: number }[];
   setupOptions: { startingFunds: number[]; dayLimit: number[]; netWorthTargetMultiple: number[] };
   /** `id` is the character template index (player +0x13). */
-  characters: { id: number; cashPercent: number }[];
+  characters: { id: number; cashPercent: number; loanPercent: number }[];
+  /** Per map index, its 24 holiday entries, raw. */
+  holidays: {
+    flags: number;
+    kind: number;
+    month: number;
+    dayOrNth: number;
+    weekday: number;
+    event: number[];
+  }[][];
 }
 
 function records(bytes: Uint8Array, image: PeImage, name: TableName, spec: TableSpec): DataView[] {
@@ -117,6 +132,27 @@ export function extractTables(bytes: Uint8Array, layout: ExeLayout = RICH4_LAYOU
       points: r.getUint8(7),
     })),
     setupOptions: { startingFunds, dayLimit, netWorthTargetMultiple },
-    characters: read('characters').map((r, i) => ({ id: i, cashPercent: r.getUint8(0x19) })),
+    characters: read('characters').map((r, i) => ({
+      id: i,
+      cashPercent: r.getUint8(0x19),
+      loanPercent: r.getUint8(0x18),
+    })),
+    holidays: chunk(
+      read('holidays').map((r) => ({
+        flags: r.getUint8(0),
+        kind: r.getUint8(1),
+        month: r.getUint8(2),
+        dayOrNth: r.getUint8(3),
+        weekday: r.getUint8(4),
+        event: Array.from({ length: 7 }, (_, i) => r.getUint8(5 + i)),
+      })),
+      HOLIDAYS_PER_MAP,
+    ),
   };
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  return Array.from({ length: Math.ceil(items.length / size) }, (_, i) =>
+    items.slice(i * size, (i + 1) * size),
+  );
 }

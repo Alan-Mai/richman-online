@@ -20,17 +20,13 @@ export interface CharacterProfile {
 export const PROVISIONAL_COMPUTER_PROFILE: CharacterProfile = { cashPercent: 50, loanPercent: 50 };
 
 /**
- * One profile per character of the player's tables.json, in its order. tables.json v1 has no
- * borrowing share yet (docs/BANK_PLAN.md batch 3-2), so the provisional one fills in.
+ * One profile per character of the player's tables.json, in its order.
  *
  * For callers building a GameSetup before the game starts (client setup, simulator); the engine
  * never reads tables and applyAction never calls this.
  */
 export function profilesFromTables(tables: OriginalTables): CharacterProfile[] {
-  return tables.characters.map(({ cashPercent }) => ({
-    cashPercent,
-    loanPercent: PROVISIONAL_COMPUTER_PROFILE.loanPercent,
-  }));
+  return tables.characters.map(({ cashPercent, loanPercent }) => ({ cashPercent, loanPercent }));
 }
 
 /**

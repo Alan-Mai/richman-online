@@ -3,7 +3,9 @@
 // what they need into RuleConfig / GameSetup. Values are kept raw (0 = no limit, timer ticks,
 // percentages); conversion happens where they are used.
 
-export const ORIGINAL_TABLES_VERSION = 1;
+import type { HolidayDateRule, HolidayRule } from './holidays';
+
+export const ORIGINAL_TABLES_VERSION = 2;
 
 export interface OriginalItem {
   /** Item number, 1-based as in the player item slots. */
@@ -23,6 +25,26 @@ export interface OriginalCharacter {
   id: number;
   /** Computer opening cash share and bank target cash ratio, in percent. */
   cashPercent: number;
+  /** Share of net worth a computer borrows at a bank, in percent. */
+  loanPercent: number;
+}
+
+/**
+ * One entry of a map's holiday table, raw (docs/ASSET_FORMATS.md "rich4.exe 資料表"). Convert with
+ * originalHolidays.
+ */
+export interface OriginalHolidayEntry {
+  /** Bit 0x80: left out of the lookup; any other value: a rest day. */
+  flags: number;
+  /** 0 Gregorian month and day, 1 lunar month and day, 2 nth weekday of the month. */
+  kind: number;
+  month: number;
+  /** The day for kinds 0 and 1, n for kind 2. */
+  dayOrNth: number;
+  /** The weekday for kind 2 (0 = Sunday). */
+  weekday: number;
+  /** The event bytes (+5..+11); +5 is the event flag. Holiday events are not implemented. */
+  event: number[];
 }
 
 export interface OriginalTables {
@@ -37,6 +59,62 @@ export interface OriginalTables {
   items: OriginalItem[];
   setupOptions: { startingFunds: number[]; dayLimit: number[]; netWorthTargetMultiple: number[] };
   characters: OriginalCharacter[];
+  /** One table of 24 entries per original map, by map index. */
+  holidays: OriginalHolidayEntry[][];
+}
+
+export type OriginalHolidaysResult =
+  | { ok: true; holidays: HolidayRule[] }
+  /** Indices of entries that may fall on a day but cannot be written as a HolidayRule. */
+  | { ok: false; unsupported: number[] };
+
+const HOLIDAY_DISABLED = 0x80;
+
+/**
+ * The date rule of an entry the original lookup can find, null for one it never finds (so leaving
+ * it out changes nothing), or 'unsupported'. The original compares a month-and-day key: an
+ * unknown kind compares against 0 and a date outside a month or a lunar month never matches; the
+ * nth-weekday day is w − (weekday of the 1st) + 1 + 7(n − 1), with w replaced by 7 when below the
+ * 1st's weekday, so n = 0 lands before the 1st and n ≥ 6 past day 31 unless w is 7 or more, which
+ * HolidayRule cannot express (docs/GAME_RULES.md §2 "日曆").
+ */
+function holidayDate(e: OriginalHolidayEntry): HolidayDateRule | null | 'unsupported' {
+  if ((e.flags & HOLIDAY_DISABLED) !== 0 || e.month < 1 || e.month > 12) return null;
+  switch (e.kind) {
+    case 0:
+      return e.dayOrNth >= 1 && e.dayOrNth <= 31
+        ? { kind: 'solar', month: e.month, day: e.dayOrNth }
+        : null;
+    case 1:
+      return e.dayOrNth >= 1 && e.dayOrNth <= 30
+        ? { kind: 'lunar', month: e.month, day: e.dayOrNth }
+        : null;
+    case 2:
+      if (e.weekday >= 7) return e.dayOrNth <= 5 ? 'unsupported' : null;
+      return e.dayOrNth >= 1 && e.dayOrNth <= 5
+        ? { kind: 'nthWeekday', month: e.month, nth: e.dayOrNth, weekday: e.weekday }
+        : null;
+    default:
+      return null;
+  }
+}
+
+/**
+ * A map's holiday table as HolidayRules, in order. Entries the original never finds (unused,
+ * disabled, impossible dates) are left out, which gives the same answers; the rest are rest days
+ * when their flags are not 0. Callers building an original-map Board use this; the engine does not.
+ */
+export function originalHolidays(entries: readonly OriginalHolidayEntry[]): OriginalHolidaysResult {
+  const holidays: HolidayRule[] = [];
+  const unsupported: number[] = [];
+  entries.forEach((e, i) => {
+    const date = holidayDate(e);
+    if (date === 'unsupported') unsupported.push(i);
+    else if (date) {
+      holidays.push({ date, restDay: e.flags !== 0, disabled: false, event: e.event[0] ?? 0 });
+    }
+  });
+  return unsupported.length > 0 ? { ok: false, unsupported } : { ok: true, holidays };
 }
 
 export type OriginalTablesError =
@@ -57,6 +135,9 @@ export const ORIGINAL_TABLE_LENGTHS = {
   items: 13,
   setupOptions: 6,
   characters: 12,
+  holidayMaps: 8,
+  holidaysPerMap: 24,
+  holidayEventBytes: 7,
 } as const;
 
 const U8_MAX = 0xff;
@@ -211,8 +292,44 @@ export function parseOriginalTables(json: unknown): ParseOriginalTablesResult {
   const netWorthTargetMultiple = option('netWorthTargetMultiple', NON_NEGATIVE_I32);
 
   const characters = r.array(json, 'characters', 'characters', L.characters, (v, p, i) =>
-    r.entry(v, p, i, { cashPercent: PERCENT }),
+    r.entry(v, p, i, { cashPercent: PERCENT, loanPercent: PERCENT }),
   );
+
+  const holidayEntry = (value: unknown, path: string): OriginalHolidayEntry | undefined => {
+    if (!isRecord(value)) {
+      r.errors.push({ kind: 'wrongType', path });
+      return undefined;
+    }
+    const byte = (key: string) => r.integer(value, key, `${path}.${key}`, BYTE);
+    const [flags, kind, month, dayOrNth, weekday] = [
+      'flags',
+      'kind',
+      'month',
+      'dayOrNth',
+      'weekday',
+    ].map(byte);
+    const event = r.integers(value, 'event', `${path}.event`, L.holidayEventBytes, BYTE);
+    return flags === undefined ||
+      kind === undefined ||
+      month === undefined ||
+      dayOrNth === undefined ||
+      weekday === undefined ||
+      !event
+      ? undefined
+      : { flags, kind, month, dayOrNth, weekday, event };
+  };
+  const holidays = r.array(json, 'holidays', 'holidays', L.holidayMaps, (v, p) => {
+    if (!Array.isArray(v)) {
+      r.errors.push({ kind: 'wrongType', path: p });
+      return undefined;
+    }
+    if (v.length !== L.holidaysPerMap) {
+      r.errors.push({ kind: 'wrongLength', path: p, expected: L.holidaysPerMap });
+      return undefined;
+    }
+    const out = v.map((e, i) => holidayEntry(e, `${p}.${i}`));
+    return out.every((e): e is OriginalHolidayEntry => e !== undefined) ? out : undefined;
+  });
 
   if (
     r.errors.length > 0 ||
@@ -226,7 +343,8 @@ export function parseOriginalTables(json: unknown): ParseOriginalTablesResult {
     !startingFunds ||
     !dayLimit ||
     !netWorthTargetMultiple ||
-    !characters
+    !characters ||
+    !holidays
   ) {
     return { ok: false, errors: r.errors };
   }
@@ -237,6 +355,7 @@ export function parseOriginalTables(json: unknown): ParseOriginalTablesResult {
       items,
       setupOptions: { startingFunds, dayLimit, netWorthTargetMultiple },
       characters,
+      holidays,
     },
   };
 }

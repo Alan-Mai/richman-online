@@ -22,6 +22,7 @@ const SMALL_LAYOUT: ExeLayout = {
   netWorthTargetMultiple: { va: BASE + DATA_RVA + 0x48, count: 6, stride: 4 },
   items: { va: BASE + DATA_RVA + 0x60, count: 13, stride: 8 },
   characters: { va: BASE + DATA_RVA + 0xc8, count: 12, stride: 0x68 },
+  holidays: { va: BASE + DATA_RVA + 0x600, count: 8 * 24, stride: 12 },
 };
 
 interface FakeTables {
@@ -33,6 +34,9 @@ interface FakeTables {
   netWorthTargetMultiple: number[];
   items: { a0: number; a1: number; stock: number; points: number }[];
   cashPercent: number[];
+  loanPercent: number[];
+  /** 8 maps × 24 entries × 12 raw bytes. */
+  holidays: number[][][];
 }
 
 function fakeTables(): FakeTables {
@@ -50,6 +54,12 @@ function fakeTables(): FakeTables {
       points: 20 + i,
     })),
     cashPercent: Array.from({ length: 12 }, (_, i) => 30 + i),
+    loanPercent: Array.from({ length: 12 }, (_, i) => 70 - i),
+    holidays: Array.from({ length: 8 }, (_, map) =>
+      Array.from({ length: 24 }, (_, i) =>
+        Array.from({ length: 12 }, (_, b) => (map * 24 + i + b * 7) % 256),
+      ),
+    ),
   };
 }
 
@@ -65,7 +75,7 @@ interface BuildOptions {
 function buildExe(t: FakeTables, opts: BuildOptions = {}): Uint8Array {
   const layout = opts.layout ?? SMALL_LAYOUT;
   const dataVa = BASE + DATA_RVA;
-  const data = new Uint8Array(opts.dataSize ?? 0x600);
+  const data = new Uint8Array(opts.dataSize ?? 0xf00);
   const view = new DataView(data.buffer);
   const at = (name: TableName, i: number) => layout[name].va - dataVa + i * layout[name].stride;
   t.frameTicks.forEach((v, i) => view.setUint8(at('frameTicks', i), v));
@@ -85,6 +95,8 @@ function buildExe(t: FakeTables, opts: BuildOptions = {}): Uint8Array {
     view.setUint8(o + 7, v.points);
   });
   t.cashPercent.forEach((v, i) => view.setUint8(at('characters', i) + 0x19, v));
+  t.loanPercent.forEach((v, i) => view.setUint8(at('characters', i) + 0x18, v));
+  t.holidays.flat().forEach((bytes, i) => data.set(bytes, at('holidays', i)));
 
   const names = Object.keys(layout) as TableName[];
   const refs = names
@@ -132,7 +144,21 @@ describe('extractTables', () => {
         dayLimit: t.dayLimit,
         netWorthTargetMultiple: t.netWorthTargetMultiple,
       },
-      characters: t.cashPercent.map((cashPercent, id) => ({ id, cashPercent })),
+      characters: t.cashPercent.map((cashPercent, id) => ({
+        id,
+        cashPercent,
+        loanPercent: t.loanPercent[id],
+      })),
+      holidays: t.holidays.map((entries) =>
+        entries.map((b) => ({
+          flags: b[0],
+          kind: b[1],
+          month: b[2],
+          dayOrNth: b[3],
+          weekday: b[4],
+          event: b.slice(5),
+        })),
+      ),
     });
   });
 
@@ -179,10 +205,10 @@ describe('extractTables', () => {
   });
 
   it('rejects a table that runs past the end of its section', () => {
-    const exe = buildExe(fakeTables(), { dataSize: 0x5ff });
+    const exe = buildExe(fakeTables(), { dataSize: 0xf00 });
     const layout = {
       ...SMALL_LAYOUT,
-      characters: { ...SMALL_LAYOUT.characters, va: BASE + DATA_RVA + 0x5f0 },
+      characters: { ...SMALL_LAYOUT.characters, va: BASE + DATA_RVA + 0xef0 },
     };
     expectTablesError(exe, /^characters: not inside/, layout);
   });

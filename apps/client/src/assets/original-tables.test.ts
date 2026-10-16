@@ -23,7 +23,21 @@ function fakeTables() {
       dayLimit: [0, 31, 62, 93, 124, 155],
       netWorthTargetMultiple: [0, 7, 6, 5, 4, 3],
     },
-    characters: Array.from({ length: 12 }, (_, i) => ({ id: i, cashPercent: 30 + i })),
+    characters: Array.from({ length: 12 }, (_, i) => ({
+      id: i,
+      cashPercent: 30 + i,
+      loanPercent: 40 - i,
+    })),
+    holidays: Array.from({ length: 8 }, () =>
+      Array.from({ length: 24 }, () => ({
+        flags: 0,
+        kind: 0,
+        month: 0,
+        dayOrNth: 0,
+        weekday: 0,
+        event: [0, 0, 0, 0, 0, 0, 0],
+      })),
+    ),
   };
 }
 

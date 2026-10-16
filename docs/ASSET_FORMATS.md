@@ -429,14 +429,17 @@
   | 天數上限選項 | `0x46cbe8` | 6 × i32 | 同上 | 0x407382；迴圈上限 6（0x406f8f） |
   | 淨值目標倍數選項 | `0x46cc00` | 6 × i32 | 同上 | 0x407399（再乘起始資金）；迴圈上限 6（0x406fbd） |
   | 角色範本 | `0x47e80c` | 12 × 0x68 bytes | 角色編號（玩家 +0x13） | 新局整筆複製到玩家（0x4072dd）；各角色陣列的迴圈上限 12（例：0x404348、0x404f60）；第 13 筆的位置正好是另一張表的起點（0x40731b 從那裡複製） |
+  | 節日表 | `0x47ff4a` | 8 × 24 × 12 bytes | 地圖索引（`g_mapIndexHi × 4 + g_mapIndexLo`，與 `cli map` 的地圖編號相同）× 0x120 + 筆 × 12 | 找節日 0x4521f0：每張 24 筆的迴圈上限 0x18、步長 12，地圖以 0x120 為步長 |
 
   - **邏輯幀長只有 3 筆**：計時器的觸發計數器是緊接在後的 u32（`0x46cb23`），和第 4 個位元組重疊。速度 3 讀到的是計數器自己的低位元組，比較永遠成立，所以速度 3 每次觸發都跑一幀（20 ms）。這是程式行為，不是表值。
   - 道具紀錄：+0、+1 為 u8，用途未確認（+1 與玩家 +0x17 的差影響電腦是否使用道具，見 `local-assets/ghidra/notes.md`），匯出為 `unknownAt0`、`unknownAt1`；+2 為名稱字串指標，不匯出；+6 為 u8 初始庫存（新局只把道具 1–8 的這欄複製到全場庫存，迴圈上限 8，0x4071c8）；+7 為 u8 點數價格（商店購買 0x42d290 等）。
-  - 角色範本只匯出 +0x19（u8，現金比例，單位百分比）：電腦開局拆現金（0x4071d6，÷ 100）與銀行重新分配（0x437b02，÷ 100）都讀玩家的這一欄，而玩家的這一欄在新局時由範本整筆複製。範本的這一欄沒有其他讀寫（範本基底的另外兩個參照只讀 +0）。其餘欄位不匯出。
+  - 角色範本匯出 +0x19（u8，現金比例，單位百分比）：電腦開局拆現金（0x4071d6，÷ 100）與銀行重新分配（0x437b02，÷ 100）都讀玩家的這一欄，而玩家的這一欄在新局時由範本整筆複製。範本的這一欄沒有其他讀寫（範本基底的另外兩個參照只讀 +0）。
+  - 角色範本另匯出 +0x18（u8，借款比例，單位百分比，tables.json v2 起）：電腦停在銀行、沒有貸款時借 trunc(這一欄 × 淨值 ÷ 100)（0x4368db，逆向步驟 10 F）。玩家的這一欄只有這一處讀取，沒有寫入者（搜了絕對位址＋索引形式的 byte／word／dword 存取），所以就是範本值。其餘欄位不匯出。
+  - 節日表每筆 12 bytes（逆向步驟 10b）：+0 旗標（bit 0x80 = 停用；其他非 0 = 休假日）、+1 種類（0 公曆月日、1 農曆月日、2 第 n 個星期幾；其他值永遠不成立）、+2 月、+3 日或 n、+4 星期（種類 2）、+5 事件旗標、+6–+11 事件資料（+6 為子檔編號，其餘未辨識）。未使用的筆全為 0。原樣匯出，換算在 shared 的 `originalHolidays`（見 `GAME_RULES.md` 第 2 節「日曆」）。本機副本：8 張圖共 123 筆非空，種類 0、1、2 都有，1 筆停用。
   - 玩家的 +0x19 在遊戲中還有一個寫入者：選單開啟的玩家設定對話框（0x41e283，按確定時寫回），只列出人類座位、以 10 為一級調整。它只能在開局之後打開，不影響開局拆分；電腦座位一律用範本值。
   - 道具紀錄之前（`0x47fdf0` 起，30 筆，同樣 8 bytes）是另一張以相同格式排列的表（新局把 +6 複製到另一個庫存陣列），推測是卡片，Phase 5 再分析。
   - **農曆表**（不匯出）：`0x47639c` 起，每日一筆 u32，以日序（1998/1/1 = 0）為索引；低 16 位元 = 月 << 8 | 日，高 16 位元程式不讀。筆數 8399（到下一個被程式參照的位址為止，約到 2020 年底）。唯一讀取者是節日比對的農曆分支（0x452285，逆向步驟 10b）。本專案改用自己的演算法產生農曆（`tools/extract/src/lunar/`，`DECISIONS.md` 2026-10-15「農曆」）；`pnpm -F extract cli lunar-check` 在本機和這張表逐筆比對，只印筆數，結果是 8399 筆全部一致，所以不匯出。
-- `tables.json`：`version`（目前 1）、`source`（檔名、大小、sha256，只供本機追查）、`animation`（`frameTicks`、`stepPixels{walk,motorbike,car,temporary}`、`diceAnimDelay`）、`items[{id,unknownAt0,unknownAt1,stock,points}]`、`setupOptions{startingFunds,dayLimit,netWorthTargetMultiple}`、`characters[{id,cashPercent}]`。一律存原始值（0 代表「不限」、觸發數、百分比），換算由使用處處理。
+- `tables.json`：`version`（目前 2；v1 沒有借款比例與節日表，shared 回 `unsupportedVersion`，需重新匯出）、`source`（檔名、大小、sha256，只供本機追查）、`animation`（`frameTicks`、`stepPixels{walk,motorbike,car,temporary}`、`diceAnimDelay`）、`items[{id,unknownAt0,unknownAt1,stock,points}]`、`setupOptions{startingFunds,dayLimit,netWorthTargetMultiple}`、`characters[{id,cashPercent,loanPercent}]`、`holidays[地圖索引][24 筆]{flags,kind,month,dayOrNth,weekday,event[7]}`。一律存原始值（0 代表「不限」、觸發數、百分比），換算由使用處處理。
 - 證據：上表各指令由主 session 對照反組譯核對；本機匯出值與逆向步驟 7 的錄影（速度 2 的幀長、步行與汽車的每幀位移）及 `local-assets/ghidra/notes.md` 已記的值一致。表的範圍內沒有絕對位址形式的寫入。
 - 解析器：`tools/extract/src/formats/pe.ts`、`tools/extract/src/exe-tables.ts`（單元測試用合成的假 PE）。
 - 待解問題：道具 +0、+1 的意義；擲骰動畫延遲值的單位（×10 ms，信心中）；其他版本的 `rich4.exe` 位址不同時目前只會報錯，不支援。

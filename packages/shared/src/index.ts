@@ -114,8 +114,11 @@ export {
 export {
   ORIGINAL_TABLE_LENGTHS,
   ORIGINAL_TABLES_VERSION,
+  originalHolidays,
   parseOriginalTables,
   type OriginalCharacter,
+  type OriginalHolidayEntry,
+  type OriginalHolidaysResult,
   type OriginalItem,
   type OriginalTables,
   type OriginalTablesError,
