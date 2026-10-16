@@ -38,6 +38,13 @@ export interface PlayerState {
   profile: CharacterProfile | null;
   cash: number;
   deposit: number;
+  /** Money owed to the bank (docs/GAME_RULES.md §4 "貸款"); no interest. */
+  loan: number;
+  /**
+   * When the loan falls due. Set by the first borrowing; a computer's full repayment keeps it, as
+   * in the original, so it may outlive the loan.
+   */
+  loanDue: CalendarDate | null;
   points: number;
   location: PlayerLocation;
   vehicle: Vehicle;

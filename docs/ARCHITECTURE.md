@@ -38,7 +38,7 @@ type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 
 - `applyAction` 自行驗證動作格式（日後來自網路），依動作種類逐一檢查參數（`bid.raise`、`setDiceCount.count`、`bankTransfer.amount` 必須是整數，`bankTransfer.direction` 必須是兩種之一）：格式錯誤回傳 `invalidAction`，不 throw。錯誤優先順序 `invalidAction` > `gameOver` > `unknownPlayer` > `notYourTurn`（送出者不是 `actorOf`）> `wrongPhase` > 動作本身的檢查（參數不在允許範圍的 `invalidAction`，例：不在加價檔位內、步行時選顆數、轉帳金額小於 1；錢不夠的 `insufficientFunds`，例：加價超過現金、轉帳超過可動用的金額）。
 - `PlayerView` 的欄位逐一列出複製，新增的 state 欄位預設不會外洩。不送：`rngState`、`lotteryPool`（彩券獎池，Phase 5 再定）、拍賣尚未開拍的地塊清單（只送剩餘塊數 `remaining`）、電腦的隱藏欄位（拍賣 `computerLimits`、`awaitRoll` 的 `computerDiceCount`、玩家的 `profile`；玩家以 `PlayerStateView` 逐欄複製）。
-- 金錢相關邏輯在 `money.ts`：`pay()`（強制付款：現金 → 存款 → 破產；收款進債權人存款，系統債務破產時餘款進 `lotteryPool`）、`spend()`（購地、加蓋、得標，只用現金）、價格 helper `buyPrice`／`upgradeCost`／`rentFor`／`auctionStartPrice`（收 `PriceView`）與 `netWorth`（收 `NetWorthView`）。`GameState`、`PlayerView` 與客戶端的 display model 都符合，前後端算出同樣的數字。
+- 金錢相關邏輯在 `money.ts`：`pay()`（強制付款：現金 → 存款 → 破產；收款進債權人存款，系統債務破產時餘款進 `lotteryPool`；償還貸款的債務種類 `loan` 反過來先扣存款，破產時餘款不給任何人；任何破產都清掉貸款與到期日）、`spend()`（購地、加蓋、得標，只用現金）、價格 helper `buyPrice`／`upgradeCost`／`rentFor`／`auctionStartPrice`（收 `PriceView`）與 `netWorth`（收 `NetWorthView`）。`GameState`、`PlayerView` 與客戶端的 display model 都符合，前後端算出同樣的數字。
 - 其他模組：`movement.ts`（`stepFrom` 走一步、`previewPath` 預覽，實際移動與電腦預覽共用）、`auction.ts`（破產拍賣）、`computer.ts`（電腦出價上限與選顆數的抽取、出價選擇）、`tables.ts`（`parseOriginalTables`，見下方「原版資料表」）、`invariants.ts`。
 
 原則：
@@ -84,6 +84,8 @@ interface PlayerState {
   id; name; controller: 'human' | 'computer';
   profile: CharacterProfile | null;   // 電腦的角色比例（cashPercent、loanPercent）；人類為 null；viewFor 不送
   cash; deposit; points;
+  loan: number;              // 貸款餘額；netWorth 扣掉它
+  loanDue: CalendarDate | null;   // 到期日；電腦還清時保留（照原版）
   location: { kind: 'offBoard' } | { kind: 'onBoard'; tile: TileIndex; prev: TileIndex };
   vehicle: 'walk' | 'motorbike' | 'car';
   diceCount: number;         // 1..該交通工具的顆數上限

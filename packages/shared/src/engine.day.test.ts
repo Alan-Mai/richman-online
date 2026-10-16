@@ -314,6 +314,17 @@ describe('netWorth', () => {
     expect(netWorth(state, 'p1')).toBe(7 + 11 + 1000 + 2 * 300);
   });
 
+  it('takes the loan off', () => {
+    let state = patchPlayer(newTestGame({ board: BOARD }), 'p1', {
+      cash: 7,
+      deposit: 11,
+      loan: 900,
+      loanDue: { year: 2010, month: 4, day: 1 },
+    });
+    state = patchTile(state, 1, { owner: 'p1', level: 2 });
+    expect(netWorth(state, 'p1')).toBe(7 + 11 + 1000 + 2 * 300 - 900);
+  });
+
   it('does not multiply properties by the price index', () => {
     let state = patchPlayer(newTestGame({ board: BOARD }), 'p1', { cash: 7, deposit: 11 });
     state = withIndex(patchTile(state, 1, { owner: 'p1', level: 2 }), 4);

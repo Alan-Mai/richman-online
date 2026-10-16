@@ -61,6 +61,8 @@ function viewPlayer(p: PlayerState): PlayerStateView {
     controller: p.controller,
     cash: p.cash,
     deposit: p.deposit,
+    loan: p.loan,
+    loanDue: p.loanDue === null ? null : { ...p.loanDue },
     points: p.points,
     location: { ...p.location },
     vehicle: p.vehicle,

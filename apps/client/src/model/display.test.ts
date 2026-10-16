@@ -15,6 +15,8 @@ function player(id: string, patch: Partial<DisplayPlayer> = {}): DisplayPlayer {
     name: id,
     cash: 1000,
     deposit: 500,
+    loan: 0,
+    loanDue: null,
     tile: 0,
     vehicle: 'walk',
     diceCount: 1,
@@ -252,6 +254,26 @@ describe('applyEventToDisplay', () => {
     expect(next.players[1]?.cash).toBe(1000);
   });
 
+  it('PlayerBankrupt writes the loan and its due date off', () => {
+    const start = model();
+    const indebted: DisplayModel = {
+      ...start,
+      players: [
+        player('a', { loan: 4000, loanDue: { year: 2010, month: 4, day: 1 } }),
+        player('b'),
+      ],
+    };
+    const next = applyEventToDisplay(indebted, {
+      type: 'PlayerBankrupt',
+      playerId: 'a',
+      creditor: null,
+      paidToCreditor: 0,
+      releasedTiles: [],
+      cause: { kind: 'loan', amountDue: 4000 },
+    });
+    expect(next.players[0]).toMatchObject({ loan: 0, loanDue: null, bankrupt: true });
+  });
+
   it('GameEnded records the winners', () => {
     const next = apply({
       type: 'GameEnded',
@@ -291,6 +313,16 @@ describe('diffDisplay', () => {
     expect(diffDisplay(changed, model())).toEqual([
       'players[0].deposit: 501 != 500',
       'players[1].cash: 999 != 1000',
+    ]);
+  });
+
+  it('compares loans and due dates too', () => {
+    const owing = model();
+    const due = { year: 2010, month: 4, day: 1 };
+    const expected = { ...owing, players: [player('a', { loan: 10, loanDue: due }), player('b')] };
+    expect(diffDisplay(owing, expected)).toEqual([
+      'players[0].loan: 0 != 10',
+      'players[0].loanDue: null != 2010-04-01',
     ]);
   });
 });

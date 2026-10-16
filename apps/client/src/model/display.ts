@@ -15,6 +15,8 @@ export interface DisplayPlayer {
   name: string;
   cash: number;
   deposit: number;
+  loan: number;
+  loanDue: CalendarDate | null;
   /** null until the player is placed on their first turn. */
   tile: TileIndex | null;
   vehicle: Vehicle;
@@ -67,11 +69,13 @@ export function displayFromView(view: PlayerView): DisplayModel {
     priceIndex: view.priceIndex,
     current: view.turn.current,
     players: view.players.map(
-      ({ id, name, cash, deposit, location, vehicle, diceCount, bankrupt }) => ({
+      ({ id, name, cash, deposit, loan, loanDue, location, vehicle, diceCount, bankrupt }) => ({
         id,
         name,
         cash,
         deposit,
+        loan,
+        loanDue: loanDue === null ? null : { ...loanDue },
         tile: location.kind === 'onBoard' ? location.tile : null,
         vehicle,
         diceCount,
@@ -187,6 +191,8 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
       let next = updatePlayer(model, event.playerId, () => ({
         cash: 0,
         deposit: 0,
+        loan: 0,
+        loanDue: null,
         bankrupt: true,
       }));
       next = {
@@ -234,6 +240,12 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
   }
 }
 
+const pad = (n: number) => String(n).padStart(2, '0');
+
+function dateText(date: CalendarDate | null | undefined): string {
+  return date ? `${date.year}-${pad(date.month)}-${pad(date.day)}` : String(date);
+}
+
 /** Fields where two models differ, e.g. "players[1].cash: 900 != 1000"; empty when equal. */
 export function diffDisplay(actual: DisplayModel, expected: DisplayModel): string[] {
   const diffs: string[] = [];
@@ -261,6 +273,8 @@ export function diffDisplay(actual: DisplayModel, expected: DisplayModel): strin
     for (const key of keys) {
       check(`players[${i}].${key}`, a?.[key], e[key]);
     }
+    check(`players[${i}].loan`, a?.loan, e.loan);
+    check(`players[${i}].loanDue`, dateText(a?.loanDue), dateText(e.loanDue));
   });
   check('auction', JSON.stringify(actual.auction), JSON.stringify(expected.auction));
   check('tiles.length', actual.tiles.length, expected.tiles.length);

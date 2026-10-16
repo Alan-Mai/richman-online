@@ -15,6 +15,8 @@ const model: DisplayModel = {
     name,
     cash: 0,
     deposit: 0,
+    loan: 0,
+    loanDue: null,
     tile: 0,
     vehicle: 'walk' as const,
     diceCount: 1,

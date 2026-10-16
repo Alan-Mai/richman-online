@@ -58,6 +58,19 @@ function checkPlayers(state: GameState): string[] {
     if (!isNonNegativeInteger(deposit)) {
       errors.push(`player ${id}: deposit ${deposit} is not a non-negative integer`);
     }
+    const { loan, loanDue } = player;
+    if (!isNonNegativeInteger(loan)) {
+      errors.push(`player ${id}: loan ${loan} is not a non-negative integer`);
+    }
+    if (loanDue !== null && !isValidDate(loanDue)) {
+      errors.push(`player ${id}: loanDue ${formatDate(loanDue)} is not a valid date`);
+    } else if (loan > 0 && loanDue === null) {
+      errors.push(`player ${id}: loan ${loan} has no due date`);
+    }
+    // Bankruptcy writes the loan off (docs/GAME_RULES.md §8).
+    if (bankrupt && (loan !== 0 || loanDue !== null)) {
+      errors.push(`player ${id}: bankrupt but has a loan or a due date`);
+    }
     if (!VEHICLES.includes(vehicle)) {
       errors.push(`player ${id}: vehicle ${vehicle} is not a vehicle`);
     } else {

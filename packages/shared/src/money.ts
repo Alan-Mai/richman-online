@@ -75,20 +75,21 @@ export function rentFor(view: PriceView, tile: TileIndex): number {
 
 /** What netWorth reads; GameState, PlayerView and the client's display model all have it. */
 export type NetWorthView = Pick<GameState, 'board' | 'tiles'> & {
-  players: readonly Pick<PlayerState, 'id' | 'cash' | 'deposit'>[];
+  players: readonly Pick<PlayerState, 'id' | 'cash' | 'deposit' | 'loan'>[];
 };
 
 /**
  * Net worth (docs/GAME_RULES.md §3): cash + deposit + land price and built levels of every owned
- * property, NOT multiplied by the price index. Drives the price index and the original win
- * conditions. Takes a NetWorthView so the client can show it from what is on screen.
+ * property, NOT multiplied by the price index, minus the loan. Drives the price index, the original
+ * win conditions and how much a player may borrow. Takes a NetWorthView so the client can show it
+ * from what is on screen.
  */
 export function netWorth(view: NetWorthView, playerId: PlayerId): number {
   const player = view.players.find((p) => p.id === playerId);
   if (player === undefined) {
     throw new Error(`unknown player ${playerId}`);
   }
-  let total = player.cash + player.deposit;
+  let total = player.cash + player.deposit - player.loan;
   view.tiles.forEach((tile, i) => {
     const def = view.board.tiles[i];
     if (tile.owner === playerId && def?.kind === 'property') {
@@ -124,7 +125,9 @@ function withdraw(state: GameState, playerId: PlayerId, amount: number): Step {
  */
 export type Debt =
   | { kind: 'rent'; tile: TileIndex; creditor: PlayerId; amount: number }
-  | { kind: 'system'; amount: number };
+  | { kind: 'system'; amount: number }
+  /** Paying a loan back, deposit first; at most the loan. */
+  | { kind: 'loan'; amount: number };
 
 export interface PayResult extends Step {
   bankrupt: boolean;
@@ -133,10 +136,12 @@ export interface PayResult extends Step {
 }
 
 /**
- * Forced payment (docs/GAME_RULES.md §8): cash first, then the deposit. If both together fall short
- * the debtor goes bankrupt: money is zeroed, every owned tile becomes unowned and keeps its
- * buildings, and everything the debtor had left goes to a player creditor, or into the lottery pool
- * for a debt to the system. The auctions that may follow are the caller's. Bankruptcy emits only
+ * Forced payment (docs/GAME_RULES.md §8): cash first, then the deposit; a loan repayment the other
+ * way round, lowering the loan (the due date is the caller's). If both together fall short the
+ * debtor goes bankrupt: money and loan are zeroed, every owned tile becomes unowned and keeps its
+ * buildings, and everything the debtor had left goes to a player creditor, into the lottery pool
+ * for a debt to the system, or nowhere for a loan. The auctions that may follow are the caller's.
+ * A loan repayment emits nothing (its caller says why it was paid); bankruptcy emits only
  * PlayerBankrupt.
  */
 export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult {
@@ -144,13 +149,29 @@ export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult
   if (!Number.isSafeInteger(amount) || amount < 0) {
     throw new RangeError(`debt must be a non-negative integer, got ${amount}`);
   }
+  const debtor = playerOf(state, debtorId);
+  if (debt.kind === 'loan' && amount > debtor.loan) {
+    throw new RangeError(`${debtorId} owes ${debtor.loan}, not ${amount}`);
+  }
   if (amount === 0) {
     return { state, events: [], bankrupt: false, releasedTiles: [] };
   }
 
   const creditor = debt.kind === 'rent' ? debt.creditor : null;
-  const debtor = playerOf(state, debtorId);
   const available = debtor.cash + debtor.deposit;
+  if (available >= amount && debt.kind === 'loan') {
+    const fromDeposit = Math.min(debtor.deposit, amount);
+    return {
+      state: updatePlayer(state, debtorId, (p) => ({
+        deposit: p.deposit - fromDeposit,
+        cash: p.cash - (amount - fromDeposit),
+        loan: p.loan - amount,
+      })),
+      events: [],
+      bankrupt: false,
+      releasedTiles: [],
+    };
+  }
   if (available >= amount) {
     const paid = withdraw(state, debtorId, amount);
     return {
@@ -164,17 +185,30 @@ export function pay(state: GameState, debtorId: PlayerId, debt: Debt): PayResult
   const paidToCreditor = creditor === null ? 0 : available;
   const releasedTiles = state.tiles.flatMap((tile, i) => (tile.owner === debtorId ? [i] : []));
   let next: GameState = {
-    ...updatePlayer(state, debtorId, () => ({ cash: 0, deposit: 0, bankrupt: true })),
+    ...updatePlayer(state, debtorId, () => ({
+      cash: 0,
+      deposit: 0,
+      loan: 0,
+      loanDue: null,
+      bankrupt: true,
+    })),
     tiles: state.tiles.map((tile) => (tile.owner === debtorId ? { ...tile, owner: null } : tile)),
   };
-  next =
-    creditor === null
-      ? { ...next, lotteryPool: next.lotteryPool + available }
-      : receive(next, creditor, paidToCreditor);
-  const cause: BankruptcyCause =
-    debt.kind === 'rent'
-      ? { kind: 'rent', tile: debt.tile, amountDue: amount }
-      : { kind: 'system', amountDue: amount };
+  let cause: BankruptcyCause;
+  switch (debt.kind) {
+    case 'rent':
+      next = receive(next, debt.creditor, paidToCreditor);
+      cause = { kind: 'rent', tile: debt.tile, amountDue: amount };
+      break;
+    case 'system':
+      next = { ...next, lotteryPool: next.lotteryPool + available };
+      cause = { kind: 'system', amountDue: amount };
+      break;
+    case 'loan':
+      // The bank takes what there was and writes the rest off (docs/GAME_RULES.md §8).
+      cause = { kind: 'loan', amountDue: amount };
+      break;
+  }
   return {
     state: next,
     events: [

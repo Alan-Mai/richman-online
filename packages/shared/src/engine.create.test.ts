@@ -59,9 +59,9 @@ describe('createGame', () => {
     // Only seat 0 is placed; the rest wait for their first turn (engine.place.test.ts).
     // Humans get half the 40,000 each as cash and deposit; the computer keeps 30% as cash.
     const money = [
-      { profile: null, cash: 20_000, deposit: 20_000 },
-      { profile: PROFILE, cash: 12_000, deposit: 28_000 },
-      { profile: null, cash: 20_000, deposit: 20_000 },
+      { profile: null, cash: 20_000, deposit: 20_000, loan: 0, loanDue: null },
+      { profile: PROFILE, cash: 12_000, deposit: 28_000, loan: 0, loanDue: null },
+      { profile: null, cash: 20_000, deposit: 20_000, loan: 0, loanDue: null },
     ];
     expect(state.players).toEqual(
       PLAYERS.map(({ id, name, controller }, seat) => ({

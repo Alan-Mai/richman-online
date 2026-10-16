@@ -142,6 +142,81 @@ describe('pay when the debtor cannot cover it', () => {
   });
 });
 
+describe('pay a loan back', () => {
+  const DUE = { year: 2010, month: 4, day: 1 };
+  /** p1 owes the bank `loan`, due on DUE. */
+  const borrower = (money: { cash: number; deposit: number }, loan: number) =>
+    patchPlayer(game(money), 'p1', { loan, loanDue: DUE });
+  const loan = (amount: number): Debt => ({ kind: 'loan', amount });
+
+  it('takes the deposit first, then cash, and lowers the loan; the due date is the caller’s', () => {
+    const result = pay(borrower({ cash: 100, deposit: 50 }, 300), 'p1', loan(120));
+    expect(result.bankrupt).toBe(false);
+    expect(result.events).toEqual([]);
+    expect(getPlayer(result.state, 'p1')).toMatchObject({
+      cash: 30,
+      deposit: 0,
+      loan: 180,
+      loanDue: DUE,
+    });
+    // Nobody is paid.
+    expect(result.state.players.slice(1)).toEqual(game({ cash: 0, deposit: 0 }).players.slice(1));
+    expect(result.state.lotteryPool).toBe(0);
+  });
+
+  it('leaves cash alone when the deposit covers it', () => {
+    const result = pay(borrower({ cash: 100, deposit: 500 }, 300), 'p1', loan(300));
+    expect(getPlayer(result.state, 'p1')).toMatchObject({ cash: 100, deposit: 200, loan: 0 });
+  });
+
+  it('bankrupts the borrower when deposit and cash fall short, writing the rest off', () => {
+    let state = borrower({ cash: 30, deposit: 20 }, 100);
+    state = patchTile(state, 1, { owner: 'p1', level: 1 });
+    const result = pay(state, 'p1', loan(100));
+    expect(result.bankrupt).toBe(true);
+    expect(result.releasedTiles).toEqual([1]);
+    expect(result.events).toEqual([
+      {
+        type: 'PlayerBankrupt',
+        playerId: 'p1',
+        creditor: null,
+        paidToCreditor: 0,
+        releasedTiles: [1],
+        cause: { kind: 'loan', amountDue: 100 },
+      },
+    ]);
+    expect(getPlayer(result.state, 'p1')).toMatchObject({
+      cash: 0,
+      deposit: 0,
+      loan: 0,
+      loanDue: null,
+      bankrupt: true,
+    });
+    // Unlike a system debt, the money left does not go into the lottery pool.
+    expect(result.state.lotteryPool).toBe(0);
+  });
+
+  it('refuses to take back more than the loan (caller bug)', () => {
+    expect(() => pay(borrower({ cash: 999, deposit: 0 }, 100), 'p1', loan(101))).toThrow(
+      RangeError,
+    );
+  });
+});
+
+describe('any bankruptcy', () => {
+  it('writes the loan and its due date off', () => {
+    const state = patchPlayer(game({ cash: 10, deposit: 0 }), 'p1', {
+      loan: 5000,
+      loanDue: { year: 2010, month: 4, day: 1 },
+    });
+    for (const debt of [rent(500), { kind: 'system', amount: 500 } as const]) {
+      const result = pay(state, 'p1', debt);
+      expect(result.bankrupt).toBe(true);
+      expect(getPlayer(result.state, 'p1')).toMatchObject({ loan: 0, loanDue: null });
+    }
+  });
+});
+
 describe('pay contract', () => {
   it('does not mutate the input state', () => {
     let state = game({ cash: 10, deposit: 10 });

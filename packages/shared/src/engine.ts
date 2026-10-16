@@ -122,6 +122,8 @@ export function createGame(setup: GameSetup): CreateGameResult {
           ...openingSplit(config.startingFunds, player.profile),
         }
       : { profile: null, cash: dealt, deposit: dealt }),
+    loan: 0,
+    loanDue: null,
     points: config.startingPoints,
     location: { kind: 'offBoard' },
     // Everyone rides the starting vehicle with its most dice (docs/GAME_RULES.md §9). Taking one

@@ -4,7 +4,10 @@ import type { PlayerId, TileIndex } from './ids';
 
 /** The debt that could not be paid; amountDue is the full amount, not what was paid. */
 export type BankruptcyCause =
-  { kind: 'rent'; tile: TileIndex; amountDue: number } | { kind: 'system'; amountDue: number };
+  | { kind: 'rent'; tile: TileIndex; amountDue: number }
+  | { kind: 'system'; amountDue: number }
+  /** A loan repayment the borrower could not cover (docs/GAME_RULES.md §8 "貸款與破產"). */
+  | { kind: 'loan'; amountDue: number };
 
 export type GameEndReason =
   | 'lastStanding'

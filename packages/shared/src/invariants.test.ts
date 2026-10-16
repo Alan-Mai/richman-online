@@ -54,6 +54,12 @@ describe('checkInvariants', () => {
     expect(checkInvariants(over)).toEqual([]);
   });
 
+  it('accepts a repaid loan whose due date a computer kept', () => {
+    const due = { year: 2010, month: 4, day: 1 };
+    expect(checkInvariants(patchPlayer(base(), 'p1', { loan: 0, loanDue: due }))).toEqual([]);
+    expect(checkInvariants(patchPlayer(base(), 'p1', { loan: 500, loanDue: due }))).toEqual([]);
+  });
+
   it('accepts unowned properties with buildings left by a bankruptcy', () => {
     const state = patchTile(base(), 1, { level: 2 });
     expect(checkInvariants(state)).toEqual([]);
@@ -94,6 +100,27 @@ describe('checkInvariants', () => {
       'negative deposit',
       () => patchPlayer(base(), 'p1', { deposit: -5 }),
       'player p1: deposit -5 is not a non-negative integer',
+    ],
+    [
+      'negative loan',
+      () => patchPlayer(base(), 'p1', { loan: -5, loanDue: { year: 2010, month: 4, day: 1 } }),
+      'player p1: loan -5 is not a non-negative integer',
+    ],
+    [
+      'loan without a due date',
+      () => patchPlayer(base(), 'p2', { loan: 300 }),
+      'player p2: loan 300 has no due date',
+    ],
+    [
+      'due date that does not exist',
+      () => patchPlayer(base(), 'p1', { loan: 300, loanDue: { year: 2010, month: 2, day: 30 } }),
+      'player p1: loanDue 2010-02-30 is not a valid date',
+    ],
+    [
+      'bankrupt player with a loan due date',
+      () =>
+        patchPlayer(base(), 'p2', { bankrupt: true, loanDue: { year: 2010, month: 4, day: 1 } }),
+      'player p2: bankrupt but has a loan or a due date',
     ],
     [
       'no dice',

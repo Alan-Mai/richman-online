@@ -128,6 +128,18 @@ describe('viewFor', () => {
     }
   });
 
+  it("sends each player's loan and due date, like their cash", () => {
+    const due = { year: 2010, month: 4, day: 1 };
+    const state = patchPlayer(newTestGame({ playerCount: 2 }), 'p2', { loan: 700, loanDue: due });
+    for (const viewer of [P1, SPECTATOR]) {
+      const players = viewFor(state, viewer).players;
+      expect(players.map((p) => [p.loan, p.loanDue])).toEqual([
+        [0, null],
+        [700, due],
+      ]);
+    }
+  });
+
   it('keeps a player whose id is "spectator" distinct from a spectator', () => {
     const state = newTestGame();
     expect(viewFor(state, { kind: 'player', id: 'spectator' }).viewer).toEqual({
