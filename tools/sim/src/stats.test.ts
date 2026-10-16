@@ -233,6 +233,41 @@ describe('summarize', () => {
     );
   });
 
+  it('averages loans per game over games that did not fail', () => {
+    const games = [
+      record(1, { kind: 'unfinished' }, 9, 10, 0, {
+        loanBorrowsHuman: 2,
+        loanBorrowedHuman: 1000,
+        loanBorrowsComputer: 3,
+        loanBorrowedComputer: 6000,
+        loanRepaysCounter: 1,
+        loanRepaysComputer: 2,
+        counterLeaves: 2,
+        loanCallIns: 1,
+        loanBankruptcies: 1,
+      }),
+      record(2, { kind: 'unfinished' }, 9, 10, 0, { loanBorrowsComputer: 1 }),
+      record(3, { kind: 'failed', step: 1, failure: { kind: 'missingGameEnded' } }, 1, 1, 0, {
+        loanBorrowsHuman: 99,
+      }),
+    ];
+    expect(summarize(games, 4).loans).toEqual({
+      humanBorrows: 1,
+      meanHumanBorrow: 500,
+      computerBorrows: 2,
+      meanComputerBorrow: 1500,
+      counterRepays: 0.5,
+      computerRepays: 1,
+      counterLeaves: 1,
+      callIns: 0.5,
+      bankruptcies: 0.5,
+    });
+    expect(formatStats(summarize(games, 4), 0)).toContain(
+      'loans per game: humans borrowed 1.0 (mean 500), repaid 0.5, left the counter 1.0; ' +
+        'computers borrowed 2.0 (mean 1500), repaid 1.0; called in 0.5, bankruptcies 0.5',
+    );
+  });
+
   it('handles a run without finished games', () => {
     const empty = summarize([record(5, { kind: 'unfinished' }, 9)], 4);
     expect(empty.rounds).toBeNull();

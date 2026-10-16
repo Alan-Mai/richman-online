@@ -112,13 +112,17 @@ export type GameEvent =
   | { type: 'MonthStarted'; players: readonly MonthlyInterest[] }
   /** A human who stopped on a bank is at its loan counter (docs/GAME_RULES.md §4). */
   | { type: 'CounterOpened'; playerId: PlayerId; tile: TileIndex }
-  /** Borrowed `amount` into the deposit; loan and loanDue are the new values. */
+  /**
+   * Borrowed `amount` into the deposit; loan and loanDue are the new values. `by` says how: at the
+   * counter, or a computer borrowing by itself.
+   */
   | {
       type: 'LoanBorrowed';
       playerId: PlayerId;
       amount: number;
       loan: number;
       loanDue: CalendarDate;
+      by: 'counter' | 'computer';
     }
   /**
    * Paid `amount` of the loan back, deposit first, then cash; loan and loanDue are the new values.

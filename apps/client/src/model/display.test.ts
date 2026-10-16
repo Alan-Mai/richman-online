@@ -316,7 +316,7 @@ describe('applyEventToDisplay', () => {
     const due = { year: 2010, month: 4, day: 1 };
     const next = apply(
       { type: 'CounterOpened', playerId: 'a', tile: 1 },
-      { type: 'LoanBorrowed', playerId: 'a', amount: 300, loan: 300, loanDue: due },
+      { type: 'LoanBorrowed', playerId: 'a', amount: 300, loan: 300, loanDue: due, by: 'counter' },
     );
     expect(next.players[0]).toMatchObject({ cash: 1000, deposit: 800, loan: 300, loanDue: due });
   });

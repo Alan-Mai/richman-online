@@ -50,7 +50,14 @@ describe('a computer without a loan stopping on a bank', () => {
     start = patchTile(start, 2, { owner: 'p1', level: 0 });
     const { state, events } = roll({ ...start, rngState: scriptedRng([0, 0]) });
     expect(loanEvents(events)).toEqual([
-      { type: 'LoanBorrowed', playerId: 'p1', amount: 12_300, loan: 12_300, loanDue: DUE_MID },
+      {
+        type: 'LoanBorrowed',
+        playerId: 'p1',
+        amount: 12_300,
+        loan: 12_300,
+        loanDue: DUE_MID,
+        by: 'computer',
+      },
     ]);
     expect(getPlayer(state, 'p1')).toMatchObject({
       cash: 20_000,
@@ -80,7 +87,14 @@ describe('a computer without a loan stopping on a bank', () => {
     const { events } = roll(start);
     // 50% of 29,999, rounded down.
     expect(loanEvents(events)).toEqual([
-      { type: 'LoanBorrowed', playerId: 'p1', amount: 14_999, loan: 14_999, loanDue: DUE_MID },
+      {
+        type: 'LoanBorrowed',
+        playerId: 'p1',
+        amount: 14_999,
+        loan: 14_999,
+        loanDue: DUE_MID,
+        by: 'computer',
+      },
     ]);
   });
 

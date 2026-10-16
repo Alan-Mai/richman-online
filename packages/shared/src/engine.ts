@@ -607,7 +607,7 @@ function computerLoan(state: GameState): Step {
       loan: amount,
       loanDue,
     })),
-    events: [{ type: 'LoanBorrowed', playerId, amount, loan: amount, loanDue }],
+    events: [{ type: 'LoanBorrowed', playerId, amount, loan: amount, loanDue, by: 'computer' }],
   };
 }
 
@@ -687,7 +687,7 @@ function borrow(state: GameState, amount: number): Result {
   const loanDue = player.loanDue ?? loanDueDate(state.date, state.board.holidays ?? []);
   const borrowed: Step = {
     state: updatePlayer(state, playerId, (p) => ({ deposit: p.deposit + amount, loan, loanDue })),
-    events: [{ type: 'LoanBorrowed', playerId, amount, loan, loanDue }],
+    events: [{ type: 'LoanBorrowed', playerId, amount, loan, loanDue, by: 'counter' }],
   };
   return accept(chain(borrowed, endTurn));
 }

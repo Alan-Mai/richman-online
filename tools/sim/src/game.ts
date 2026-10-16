@@ -268,6 +268,20 @@ export interface GameMetrics {
   bankLeaves: number;
   /** Computer rebalances that changed something. */
   bankRebalances: number;
+  /** Borrowing at the counter (humans) and by computers, with the amounts. */
+  loanBorrowsHuman: number;
+  loanBorrowedHuman: number;
+  loanBorrowsComputer: number;
+  loanBorrowedComputer: number;
+  /** Repayments at the counter and by computers. */
+  loanRepaysCounter: number;
+  loanRepaysComputer: number;
+  /** Counters a human left without borrowing or repaying. */
+  counterLeaves: number;
+  /** Loans called in on their due date with something to take back. */
+  loanCallIns: number;
+  /** Bankruptcies over a loan that was called in. */
+  loanBankruptcies: number;
 }
 
 export function emptyMetrics(): GameMetrics {
@@ -292,14 +306,46 @@ export function emptyMetrics(): GameMetrics {
     bankDeposited: 0,
     bankLeaves: 0,
     bankRebalances: 0,
+    loanBorrowsHuman: 0,
+    loanBorrowedHuman: 0,
+    loanBorrowsComputer: 0,
+    loanBorrowedComputer: 0,
+    loanRepaysCounter: 0,
+    loanRepaysComputer: 0,
+    counterLeaves: 0,
+    loanCallIns: 0,
+    loanBankruptcies: 0,
   };
 }
 
-/** Counts bank openings, transfers, leaves and rebalances from one action and its events. */
+/**
+ * Counts bank openings, transfers, leaves and rebalances, and loans, from one action and its
+ * events.
+ */
 export function countBanks(action: Action, events: readonly GameEvent[], metrics: GameMetrics) {
   if (action.type === 'leaveBank') metrics.bankLeaves++;
+  if (action.type === 'leaveCounter') metrics.counterLeaves++;
   for (const event of events) {
     switch (event.type) {
+      case 'LoanBorrowed':
+        if (event.by === 'counter') {
+          metrics.loanBorrowsHuman++;
+          metrics.loanBorrowedHuman += event.amount;
+        } else {
+          metrics.loanBorrowsComputer++;
+          metrics.loanBorrowedComputer += event.amount;
+        }
+        break;
+      case 'LoanRepaid':
+        if (event.by === 'counter') metrics.loanRepaysCounter++;
+        else metrics.loanRepaysComputer++;
+        break;
+      case 'LoanCalledIn':
+        if (event.amount > 0) metrics.loanCallIns++;
+        break;
+      case 'PlayerBankrupt':
+        if (event.cause.kind === 'loan') metrics.loanBankruptcies++;
+        break;
       case 'BankOpened':
         if (event.trigger === 'pass') metrics.bankOpensPassing++;
         else metrics.bankOpensStopping++;

@@ -14,6 +14,8 @@ import {
   MAX_AUCTION_ACTIONS,
   checkBankTotals,
   chooserSeedFor,
+  countBanks,
+  emptyMetrics,
   gameSetup,
   gameSeedFor,
   runGame,
@@ -158,6 +160,68 @@ describe('runGame failure detection', () => {
       const log = toGameLog(spec, record);
       expect(reproduces(log, replay(log, engine))).toBe(true);
     }
+  });
+
+  it('counts borrowing, repaying, leaving the counter and loans called in', () => {
+    const metrics = emptyMetrics();
+    const due = { year: 2010, month: 4, day: 1 };
+    countBanks(
+      { type: 'borrow', playerId: 'p1', amount: 300 },
+      [
+        {
+          type: 'LoanBorrowed',
+          playerId: 'p1',
+          amount: 300,
+          loan: 300,
+          loanDue: due,
+          by: 'counter',
+        },
+      ],
+      metrics,
+    );
+    countBanks(
+      { type: 'rollDice', playerId: 'p2' },
+      [
+        {
+          type: 'LoanBorrowed',
+          playerId: 'p2',
+          amount: 700,
+          loan: 700,
+          loanDue: due,
+          by: 'computer',
+        },
+        { type: 'LoanRepaid', playerId: 'p3', amount: 5, loan: 0, loanDue: due, by: 'computer' },
+        { type: 'LoanCalledIn', playerId: 'p4', amount: 0 },
+        { type: 'LoanCalledIn', playerId: 'p4', amount: 9 },
+        {
+          type: 'PlayerBankrupt',
+          playerId: 'p4',
+          creditor: null,
+          paidToCreditor: 0,
+          releasedTiles: [],
+          cause: { kind: 'loan', amountDue: 9 },
+        },
+      ],
+      metrics,
+    );
+    countBanks({ type: 'leaveCounter', playerId: 'p1' }, [], metrics);
+    countBanks(
+      { type: 'repay', playerId: 'p1', amount: 1 },
+      [{ type: 'LoanRepaid', playerId: 'p1', amount: 1, loan: 0, loanDue: null, by: 'counter' }],
+      metrics,
+    );
+    expect(metrics).toMatchObject({
+      loanBorrowsHuman: 1,
+      loanBorrowedHuman: 300,
+      loanBorrowsComputer: 1,
+      loanBorrowedComputer: 700,
+      loanRepaysCounter: 1,
+      loanRepaysComputer: 1,
+      counterLeaves: 1,
+      // A due date kept after a computer repaid calls in 0, which is not counted.
+      loanCallIns: 1,
+      loanBankruptcies: 1,
+    });
   });
 
   it('does not count month-start interest as money moved by a transfer', () => {

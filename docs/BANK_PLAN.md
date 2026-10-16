@@ -176,4 +176,6 @@
   - 3-7 完成：`advanceDay` 換月時、物價指數之後 `payInterest`：沒有貸款的在場玩家存款 = `withInterest`（trunc(存款 × 1.1)，倍精度），`MonthStarted` 依座位列出 `interest`（金額可為 0）或 `onLoan`；當日遊戲結束不計息。客戶端顯示模型與事件紀錄處理；模擬器的轉帳總額檢查把 `MonthStarted` 列到的玩家視為金錢有進出（同一動作中可能先轉帳、走完後換月；補了測試，拿掉修正會失敗）。兩張圖 × 三種座位各 300 局全部通過。
     - 待確認（原版未定義）：原版金額是 32 位元，存款 × 1.1 超過 2^31 − 1 時 FISTP 得到不定值；引擎的金額沒有上限，照數學值計算。其他金額（過路費累計、借款）同理，未另行處理。
     - 3-5 測試的註解有誤（「1000 × 1.1 在倍精度下略大於 1100」，實際剛好是 1100；測試本身仍成立），另開 `test(shared)` commit 更正並補上剛好相等時會還款的案例。
+  - 3-8 完成：隨機 AI 的櫃檯動作已在 3-4 做完；本步加統計（每局人類借款次數與平均金額、櫃檯還款、離開櫃檯，電腦借款次數與平均金額、電腦還款，到期收回（金額大於 0）、因貸款破產），輸出 `loans per game:` 一行。不變量 `loan ≥ 0` 由 shared 的 `checkInvariants` 提供（3-3），模擬器每步都檢查。與計畫的差異：`LoanBorrowed` 加上 `by: 'counter' | 'computer'`（和 `LoanRepaid` 一致），統計與 3-9 的客戶端訊息都靠它分辨。
+    - 批次驗證（種子 1、步行、兩張圖 × 三種座位 × 有無 `--tables`，各 1000 局）：12 組全部通過、沒有未結束。每局人類借款：random 約 17–19 次，mixed 約 4–5 次；電腦借款約 1.4–3.0 次。到期收回：random 約 2.6–3.0 次，其餘 ≤ 0.2 次。因貸款破產每局 ≤ 0.4 次。局長（平均輪數）：環狀圖 random 147、mixed 71、computer 62；分岔圖 157、78、69。原因未分析，批次 4 再和 F1 表比較。
   - 偶發逾時（記錄，非本批造成）：整體 `pnpm test` 一次出現 4 個逾時（`engine.legal.test.ts` 的 holds through bankruptcy auctions、模擬器 `game.test.ts` 的 plays clean games on the branch board、`simulate.test.ts` 的兩個 plays clean games），單獨跑時修改前後都約 1–1.6 秒，重跑整體通過；推測是當時機器負載。

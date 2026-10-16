@@ -124,7 +124,14 @@ describe('borrowing', () => {
   it('puts the money in the deposit, sets the due date 90 days on, and ends the turn', () => {
     const { state, events } = applyOk(atCounter(), borrow(5000));
     expect(events).toEqual([
-      { type: 'LoanBorrowed', playerId: 'p1', amount: 5000, loan: 5000, loanDue: DUE },
+      {
+        type: 'LoanBorrowed',
+        playerId: 'p1',
+        amount: 5000,
+        loan: 5000,
+        loanDue: DUE,
+        by: 'counter',
+      },
       { type: 'TurnStarted', playerId: 'p2', round: 1 },
     ]);
     expect(getPlayer(state, 'p1')).toMatchObject({

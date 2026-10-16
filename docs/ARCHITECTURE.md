@@ -202,7 +202,7 @@ GameController ◀── ServerUpdate {events, view, legalActions} ──┘
 - 跑大量對局，每一步檢查不變量；失敗時輸出種子與動作序列。座位由 `--controllers` 決定：`random`（全部隨機，從 `legalActions` 均勻選）、`computer`（座位 0 隨機、其餘電腦）、`mixed`（座位 1、3 電腦，0、2 隨機）；隨機座位的 `controller` 是 `human`，電腦座位照 `computerAction` 行動。
 - 不屬於規則引擎，可使用 `console` 與檔案 I/O。
 - 模組：`args.ts`（參數）、`game.ts`（單局與逐步檢查，engine 可注入以測試失敗偵測）、`replay.ts`（紀錄檔與重播）、`stats.ts`（統計與輸出格式）、`simulate.ts`（流程，I/O 注入）、`main.ts`（接上 console 與檔案）。
-- 不變量由 `packages/shared` 的 `checkInvariants(state): string[]` 提供，模擬器另外檢查：輪到的玩家（`actorOf`）有合法動作且每個都被接受、清單外的動作類型各造一個範例並確認被拒絕（通常是 `wrongPhase`）、其他玩家（遊戲結束後所有人）沒有動作、電腦的選擇在 `legalActions` 內且人類座位的 `computerAction` 是 `null`、物價指數不下降、每位玩家與旁觀者的 `viewFor` 不含隱藏欄位、單一拍賣的動作數上限、`gameOver` 時有 `GameEnded` 事件。
+- 不變量由 `packages/shared` 的 `checkInvariants(state): string[]` 提供，模擬器另外檢查：輪到的玩家（`actorOf`）有合法動作且每個都被接受（範圍選項試 1、中間值與 max，並確認 max + 1 被拒絕）、清單外的動作類型各造一個範例並確認被拒絕（通常是 `wrongPhase`）、銀行轉帳與重新分配不改變現金 + 存款、其他玩家（遊戲結束後所有人）沒有動作、電腦的選擇在 `legalActions` 內且人類座位的 `computerAction` 是 `null`、物價指數不下降、每位玩家與旁觀者的 `viewFor` 不含隱藏欄位、單一拍賣的動作數上限、`gameOver` 時有 `GameEnded` 事件。
 - 天數上限與淨值目標不限時，模擬器有不屬於規則的安全上限 `--max-days`（預設 1000），到達時記為「未結束」而不是失敗；`--max-steps` 超過則是失敗。
 - 每個失敗寫入 `tools/sim/out/failure-<該局種子>.json`（gitignore），內容為 config、玩家、種子、動作序列與模擬器看到的結果；`replay` 只依動作序列重播並判斷是否重現。終端機只印前 `--max-failure-details`（預設 5）筆的完整內容，最後印失敗原因分組統計。
 - 輸出用英文 ASCII，避免 Windows 主控台字碼頁造成亂碼。

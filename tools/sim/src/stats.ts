@@ -58,6 +58,19 @@ export interface Stats {
     meanWithdrawal: number | null;
     meanDeposit: number | null;
   } | null;
+  /** Per game over the games that did not fail; null when all failed. */
+  loans: {
+    humanBorrows: number;
+    /** Mean amount per borrowing over all games; null when there was none. */
+    meanHumanBorrow: number | null;
+    computerBorrows: number;
+    meanComputerBorrow: number | null;
+    counterRepays: number;
+    computerRepays: number;
+    counterLeaves: number;
+    callIns: number;
+    bankruptcies: number;
+  } | null;
   /** Most frequent first, each with the seed of the first game that showed it. */
   failureGroups: { key: string; count: number; seed: number }[];
 }
@@ -99,6 +112,7 @@ export function summarize(records: readonly GameRecord[], seats: number): Stats 
     deadEndsPerGame: null,
     diceRolls: {},
     banks: null,
+    loans: null,
     failureGroups: [],
   };
   const finishedRounds: number[] = [];
@@ -136,6 +150,21 @@ export function summarize(records: readonly GameRecord[], seats: number): Stats 
       rebalances: total((m) => m.bankRebalances) / played.length,
       meanWithdrawal: withdrawals > 0 ? total((m) => m.bankWithdrawn) / withdrawals : null,
       meanDeposit: deposits > 0 ? total((m) => m.bankDeposited) / deposits : null,
+    };
+    const humanBorrows = total((m) => m.loanBorrowsHuman);
+    const computerBorrows = total((m) => m.loanBorrowsComputer);
+    const perGame = (pick: (m: GameMetrics) => number) => total(pick) / played.length;
+    stats.loans = {
+      humanBorrows: humanBorrows / played.length,
+      meanHumanBorrow: humanBorrows > 0 ? total((m) => m.loanBorrowedHuman) / humanBorrows : null,
+      computerBorrows: computerBorrows / played.length,
+      meanComputerBorrow:
+        computerBorrows > 0 ? total((m) => m.loanBorrowedComputer) / computerBorrows : null,
+      counterRepays: perGame((m) => m.loanRepaysCounter),
+      computerRepays: perGame((m) => m.loanRepaysComputer),
+      counterLeaves: perGame((m) => m.counterLeaves),
+      callIns: perGame((m) => m.loanCallIns),
+      bankruptcies: perGame((m) => m.loanBankruptcies),
     };
     for (const m of played) {
       for (const [n, rolls] of Object.entries(m.diceRolls)) {
@@ -365,6 +394,18 @@ function bankLine(banks: Stats['banks']): string {
   );
 }
 
+function loanLine(loans: Stats['loans']): string {
+  if (loans === null) return 'loans per game: n/a';
+  const amount = (value: number | null) => (value === null ? 'n/a' : value.toFixed(0));
+  return (
+    `loans per game: humans borrowed ${fixed(loans.humanBorrows)} (mean ${amount(loans.meanHumanBorrow)}), ` +
+    `repaid ${fixed(loans.counterRepays)}, left the counter ${fixed(loans.counterLeaves)}; ` +
+    `computers borrowed ${fixed(loans.computerBorrows)} (mean ${amount(loans.meanComputerBorrow)}), ` +
+    `repaid ${fixed(loans.computerRepays)}; called in ${fixed(loans.callIns)}, ` +
+    `bankruptcies ${fixed(loans.bankruptcies)}`
+  );
+}
+
 function auctionLine({ total, withBidders, sold, meanSaleRatio }: Stats['auctions']): string {
   const ratio = meanSaleRatio === null ? 'n/a' : meanSaleRatio.toFixed(2);
   return (
@@ -398,6 +439,7 @@ export function formatStats(stats: Stats, elapsedMs: number): string {
     priceIndexLine(stats),
     auctionLine(stats.auctions),
     bankLine(stats.banks),
+    loanLine(stats.loans),
     `lottery pool at the end: mean ${fixed(stats.meanLotteryPool)}`,
     `moves per game: forks ${fixed(stats.forksPerGame)}, dead-end turnarounds ${fixed(stats.deadEndsPerGame)}`,
     diceLine(stats.diceRolls),
