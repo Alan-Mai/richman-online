@@ -137,12 +137,30 @@ describe('passing a bank', () => {
     expect(tileOf(third.state, 'p1')).toBe(4);
   });
 
-  it('does not stop a computer (it rebalances instead, 2-5)', () => {
+  it('does not stop a computer, which rebalances on the way without drawing from the RNG', () => {
+    // 1 January: the 50% target is raised to 75%, and half cash is 0.25 short of it.
     const start = game({ controllers: ['computer', 'human'] });
     const { state, events } = rollTo(2, start);
+    expect(events).toEqual([
+      { type: 'DiceRolled', playerId: 'p1', dice: [2], total: 2 },
+      { type: 'PlayerMoved', playerId: 'p1', path: [1] },
+      { type: 'BankRebalanced', playerId: 'p1', tile: 1, cash: 30_000, deposit: 10_000 },
+      { type: 'PlayerMoved', playerId: 'p1', path: [2] },
+    ]);
+    expect(getPlayer(state, 'p1')).toMatchObject({ cash: 30_000, deposit: 10_000 });
+    expect(state.turn.phase).toEqual({ kind: 'awaitBuyDecision', tile: 2, price: 1000 });
+    expect(state.rngState).toEqual({ kind: 'scripted', values: [] });
+  });
+
+  it('keeps the path whole when a computer has nothing to move', () => {
+    // A 33% target is 49.5% on 1 January, close enough to half cash.
+    const start = game({
+      controllers: ['computer', 'human'],
+      profiles: [{ cashPercent: 33, loanPercent: 0 }],
+    });
+    const { events } = rollTo(2, start);
     expect(events.map((e) => e.type)).toEqual(['DiceRolled', 'PlayerMoved']);
     expect(events[1]).toEqual({ type: 'PlayerMoved', playerId: 'p1', path: [1, 2] });
-    expect(state.turn.phase).toEqual({ kind: 'awaitBuyDecision', tile: 2, price: 1000 });
   });
 });
 
@@ -179,8 +197,22 @@ describe('stopping on a bank', () => {
     expect(state.turn.phase).toEqual({ kind: 'bank', tile: 3, trigger: { kind: 'land' } });
   });
 
-  it('does nothing for a computer yet (it rebalances instead, 2-5)', () => {
-    const { events } = rollTo(1, game({ controllers: ['computer', 'human'] }));
+  it('rebalances a computer, then ends the turn', () => {
+    const { state, events } = rollTo(1, game({ controllers: ['computer', 'human'] }));
+    expect(events).toEqual([
+      { type: 'DiceRolled', playerId: 'p1', dice: [1], total: 1 },
+      { type: 'PlayerMoved', playerId: 'p1', path: [1] },
+      { type: 'BankRebalanced', playerId: 'p1', tile: 1, cash: 30_000, deposit: 10_000 },
+      { type: 'TurnStarted', playerId: 'p2', round: 1 },
+    ]);
+    expect(getPlayer(state, 'p1')).toMatchObject({ cash: 30_000, deposit: 10_000 });
+  });
+
+  it('uses the day of the month for the target', () => {
+    // On 15 January the target is 50%, which half cash already is.
+    const start = game({ controllers: ['computer', 'human'] });
+    const mid = { ...start, date: { year: 2010, month: 1, day: 15 }, day: 14 };
+    const { events } = rollTo(1, mid);
     expect(events.map((e) => e.type)).toEqual(['DiceRolled', 'PlayerMoved', 'TurnStarted']);
   });
 });

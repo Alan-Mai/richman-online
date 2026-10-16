@@ -8,6 +8,7 @@ import {
   type LegalAction,
 } from './actions';
 import { applyAuctionAction, auctionActions, startAuctions, type AuctionStep } from './auction';
+import { rebalance } from './bank';
 import { computerBid, drawComputerDiceCount } from './computer';
 import { isPlaceable, validateBoard, type Board, type BoardError } from './board';
 import { nextDay } from './calendar';
@@ -466,7 +467,7 @@ function walk(state: GameState, playerId: PlayerId, steps: number): Step {
       const trigger = { kind: 'pass', stepsLeft: steps - step } as const;
       return chain({ state: standHere(current), events }, (s) => openBank(s, tile, trigger));
     }
-    const passed = resolvePass(current);
+    const passed = resolvePass(current, playerId, tile);
     if (passed.events.length > 0) {
       events.push({ type: 'PlayerMoved', playerId, path: segment }, ...passed.events);
       segment = [];
@@ -480,11 +481,37 @@ function walk(state: GameState, playerId: PlayerId, steps: number): Step {
 }
 
 /**
- * Effect of walking over a tile without stopping, other than a human's bank (walk). None yet;
- * computers rebalancing at a bank comes next (docs/BANK_PLAN.md 2-5), road blocks in Phase 5.
+ * Effect of walking over a tile without stopping, other than a human's bank (walk opens those
+ * first): a computer rebalances at a bank. Road blocks and the like come in Phase 5.
  */
-function resolvePass(state: GameState): Step {
-  return { state, events: [] };
+function resolvePass(state: GameState, playerId: PlayerId, tile: TileIndex): Step {
+  return at(state.board.tiles, tile).kind === 'bank'
+    ? rebalanceAt(state, playerId, tile)
+    : { state, events: [] };
+}
+
+/**
+ * A computer at a bank moves money by itself (docs/GAME_RULES.md §4): an automatic effect like a
+ * payment, not a phase or an action, and it draws nothing from the RNG.
+ */
+function rebalanceAt(state: GameState, playerId: PlayerId, tile: TileIndex): Step {
+  const player = playerOf(state, playerId);
+  if (player.profile === null) {
+    throw new Error(`computer ${playerId} has no profile`);
+  }
+  const { cash, deposit } = rebalance(
+    player.cash,
+    player.deposit,
+    player.profile.cashPercent,
+    state.date.day,
+  );
+  if (cash === player.cash) {
+    return { state, events: [] };
+  }
+  return {
+    state: updatePlayer(state, playerId, () => ({ cash, deposit })),
+    events: [{ type: 'BankRebalanced', playerId, tile, cash, deposit }],
+  };
 }
 
 /**
@@ -546,6 +573,9 @@ function resolveLanding(state: GameState): Step {
   const tile = at(state.board.tiles, index);
   if (opensBank(state, player.id, index)) {
     return openBank(state, index, { kind: 'land' });
+  }
+  if (tile.kind === 'bank') {
+    return chain(rebalanceAt(state, player.id, index), endTurn);
   }
   if (tile.kind !== 'property') {
     return endTurn(state);

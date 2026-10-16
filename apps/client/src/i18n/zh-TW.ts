@@ -161,6 +161,7 @@ export const zhTW = {
   'event.bankOpenedLand': '{name} 停在 {tile}，可以存提款',
   'event.bankWithdrew': '{name} 從存款提出 {amount}',
   'event.bankDeposited': '{name} 存入 {amount}',
+  'event.bankRebalanced': '{name} 在 {tile} 調整現金與存款：現金 {cash}、存款 {deposit}',
   'event.gameEnded.lastStanding': '遊戲結束：只剩一位玩家',
   'event.gameEnded.dayLimitOrNetWorthTarget': '遊戲結束：已達天數上限或淨值目標',
   'event.gameEnded.humanBankrupt': '遊戲結束：唯一的人類玩家破產了',

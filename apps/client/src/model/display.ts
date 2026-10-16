@@ -152,6 +152,11 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
       }));
     case 'BankOpened':
       return model;
+    case 'BankRebalanced':
+      return updatePlayer(model, event.playerId, () => ({
+        cash: event.cash,
+        deposit: event.deposit,
+      }));
     case 'BankTransferred': {
       const moved = event.direction === 'withdraw' ? event.amount : -event.amount;
       return updatePlayer(model, event.playerId, (p) => ({

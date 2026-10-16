@@ -27,13 +27,14 @@ import {
  * Bumped whenever the engine changes how a game unfolds from the same seed and actions; older logs
  * cannot be replayed.
  */
-export const LOG_VERSION = 8;
+export const LOG_VERSION = 9;
 
 /** Why logs of a given older version cannot be replayed, where that is worth spelling out. */
 const OLDER_VERSION_REASONS: Readonly<Record<number, string>> = {
   5: 'its config has no startDate (the calendar came in log version 6)',
   6: 'its computer seats have no profile and split their starting funds like humans (profiles came in log version 7)',
   7: 'humans did not stop at banks (banks came in log version 8)',
+  8: 'computers did not rebalance at banks (rebalancing came in log version 9)',
 };
 
 export interface GameLog {

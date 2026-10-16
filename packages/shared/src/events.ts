@@ -81,6 +81,11 @@ export type GameEvent =
   | { type: 'BankOpened'; playerId: PlayerId; tile: TileIndex; trigger: 'pass' | 'land' }
   /** Moved between the player's cash and deposit at a bank. */
   | { type: 'BankTransferred'; playerId: PlayerId; direction: BankDirection; amount: number }
+  /**
+   * A computer at a bank moved money between cash and deposit by itself (docs/GAME_RULES.md §4);
+   * cash and deposit are the new amounts. Only sent when something changed.
+   */
+  | { type: 'BankRebalanced'; playerId: PlayerId; tile: TileIndex; cash: number; deposit: number }
   | {
       type: 'GameEnded';
       /**

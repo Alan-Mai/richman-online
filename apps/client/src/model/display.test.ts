@@ -102,6 +102,32 @@ describe('applyEventToDisplay', () => {
     expect(next.tiles[1]).toEqual({ owner: 'a', level: 0 });
   });
 
+  it('BankTransferred moves money either way; BankOpened changes nothing', () => {
+    const withdrew = apply(
+      { type: 'BankOpened', playerId: 'a', tile: 1, trigger: 'pass' },
+      { type: 'BankTransferred', playerId: 'a', direction: 'withdraw', amount: 300 },
+    );
+    expect(withdrew.players[0]).toMatchObject({ cash: 1300, deposit: 200 });
+    const deposited = apply({
+      type: 'BankTransferred',
+      playerId: 'a',
+      direction: 'deposit',
+      amount: 400,
+    });
+    expect(deposited.players[0]).toMatchObject({ cash: 600, deposit: 900 });
+  });
+
+  it('BankRebalanced sets the new cash and deposit', () => {
+    const next = apply({
+      type: 'BankRebalanced',
+      playerId: 'a',
+      tile: 1,
+      cash: 1125,
+      deposit: 375,
+    });
+    expect(next.players[0]).toMatchObject({ cash: 1125, deposit: 375 });
+  });
+
   it('PropertyUpgraded pays the cost and sets the level', () => {
     const next = apply({ type: 'PropertyUpgraded', playerId: 'a', tile: 2, level: 3, cost: 400 });
     expect(next.players[0]?.cash).toBe(600);

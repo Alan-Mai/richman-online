@@ -121,26 +121,32 @@ describe('parseGameLog', () => {
     [
       'an older version',
       edit({ version: 1 }),
-      'unsupported log version 1 (expected 8; logs from older engines cannot be replayed)',
+      'unsupported log version 1 (expected 9; logs from older engines cannot be replayed)',
     ],
     [
       'a version 5 log, from before the calendar',
       edit({ version: 5 }),
-      'unsupported log version 5 (expected 8; logs from older engines cannot be replayed): ' +
+      'unsupported log version 5 (expected 9; logs from older engines cannot be replayed): ' +
         'its config has no startDate (the calendar came in log version 6)',
     ],
     [
       'a version 6 log, from before computer profiles',
       edit({ version: 6 }),
-      'unsupported log version 6 (expected 8; logs from older engines cannot be replayed): ' +
+      'unsupported log version 6 (expected 9; logs from older engines cannot be replayed): ' +
         'its computer seats have no profile and split their starting funds like humans ' +
         '(profiles came in log version 7)',
     ],
     [
       'a version 7 log, from before banks',
       edit({ version: 7 }),
-      'unsupported log version 7 (expected 8; logs from older engines cannot be replayed): ' +
+      'unsupported log version 7 (expected 9; logs from older engines cannot be replayed): ' +
         'humans did not stop at banks (banks came in log version 8)',
+    ],
+    [
+      'a version 8 log, from before rebalancing',
+      edit({ version: 8 }),
+      'unsupported log version 8 (expected 9; logs from older engines cannot be replayed): ' +
+        'computers did not rebalance at banks (rebalancing came in log version 9)',
     ],
     ['an unknown board', edit({ board: 'elsewhere' }), 'unknown board elsewhere'],
     ['a missing config', edit({ config: null }), 'config must be an object'],

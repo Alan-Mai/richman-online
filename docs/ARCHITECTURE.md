@@ -120,11 +120,12 @@ awaitRoll ── setDiceCount{count}（機車、汽車；停在 awaitRoll）
           └─ rollDice
                  ▼
      擲骰（diceCount 顆）→ 逐格移動：每經過一格（不含停留格）執行該格的「經過觸發」
-              ├ 自動效果（目前沒有）→ 繼續
+              ├ 電腦經過銀行 → 重新分配（有改變時 PlayerMoved 在此切開、BankRebalanced）→ 繼續
               └ 人類經過銀行 → PlayerMoved 在此切開、BankOpened → bank（pass）：
                    bankTransfer（一次一筆）/ leaveBank → 走完剩下步數（可能再遇到銀行）
      停留格處理：
        ├ 人類停在銀行 → BankOpened → bank（land）── bankTransfer / leaveBank → 回合結束
+       ├ 電腦停在銀行 → 重新分配（BankRebalanced）→ 回合結束
        ├ 無主地產且現金付得起 → awaitBuyDecision ── buyProperty / decline ─────────┐
        ├ 自己的地產、可加蓋且現金付得起 → awaitUpgradeDecision ── upgradeProperty / decline ─┤
        ├ 他人的地產 → 付過路費（現金 → 存款，進地主存款）──────────────────────┤

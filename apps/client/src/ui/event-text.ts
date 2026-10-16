@@ -103,6 +103,13 @@ export function describeEvent(event: GameEvent, model: DisplayModel, board: Boar
         name: name(event.playerId),
         amount: formatMoney(event.amount),
       });
+    case 'BankRebalanced':
+      return t('event.bankRebalanced', {
+        name: name(event.playerId),
+        tile: tile(event.tile),
+        cash: formatMoney(event.cash),
+        deposit: formatMoney(event.deposit),
+      });
     case 'GameEnded':
       return t(`event.gameEnded.${event.reason}`);
   }
