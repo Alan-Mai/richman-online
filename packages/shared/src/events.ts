@@ -89,6 +89,17 @@ export type GameEvent =
    * cash and deposit are the new amounts. Only sent when something changed.
    */
   | { type: 'BankRebalanced'; playerId: PlayerId; tile: TileIndex; cash: number; deposit: number }
+  /**
+   * The current player's loan falls due in `daysLeft` days (docs/GAME_RULES.md §4): 3 for humans
+   * only (the original opens a reminder screen), 2 and 1 for everyone. Sent as the turn starts.
+   */
+  | { type: 'LoanReminder'; playerId: PlayerId; daysLeft: number }
+  /**
+   * The due date has come as the borrower's turn starts: the whole loan, `amount` (0 when a computer
+   * already repaid), is taken back, deposit first, and the loan and due date are cleared. When
+   * cash and deposit fall short, both go to 0 and PlayerBankrupt follows.
+   */
+  | { type: 'LoanCalledIn'; playerId: PlayerId; amount: number }
   /** A human who stopped on a bank is at its loan counter (docs/GAME_RULES.md §4). */
   | { type: 'CounterOpened'; playerId: PlayerId; tile: TileIndex }
   /** Borrowed `amount` into the deposit; loan and loanDue are the new values. */

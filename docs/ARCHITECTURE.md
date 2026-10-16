@@ -117,7 +117,7 @@ type Phase =
 
 ```
 createGame ──▶ startTurn（座位 0）
-startTurn(玩家)：TurnStarted → 尚未放置則隨機放置（PlayerPlaced）
+startTurn(玩家)：TurnStarted → 貸款到期檢查 → 尚未放置則隨機放置（PlayerPlaced）
                  → 電腦騎機車或汽車：預抽本回合顆數（隱藏）→ awaitRoll
 awaitRoll ── setDiceCount{count}（機車、汽車；停在 awaitRoll）
           └─ rollDice
@@ -148,7 +148,7 @@ awaitRoll ── setDiceCount{count}（機車、汽車；停在 awaitRoll）
                  ├ 達到天數上限（最高淨值 > 0）或淨值目標
                  │    → gameOver（dayLimitOrNetWorthTarget；淨值最高者，同額座位較前者）
                  └ 否則更新物價指數，round + 1
-               → startTurn（下一位）
+               → startTurn（下一位；貸款到期收不回就破產，照上方破產流程結束這回合）
 ```
 
 回合開始的狀態效果與擲骰前使用道具（GAME_RULES 標 ❓）日後在 `awaitRoll` 前插入新的 phase。

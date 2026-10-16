@@ -331,6 +331,7 @@ const MONEY_EVENTS: ReadonlySet<GameEventType> = new Set<GameEventType>([
   'AuctionWon',
   'LoanBorrowed',
   'LoanRepaid',
+  'LoanCalledIn',
 ]);
 
 /**

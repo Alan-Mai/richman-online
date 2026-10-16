@@ -9,6 +9,8 @@ import { playerOf } from './update';
 
 /** A loan falls due this many days after the first borrowing. */
 export const LOAN_DAYS = 90;
+/** Reminders start this many days before the due date (the first one for humans only). */
+export const LOAN_REMINDER_DAYS = 3;
 
 /** A computer without a loan borrows on one draw in this many... */
 export const COMPUTER_BORROW_ODDS = 10;

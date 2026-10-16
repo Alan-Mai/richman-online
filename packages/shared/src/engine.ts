@@ -11,10 +11,11 @@ import { applyAuctionAction, auctionActions, startAuctions, type AuctionStep } f
 import { rebalance } from './bank';
 import { computerBid, drawComputerDiceCount } from './computer';
 import { isPlaceable, validateBoard, type Board, type BoardError } from './board';
-import { nextDay } from './calendar';
+import { daysBetween, nextDay } from './calendar';
 import {
   COMPUTER_BORROW_BELOW,
   COMPUTER_BORROW_ODDS,
+  LOAN_REMINDER_DAYS,
   borrowLimit,
   computerBorrowAmount,
   computerRepays,
@@ -28,7 +29,16 @@ import type { PlayerId, TileIndex } from './ids';
 import { stepFrom } from './movement';
 import { isValidProfile, openingSplit, type CharacterProfile } from './profile';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
-import { buyPrice, netWorth, pay, rentFor, spend, spendable, upgradeCost } from './money';
+import {
+  buyPrice,
+  netWorth,
+  pay,
+  rentFor,
+  spend,
+  spendable,
+  upgradeCost,
+  type PayResult,
+} from './money';
 import type { BankTrigger, Controller, GameState, Phase, PhaseKind, PlayerState } from './state';
 import { at, chain, findPlayer, playerOf, updatePlayer, updateTile, type Step } from './update';
 
@@ -858,16 +868,54 @@ function advanceDay(state: GameState): Step {
   };
 }
 
-/** Hands the turn to playerId, placing them on the board first if this is their first turn. */
+/**
+ * Hands the turn to playerId: their loan's due date is checked first, as in the original
+ * (docs/GAME_RULES.md §4), then they are placed on the board if this is their first turn. A loan
+ * called in that bankrupts them ends their turn there, after any auctions.
+ */
 function startTurn(state: GameState, playerId: PlayerId, round: number): Step {
   const started: Step = {
     state: { ...state, turn: { current: playerId, round, phase: { kind: 'awaitRoll' } } },
     events: [{ type: 'TurnStarted', playerId, round }],
   };
+  const due = checkLoanDue(started.state, playerId);
+  const checked: Step = { state: due.state, events: [...started.events, ...due.events] };
+  if (due.bankrupt) {
+    return chain(checked, (s) => afterBankruptcy(s, due.releasedTiles));
+  }
   return chain(
-    chain(started, (s) => placeIfOffBoard(s, playerId)),
+    chain(checked, (s) => placeIfOffBoard(s, playerId)),
     (s) => planComputerDice(s, playerId),
   );
+}
+
+/**
+ * The due date of playerId's loan, checked every turn (not every day; docs/GAME_RULES.md §4):
+ * reminders 3 (humans only), 2 and 1 days ahead; on the day the whole loan is taken back, deposit
+ * first, which may bankrupt them. A computer's repaid loan keeps its due date, so 0 may be called
+ * in. Nothing happens once the date has passed.
+ */
+function checkLoanDue(state: GameState, playerId: PlayerId): PayResult {
+  const player = playerOf(state, playerId);
+  const none: PayResult = { state, events: [], bankrupt: false, releasedTiles: [] };
+  if (player.loanDue === null) {
+    return none;
+  }
+  const daysLeft = daysBetween(state.date, player.loanDue);
+  if (daysLeft < 0 || daysLeft > LOAN_REMINDER_DAYS) {
+    return none;
+  }
+  if (daysLeft > 0) {
+    const reminded = daysLeft < LOAN_REMINDER_DAYS || player.controller === 'human';
+    return reminded ? { ...none, events: [{ type: 'LoanReminder', playerId, daysLeft }] } : none;
+  }
+  const amount = player.loan;
+  const paid = pay(state, playerId, { kind: 'loan', amount });
+  return {
+    ...paid,
+    state: updatePlayer(paid.state, playerId, () => ({ loan: 0, loanDue: null })),
+    events: [{ type: 'LoanCalledIn', playerId, amount }, ...paid.events],
+  };
 }
 
 /**

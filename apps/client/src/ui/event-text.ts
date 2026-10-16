@@ -110,6 +110,13 @@ export function describeEvent(event: GameEvent, model: DisplayModel, board: Boar
         cash: formatMoney(event.cash),
         deposit: formatMoney(event.deposit),
       });
+    case 'LoanReminder':
+      return t('event.loanReminder', { name: name(event.playerId), days: event.daysLeft });
+    case 'LoanCalledIn':
+      return t('event.loanCalledIn', {
+        name: name(event.playerId),
+        amount: formatMoney(event.amount),
+      });
     case 'CounterOpened':
       return t('event.counterOpened', { name: name(event.playerId), tile: tile(event.tile) });
     case 'LoanBorrowed':

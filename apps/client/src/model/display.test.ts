@@ -274,6 +274,33 @@ describe('applyEventToDisplay', () => {
     expect(next.players[0]).toMatchObject({ loan: 0, loanDue: null, bankrupt: true });
   });
 
+  it('LoanCalledIn takes the loan back, deposit first, never below 0, and clears it', () => {
+    const due = { year: 2010, month: 4, day: 1 };
+    const owing = (cash: number, deposit: number): DisplayModel => ({
+      ...model(),
+      players: [player('a', { cash, deposit, loan: 450, loanDue: due }), player('b')],
+    });
+    const called = { type: 'LoanCalledIn', playerId: 'a', amount: 450 } as const;
+    expect(applyEventToDisplay(owing(300, 200), called).players[0]).toMatchObject({
+      cash: 50,
+      deposit: 0,
+      loan: 0,
+      loanDue: null,
+    });
+    // Short: both go to 0 before PlayerBankrupt.
+    expect(applyEventToDisplay(owing(100, 200), called).players[0]).toMatchObject({
+      cash: 0,
+      deposit: 0,
+    });
+    // LoanReminder changes nothing.
+    const reminded = applyEventToDisplay(owing(1, 2), {
+      type: 'LoanReminder',
+      playerId: 'a',
+      daysLeft: 2,
+    });
+    expect(reminded).toEqual(owing(1, 2));
+  });
+
   it('LoanBorrowed adds to the deposit and sets the loan; CounterOpened changes nothing', () => {
     const due = { year: 2010, month: 4, day: 1 };
     const next = apply(

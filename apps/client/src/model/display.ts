@@ -173,7 +173,19 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
       }));
     }
     case 'CounterOpened':
+    case 'LoanReminder':
       return model;
+    case 'LoanCalledIn':
+      // Deposit first, then cash, neither below 0: a shortfall is followed by PlayerBankrupt.
+      return updatePlayer(model, event.playerId, (p) => {
+        const fromDeposit = Math.min(p.deposit, event.amount);
+        return {
+          deposit: p.deposit - fromDeposit,
+          cash: Math.max(0, p.cash - (event.amount - fromDeposit)),
+          loan: 0,
+          loanDue: null,
+        };
+      });
     case 'LoanBorrowed':
       return updatePlayer(model, event.playerId, (p) => ({
         deposit: p.deposit + event.amount,

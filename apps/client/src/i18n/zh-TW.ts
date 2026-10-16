@@ -190,6 +190,8 @@ export const zhTW = {
   'event.bankDeposited': '{name} 存入 {amount}',
   'event.bankRebalanced': '{name} 在 {tile} 調整現金與存款：現金 {cash}、存款 {deposit}',
   'event.counterOpened': '{name} 來到 {tile} 的貸款櫃檯',
+  'event.loanReminder': '{name} 的貸款再 {days} 天到期',
+  'event.loanCalledIn': '{name} 的貸款到期，銀行強制收回 {amount}',
   'event.loanBorrowed': '{name} 借款 {amount} 存入存款，貸款共 {loan}，{year}/{month}/{day} 到期',
   'event.loanRepaid': '{name} 還款 {amount}，貸款剩 {loan}',
   'event.loanRepaidAll': '{name} 還款 {amount}，貸款已還清',
