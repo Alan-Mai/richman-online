@@ -101,7 +101,7 @@ export type GameEvent =
     }
   /**
    * Paid `amount` of the loan back, deposit first, then cash; loan and loanDue are the new values.
-   * `by` says why: at the counter.
+   * `by` says why: at the counter, or a computer repaying by itself (it keeps the due date).
    */
   | {
       type: 'LoanRepaid';
@@ -109,7 +109,7 @@ export type GameEvent =
       amount: number;
       loan: number;
       loanDue: CalendarDate | null;
-      by: 'counter';
+      by: 'counter' | 'computer';
     }
   | {
       type: 'GameEnded';

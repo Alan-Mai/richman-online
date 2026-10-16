@@ -12,6 +12,7 @@ import {
   patchPlayer,
   patchTurn,
   placePlayer,
+  scriptedRng,
   tileOf,
   withFixedDice,
 } from './testing';
@@ -198,7 +199,12 @@ describe('stopping on a bank', () => {
   });
 
   it('rebalances a computer, then ends the turn', () => {
-    const { state, events } = rollTo(1, game({ controllers: ['computer', 'human'] }));
+    // After the roll, the computer draws whether to borrow (5: it does not, with 40,000).
+    const start = {
+      ...game({ controllers: ['computer', 'human'] }),
+      rngState: scriptedRng([0, 5]),
+    };
+    const { state, events } = applyOk(start, roll('p1'));
     expect(events).toEqual([
       { type: 'DiceRolled', playerId: 'p1', dice: [1], total: 1 },
       { type: 'PlayerMoved', playerId: 'p1', path: [1] },
@@ -212,7 +218,7 @@ describe('stopping on a bank', () => {
     // On 15 January the target is 50%, which half cash already is.
     const start = game({ controllers: ['computer', 'human'] });
     const mid = { ...start, date: { year: 2010, month: 1, day: 15 }, day: 14 };
-    const { events } = rollTo(1, mid);
+    const { events } = applyOk({ ...mid, rngState: scriptedRng([0, 5]) }, roll('p1'));
     expect(events.map((e) => e.type)).toEqual(['DiceRolled', 'PlayerMoved', 'TurnStarted']);
   });
 });

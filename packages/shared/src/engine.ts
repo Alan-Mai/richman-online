@@ -12,7 +12,15 @@ import { rebalance } from './bank';
 import { computerBid, drawComputerDiceCount } from './computer';
 import { isPlaceable, validateBoard, type Board, type BoardError } from './board';
 import { nextDay } from './calendar';
-import { borrowLimit, loanDueDate, repayLimit } from './loan';
+import {
+  COMPUTER_BORROW_BELOW,
+  COMPUTER_BORROW_ODDS,
+  borrowLimit,
+  computerBorrowAmount,
+  computerRepays,
+  loanDueDate,
+  repayLimit,
+} from './loan';
 import { validateRuleConfig, type RuleConfig, type RuleConfigError } from './config';
 import type { RuleError } from './errors';
 import type { GameEndReason, GameEvent } from './events';
@@ -546,6 +554,53 @@ function rebalanceAt(state: GameState, playerId: PlayerId, tile: TileIndex): Ste
 }
 
 /**
+ * A computer that stopped on a bank borrows or repays by itself after rebalancing
+ * (docs/GAME_RULES.md §4), an automatic effect like rebalancing. Without a loan it draws one number
+ * out of 10 from the RNG, whatever comes of it.
+ */
+function computerLoan(state: GameState): Step {
+  const playerId = state.turn.current;
+  const player = playerOf(state, playerId);
+  if (player.profile === null) {
+    throw new Error(`computer ${playerId} has no profile`);
+  }
+  if (player.loan > 0) {
+    if (player.loanDue === null) {
+      throw new Error(`${playerId} has a loan without a due date`);
+    }
+    if (!computerRepays({ ...player, loanDue: player.loanDue }, state.date)) {
+      return { state, events: [] };
+    }
+    // Covered by cash and deposit either way, so no bankruptcy; the due date stays.
+    const amount = player.loan;
+    const paid = pay(state, playerId, { kind: 'loan', amount });
+    return {
+      state: paid.state,
+      events: [
+        ...paid.events,
+        { type: 'LoanRepaid', playerId, amount, loan: 0, loanDue: player.loanDue, by: 'computer' },
+      ],
+    };
+  }
+  const [draw, rngState] = nextInt(state.rngState, COMPUTER_BORROW_ODDS);
+  const drawn = { ...state, rngState };
+  const wants = draw === 0 || player.cash + player.deposit < COMPUTER_BORROW_BELOW;
+  const amount = computerBorrowAmount(player.profile.loanPercent, netWorth(state, playerId));
+  if (!wants || amount <= 0) {
+    return { state: drawn, events: [] };
+  }
+  const loanDue = player.loanDue ?? loanDueDate(state.date, state.board.holidays ?? []);
+  return {
+    state: updatePlayer(drawn, playerId, (p) => ({
+      deposit: p.deposit + amount,
+      loan: amount,
+      loanDue,
+    })),
+    events: [{ type: 'LoanBorrowed', playerId, amount, loan: amount, loanDue }],
+  };
+}
+
+/**
  * Whether reaching this tile opens a bank for the player: a human on a bank (docs/GAME_RULES.md
  * §4). Computers move their money by themselves instead.
  */
@@ -660,7 +715,7 @@ function resolveLanding(state: GameState): Step {
     return openBank(state, index, { kind: 'land' });
   }
   if (tile.kind === 'bank') {
-    return chain(rebalanceAt(state, player.id, index), endTurn);
+    return chain(chain(rebalanceAt(state, player.id, index), computerLoan), endTurn);
   }
   if (tile.kind !== 'property') {
     return endTurn(state);

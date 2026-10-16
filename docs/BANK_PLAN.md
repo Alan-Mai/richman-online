@@ -171,3 +171,5 @@
     - 「超過額度」不發事件：原版在按下借款時才顯示，引擎無從得知；客戶端可依公開的淨值與貸款判斷（3-9）。
     - 和 2-4 一樣先做最小的模擬器與客戶端部分：模擬器隨機 AI 會選櫃檯動作（隨機金額），範圍檢查一般化（還款 max + 1 依情況是 `invalidAction` 或 `insufficientFunds`），`LoanBorrowed`／`LoanRepaid` 列為改變總額的事件；客戶端顯示模型與事件紀錄處理三個新事件，HUD 暫時只顯示「離開櫃檯」（借還款畫面在 3-9）。統計在 3-8。
     - 隨機 AI 現在會借款，但到期處理還沒做（3-6），模擬器兩張圖 × 三種座位各 300 局全部通過。
+  - 3-5 完成：電腦停在銀行、重新分配之後自動借還款（`engine.ts` 的 `computerLoan`，判斷在 `loan.ts`：`computerBorrowAmount`、`computerRepays`）。沒有貸款時抽一次 `nextInt(10)`（結果不論都抽，與原版相同）；借款沿用已保留的到期日；還款不清到期日；1.1 倍以倍精度比較（測試涵蓋貸款 50、總額 55 不還的案例）。經過銀行時不處理。既有兩個電腦停在銀行的測試多留一個亂數。模擬器兩張圖 × mixed／computer 與 `--tables` 各 300 局全部通過。
+  - 偶發逾時（記錄，非本批造成）：整體 `pnpm test` 一次出現 4 個逾時（`engine.legal.test.ts` 的 holds through bankruptcy auctions、模擬器 `game.test.ts` 的 plays clean games on the branch board、`simulate.test.ts` 的兩個 plays clean games），單獨跑時修改前後都約 1–1.6 秒，重跑整體通過；推測是當時機器負載。
