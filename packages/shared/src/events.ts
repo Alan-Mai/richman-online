@@ -9,6 +9,10 @@ export type BankruptcyCause =
   /** A loan repayment the borrower could not cover (docs/GAME_RULES.md §8 "貸款與破產"). */
   | { kind: 'loan'; amountDue: number };
 
+/** One line of the month-start report. */
+export type MonthlyInterest =
+  { playerId: PlayerId; kind: 'interest'; amount: number } | { playerId: PlayerId; kind: 'onLoan' };
+
 export type GameEndReason =
   | 'lastStanding'
   | 'dayLimitOrNetWorthTarget'
@@ -100,6 +104,12 @@ export type GameEvent =
    * cash and deposit fall short, both go to 0 and PlayerBankrupt follows.
    */
   | { type: 'LoanCalledIn'; playerId: PlayerId; amount: number }
+  /**
+   * A new month has begun (docs/GAME_RULES.md §2 "日" item 7), right after its DayAdvanced: each
+   * player still in the game, in seat order, either got 10% interest on the deposit (`amount`,
+   * already added; it may be 0) or got none for having a loan.
+   */
+  | { type: 'MonthStarted'; players: readonly MonthlyInterest[] }
   /** A human who stopped on a bank is at its loan counter (docs/GAME_RULES.md §4). */
   | { type: 'CounterOpened'; playerId: PlayerId; tile: TileIndex }
   /** Borrowed `amount` into the deposit; loan and loanDue are the new values. */

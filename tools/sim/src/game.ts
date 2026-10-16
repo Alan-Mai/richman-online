@@ -356,6 +356,8 @@ export function checkBankTotals(
       for (const value of Object.values(event)) {
         if (typeof value === 'string') touched.add(value);
       }
+    } else if (event.type === 'MonthStarted') {
+      for (const line of event.players) touched.add(line.playerId);
     } else if (event.type === 'BankTransferred') {
       transferred.add(event.playerId);
     } else if (event.type === 'BankRebalanced' && !touched.has(event.playerId)) {

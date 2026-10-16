@@ -1,7 +1,9 @@
 import {
   PROVISIONAL_COMPUTER_PROFILE,
   allows,
+  createGame,
   type Action,
+  type GameEvent,
   type GameState,
   type Result,
 } from '@richman/shared';
@@ -10,6 +12,7 @@ import {
   BOARDS,
   ENGINE,
   MAX_AUCTION_ACTIONS,
+  checkBankTotals,
   chooserSeedFor,
   gameSetup,
   gameSeedFor,
@@ -155,6 +158,31 @@ describe('runGame failure detection', () => {
       const log = toGameLog(spec, record);
       expect(reproduces(log, replay(log, engine))).toBe(true);
     }
+  });
+
+  it('does not count month-start interest as money moved by a transfer', () => {
+    // A human deposits at a bank on the way, and the month starts as the round ends.
+    const before = createGame(gameSetup(RICHEST));
+    expect(before.ok).toBe(true);
+    if (!before.ok) return;
+    const after = {
+      ...before.state,
+      players: before.state.players.map((p) =>
+        p.id === 'p1' ? { ...p, deposit: p.deposit + 5 } : p,
+      ),
+    };
+    const events: GameEvent[] = [
+      { type: 'BankTransferred', playerId: 'p1', direction: 'deposit', amount: 7 },
+      { type: 'MonthStarted', players: [{ playerId: 'p1', kind: 'interest', amount: 5 }] },
+    ];
+    // The transfer itself kept cash + deposit; the 5 is interest.
+    const moved = {
+      ...after,
+      players: after.players.map((p) =>
+        p.id === 'p1' ? { ...p, cash: p.cash - 7, deposit: p.deposit + 7 } : p,
+      ),
+    };
+    expect(checkBankTotals(before.state, moved, events)).toBeNull();
   });
 
   it('reports invariant violations with the step', () => {

@@ -301,6 +301,17 @@ describe('applyEventToDisplay', () => {
     expect(reminded).toEqual(owing(1, 2));
   });
 
+  it('MonthStarted adds each interest to the deposit', () => {
+    const next = apply({
+      type: 'MonthStarted',
+      players: [
+        { playerId: 'a', kind: 'interest', amount: 50 },
+        { playerId: 'b', kind: 'onLoan' },
+      ],
+    });
+    expect(next.players.map((p) => p.deposit)).toEqual([550, 500]);
+  });
+
   it('LoanBorrowed adds to the deposit and sets the loan; CounterOpened changes nothing', () => {
     const due = { year: 2010, month: 4, day: 1 };
     const next = apply(

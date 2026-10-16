@@ -147,7 +147,7 @@ awaitRoll ── setDiceCount{count}（機車、汽車；停在 awaitRoll）
                  日 + 1（DayAdvanced）：
                  ├ 達到天數上限（最高淨值 > 0）或淨值目標
                  │    → gameOver（dayLimitOrNetWorthTarget；淨值最高者，同額座位較前者）
-                 └ 否則更新物價指數，round + 1
+                 └ 否則更新物價指數；換月時沒有貸款的在場玩家存款計息（MonthStarted）；round + 1
                → startTurn（下一位；貸款到期收不回就破產，照上方破產流程結束這回合）
 ```
 

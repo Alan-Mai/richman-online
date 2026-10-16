@@ -175,6 +175,14 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
     case 'CounterOpened':
     case 'LoanReminder':
       return model;
+    case 'MonthStarted':
+      return event.players.reduce(
+        (shown, line) =>
+          line.kind === 'interest'
+            ? updatePlayer(shown, line.playerId, (p) => ({ deposit: p.deposit + line.amount }))
+            : shown,
+        model,
+      );
     case 'LoanCalledIn':
       // Deposit first, then cash, neither below 0: a shortfall is followed by PlayerBankrupt.
       return updatePlayer(model, event.playerId, (p) => {

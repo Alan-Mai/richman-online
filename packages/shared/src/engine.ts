@@ -21,10 +21,11 @@ import {
   computerRepays,
   loanDueDate,
   repayLimit,
+  withInterest,
 } from './loan';
 import { validateRuleConfig, type RuleConfig, type RuleConfigError } from './config';
 import type { RuleError } from './errors';
-import type { GameEndReason, GameEvent } from './events';
+import type { GameEndReason, GameEvent, MonthlyInterest } from './events';
 import type { PlayerId, TileIndex } from './ids';
 import { stepFrom } from './movement';
 import { isValidProfile, openingSplit, type CharacterProfile } from './profile';
@@ -839,7 +840,7 @@ function endTurn(state: GameState): Step {
 function advanceDay(state: GameState): Step {
   const { config } = state;
   const day = state.day + 1;
-  const { date } = nextDay(state.date);
+  const { date, monthChanged } = nextDay(state.date);
   const standing = state.players.filter((p) => !p.bankrupt);
   const worths = standing.map((p) => netWorth(state, p.id));
 
@@ -862,10 +863,30 @@ function advanceDay(state: GameState): Step {
   const sum = worths.reduce((total, worth) => total + worth, 0);
   const average = Math.floor(sum / standing.length);
   const priceIndex = Math.max(state.priceIndex, Math.floor(average / config.startingFunds));
-  return {
+  const dated: Step = {
     state: { ...state, day, date, priceIndex },
     events: [{ type: 'DayAdvanced', day, date, priceIndex }],
   };
+  return monthChanged ? chain(dated, payInterest) : dated;
+}
+
+/**
+ * The first day of a month, after the price index (docs/GAME_RULES.md §2 "日" item 7): every player
+ * still in the game without a loan gets 10% on the deposit; the others are reported as on loan.
+ */
+function payInterest(state: GameState): Step {
+  const report: MonthlyInterest[] = [];
+  const players = state.players.map((p) => {
+    if (p.bankrupt) return p;
+    if (p.loan > 0) {
+      report.push({ playerId: p.id, kind: 'onLoan' });
+      return p;
+    }
+    const deposit = withInterest(p.deposit);
+    report.push({ playerId: p.id, kind: 'interest', amount: deposit - p.deposit });
+    return { ...p, deposit };
+  });
+  return { state: { ...state, players }, events: [{ type: 'MonthStarted', players: report }] };
 }
 
 /**

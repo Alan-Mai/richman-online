@@ -20,6 +20,15 @@ export const COMPUTER_BORROW_BELOW = 30_000;
 export const COMPUTER_REPAY_DAYS = 6;
 
 /**
+ * A deposit after a month's interest (docs/GAME_RULES.md §2 "日" item 7): trunc(deposit × 1.1),
+ * with 1.1 as a double like the original's constant (53-bit FPU). For whole deposits below 2^31
+ * this equals floor(11 × deposit / 10).
+ */
+export function withInterest(deposit: number): number {
+  return Math.trunc(deposit * 1.1);
+}
+
+/**
  * What a computer without a loan borrows when it does (docs/GAME_RULES.md §4): loanPercent of net
  * worth, rounded down. Its net worth is never negative without a loan.
  */
