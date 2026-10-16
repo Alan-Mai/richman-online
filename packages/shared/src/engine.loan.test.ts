@@ -141,7 +141,6 @@ describe('a computer with a loan stopping on a bank', () => {
 
   it('repays all of it once due within 6 days if 1.1 times the loan is covered, keeping the due date', () => {
     const due = { year: 2010, month: 1, day: 21 };
-    // 1000 × 1.1 is a little over 1100 in double precision, so 1101 is needed.
     const { state, events } = roll(owing({ cash: 601, deposit: 500, loan: 1000 }, due));
     expect(loanEvents(events)).toEqual([
       { type: 'LoanRepaid', playerId: 'p1', amount: 1000, loan: 0, loanDue: due, by: 'computer' },
@@ -149,6 +148,13 @@ describe('a computer with a loan stopping on a bank', () => {
     // Deposit first, then cash.
     expect(getPlayer(state, 'p1')).toMatchObject({ cash: 101, deposit: 0, loan: 0, loanDue: due });
     expect(checkInvariants(state)).toEqual([]);
+  });
+
+  it('repays with exactly 1.1 times the loan when the double product is exact', () => {
+    // 1000 × 1.1 rounds to exactly 1100 in double precision (unlike 50 × 1.1, below).
+    const due = { year: 2010, month: 1, day: 21 };
+    const { events } = roll(owing({ cash: 600, deposit: 500, loan: 1000 }, due));
+    expect(loanEvents(events)).toHaveLength(1);
   });
 
   it('waits while more than 6 days are left', () => {
