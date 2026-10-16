@@ -2,7 +2,7 @@
 import {
   DEFAULT_RULE_CONFIG,
   TEST_LOOP_BOARD,
-  type Action,
+  type LegalAction,
   type AuctionPhaseView,
   type ServerUpdate,
 } from '@richman/shared';
@@ -40,7 +40,7 @@ const PHASE: AuctionPhaseView = {
 };
 
 /** p1 went bankrupt; p2..p4 are in the auction with PHASE; p4 has 2600 cash. */
-function auctionUpdate(legalActions: Action[]): ServerUpdate {
+function auctionUpdate(legalActions: LegalAction[]): ServerUpdate {
   const base = opening();
   const players = base.view.players.map((p) =>
     p.id === 'p1' ? { ...p, bankrupt: true } : p.id === 'p4' ? { ...p, cash: 2600 } : p,
@@ -53,7 +53,7 @@ function auctionUpdate(legalActions: Action[]): ServerUpdate {
   };
 }
 
-const OFFERED: Action[] = [
+const OFFERED: LegalAction[] = [
   { type: 'bid', playerId: 'p4', raise: 100 },
   { type: 'bid', playerId: 'p4', raise: 500 },
   { type: 'passRound', playerId: 'p4' },

@@ -1,5 +1,5 @@
 // Test-only helpers. Not exported from index.ts; the only place that creates scripted RNG states.
-import type { Action, ActionType } from './actions';
+import type { Action, ActionType, LegalAction } from './actions';
 import type { Board, PropertyTileDef, TileDef } from './board';
 import { DEFAULT_RULE_CONFIG, type RuleConfig } from './config';
 import { applyAction, createGame, type PlayerSetup } from './engine';
@@ -145,16 +145,17 @@ export function testProperty(price: number): PropertySpec {
 
 /**
  * A loop 0 -> 1 -> ... -> 0. Each entry is a property (a price for testProperty's amounts, or the
- * amounts themselves), or null for a blank tile. Names are placeholders. Links list the forward
- * neighbour first (see behind).
+ * amounts themselves), null for a blank tile or 'bank'. Names are placeholders. Links list the
+ * forward neighbour first (see behind).
  */
-export function loopBoard(spec: readonly (number | PropertySpec | null)[]): Board {
+export function loopBoard(spec: readonly (number | PropertySpec | null | 'bank')[]): Board {
   const n = spec.length;
   if (n < 3) throw new RangeError(`a loop needs at least 3 tiles, got ${n}`);
   const tiles = spec.map((entry, i): TileDef => {
     const links = [{ to: (i + 1) % n }, { to: (i + n - 1) % n }];
     const base = { name: `T${i}`, links, pos: { x: i, y: 0 } };
     if (entry === null) return { kind: 'blank', ...base };
+    if (entry === 'bank') return { kind: 'bank', ...base };
     const amounts = typeof entry === 'number' ? testProperty(entry) : entry;
     return { kind: 'property', ...base, ...amounts };
   });
@@ -212,6 +213,7 @@ export const PHASE_ACTIONS: Readonly<Record<PhaseKind, readonly ActionType[]>> =
   awaitBuyDecision: ['buyProperty', 'decline'],
   awaitUpgradeDecision: ['upgradeProperty', 'decline'],
   auction: ['bid', 'passRound', 'withdraw'],
+  bank: ['bankTransfer', 'leaveBank'],
   gameOver: [],
 };
 
@@ -219,8 +221,9 @@ export const PHASE_ACTIONS: Readonly<Record<PhaseKind, readonly ActionType[]>> =
  * How applyAction must refuse exampleAction(type) when legalActions does not offer that type,
  * following the error order in docs/ARCHITECTURE.md: wrongPhase if the phase does not handle the
  * type; otherwise the action's own check, which is why it was not offered: no dice choice on foot
- * (invalidAction) or cash short of the smallest raise (insufficientFunds). The other types are
- * always offered in their phases, so null means "should have been offered".
+ * (invalidAction), cash short of the smallest raise or nothing to move at a bank
+ * (insufficientFunds). The other types are always offered in their phases, so null means "should
+ * have been offered".
  */
 export function unofferedRefusal(state: GameState, type: ActionType): RuleError | null {
   const phase = state.turn.phase.kind;
@@ -231,10 +234,27 @@ export function unofferedRefusal(state: GameState, type: ActionType): RuleError 
     case 'setDiceCount':
       return { code: 'invalidAction' };
     case 'bid':
+    case 'bankTransfer':
       return { code: 'insufficientFunds' };
     default:
       return null;
   }
+}
+
+/**
+ * Concrete actions an offer allows, for tests that try them all: the action itself, or a range's
+ * smallest and largest amounts.
+ */
+export function sampleActions(option: LegalAction): Action[] {
+  if (option.type !== 'bankTransfer') return [option];
+  const { playerId, direction, max } = option;
+  const amounts = max === 1 ? [1] : [1, max];
+  return amounts.map((amount) => ({ type: 'bankTransfer', playerId, direction, amount }));
+}
+
+/** One concrete action for an offer: the action itself, or a range's largest amount. */
+export function concrete(option: LegalAction): Action {
+  return sampleActions(option).at(-1) ?? exampleAction(option.type, option.playerId);
 }
 
 /** A well-formed action of the given type, with made-up parameters where it takes any. */
@@ -244,6 +264,8 @@ export function exampleAction(type: ActionType, playerId: PlayerId): Action {
       return { type, playerId, raise: 100 };
     case 'setDiceCount':
       return { type, playerId, count: 1 };
+    case 'bankTransfer':
+      return { type, playerId, direction: 'withdraw', amount: 1 };
     default:
       return { type, playerId };
   }

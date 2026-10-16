@@ -9,6 +9,7 @@ import { TEST_LOOP_BOARD } from './maps/test-loop';
 import type { GameState, PlayerLocation } from './state';
 import {
   applyOk,
+  concrete,
   getPlayer,
   loopBoard,
   newTestGame,
@@ -192,7 +193,8 @@ describe('first-turn placement', () => {
     while (state.turn.round <= 3) {
       expect(getPlayer(state, state.turn.current).location.kind).toBe('onBoard');
       const actions = legalActions(state, state.turn.current);
-      const step = applyOk(state, actions.at(-1) ?? roll(state.turn.current));
+      const last = actions.at(-1);
+      const step = applyOk(state, last === undefined ? roll(state.turn.current) : concrete(last));
       events.push(...step.events);
       state = step.state;
     }

@@ -89,6 +89,10 @@ export function actionLabel(type: ActionType, update: ServerUpdate): string {
       return t('action.passRound');
     case 'withdraw':
       return t('action.withdraw');
+    case 'bankTransfer':
+      return t('action.bankTransfer');
+    case 'leaveBank':
+      return t('action.leaveBank');
   }
 }
 
@@ -229,9 +233,14 @@ export class Hud implements ControllerSink {
     this.prompt.textContent = !offered
       ? ''
       : t(bidder === null ? 'hud.yourTurn' : 'hud.auctionTurn', { name: actor.name });
-    // The auction panel and the dice panel have their own buttons.
+    // The auction panel and the dice panel have their own buttons. Transfers need an amount; until
+    // the bank panel comes (docs/BANK_PLAN.md 2-7) a player at a bank can only leave.
     const turnActions =
-      bidder === null ? update.legalActions.filter((a) => a.type !== 'setDiceCount') : [];
+      bidder === null
+        ? update.legalActions.flatMap((a) =>
+            a.type === 'setDiceCount' || a.type === 'bankTransfer' ? [] : [a],
+          )
+        : [];
     renderDicePanel(
       this.dice,
       bidder === null ? dicePanelState(update, this.options.config) : null,

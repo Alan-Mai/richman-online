@@ -60,7 +60,14 @@ export function playRandomGame(setup: GameSetup, maxSteps = 20_000): ServerUpdat
     if (offered.length === 0) return updates;
     const [pick, nextRng] = nextInt(rng, offered.length);
     rng = nextRng;
-    host.send(toIntent(offered[pick]!));
+    const option = offered[pick]!;
+    if (option.type === 'bankTransfer') {
+      const [amount, afterAmount] = nextInt(rng, option.max);
+      rng = afterAmount;
+      host.send({ type: 'bankTransfer', direction: option.direction, amount: amount + 1 });
+    } else {
+      host.send(toIntent(option));
+    }
   }
   throw new Error(`game did not end within ${maxSteps} steps`);
 }

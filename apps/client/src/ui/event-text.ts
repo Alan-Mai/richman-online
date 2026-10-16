@@ -93,6 +93,16 @@ export function describeEvent(event: GameEvent, model: DisplayModel, board: Boar
       });
     case 'AuctionUnsold':
       return t('event.auctionUnsold', { tile: tile(event.tile) });
+    case 'BankOpened':
+      return t(event.trigger === 'pass' ? 'event.bankOpenedPass' : 'event.bankOpenedLand', {
+        name: name(event.playerId),
+        tile: tile(event.tile),
+      });
+    case 'BankTransferred':
+      return t(event.direction === 'withdraw' ? 'event.bankWithdrew' : 'event.bankDeposited', {
+        name: name(event.playerId),
+        amount: formatMoney(event.amount),
+      });
     case 'GameEnded':
       return t(`event.gameEnded.${event.reason}`);
   }

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { allows } from './actions';
 import { drawComputerLimits } from './computer';
 import { actorOf, computerAction, legalActions } from './engine';
 import { checkInvariants } from './invariants';
 import type { AuctionPhase, Controller, GameState } from './state';
 import {
   applyOk,
+  concrete,
   getPlayer,
   loopBoard,
   newTestGame,
@@ -236,9 +238,10 @@ describe('computerAction', () => {
         const computer = getPlayer(state, actor).controller === 'computer';
         const picked = computerAction(state, actor);
         expect(picked === null).toBe(!computer);
-        const action = picked ?? legal.at(-1);
+        const last = legal.at(-1);
+        const action = picked ?? (last === undefined ? undefined : concrete(last));
         if (action === undefined) break;
-        expect(legal).toContainEqual(action);
+        expect(legal.some((option) => allows(option, action))).toBe(true);
         if (state.turn.phase.kind === 'auction') auctionMoves++;
         state = applyOk(state, action).state;
         expect(checkInvariants(state)).toEqual([]);

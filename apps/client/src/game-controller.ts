@@ -1,9 +1,9 @@
 // Connects a GameConnection to the screen: updates go through the EventQueue, and the player can
 // act only when playback has finished and the action is in the latest legal list.
-import type { Action, GameEvent, ServerUpdate } from '@richman/shared';
+import type { GameEvent, LegalAction, ServerUpdate } from '@richman/shared';
 import type { DisplayModel } from './model/display';
 import { EventQueue, type Animator } from './model/event-queue';
-import { sameIntent, type GameConnection, type Intent } from './net/connection';
+import { offerAllows, type GameConnection, type Intent } from './net/connection';
 
 export interface ControllerSink {
   showModel?(model: DisplayModel): void;
@@ -53,13 +53,13 @@ export class GameController {
   }
 
   /** The actions the player may choose right now. */
-  get available(): readonly Action[] {
+  get available(): readonly LegalAction[] {
     return this.ready?.legalActions ?? [];
   }
 
   /** Sends the intent if it is currently offered; returns whether it was sent. */
   act(intent: Intent): boolean {
-    if (!this.available.some((a) => sameIntent(a, intent))) return false;
+    if (!this.available.some((a) => offerAllows(a, intent))) return false;
     // Lock input until the resulting update has played.
     this.setReady(null);
     this.connection.send(intent);

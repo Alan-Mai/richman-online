@@ -82,7 +82,7 @@ function startGameSession(
     // Keys only cover the turn's own choices; auction bids take a click.
     onPrimary: () => {
       const primary = controller?.available.find((a) => PRIMARY_ACTIONS.includes(a.type));
-      if (primary) act(toIntent(primary));
+      if (primary && primary.type !== 'bankTransfer') act(toIntent(primary));
     },
     onDecline: () => act({ type: 'decline' }),
     onCycleDice: () => hud.cycleDice(),

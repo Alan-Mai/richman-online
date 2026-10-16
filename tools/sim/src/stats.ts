@@ -1,6 +1,6 @@
 // Run statistics and the text the simulator prints. Output is plain ASCII English so it reads the
 // same in any Windows console code page.
-import type { Action } from '@richman/shared';
+import type { Action, LegalAction } from '@richman/shared';
 import type { EndReason, GameMetrics, GameRecord, GameSpec } from './game';
 import type { ReplayFailure } from './replay';
 
@@ -188,6 +188,8 @@ export function failureKeys(failure: ReplayFailure): string[] {
       return [`legalActionRejected: ${failure.action.type} -> ${failure.error.code}`];
     case 'unofferedNotRefused':
       return [`unofferedNotRefused: ${failure.action.type} -> ${failure.outcome}`];
+    case 'rangeNotEnforced':
+      return [`rangeNotEnforced: ${failure.action.type} -> ${failure.outcome}`];
     case 'notOffered':
       return [`notOffered: ${failure.action.type}`];
     case 'computerActionNotLegal':
@@ -226,6 +228,10 @@ export function describeFailure(failure: ReplayFailure): string[] {
       return [
         `unoffered ${formatActions([failure.action])} was ${failure.outcome}, expected ${failure.expected}`,
       ];
+    case 'rangeNotEnforced':
+      return [
+        `${formatActions([failure.action])}, just above the offered range, was ${failure.outcome}, expected insufficientFunds`,
+      ];
     case 'notOffered':
       return [`logged ${formatActions([failure.action])} is not a legal action`];
     case 'computerActionNotLegal': {
@@ -254,13 +260,21 @@ function diceLine(rolls: Readonly<Record<number, number>>): string {
 }
 
 /** One token per action; parameters follow the type (raise of a bid, dice count). */
-export function formatActions(actions: readonly Action[]): string {
-  return actions
-    .map((a) => {
-      const parameter = a.type === 'bid' ? a.raise : a.type === 'setDiceCount' ? a.count : null;
-      return `${a.playerId}:${a.type}${parameter === null ? '' : `(${parameter})`}`;
-    })
-    .join(' ');
+export function formatActions(actions: readonly (Action | LegalAction)[]): string {
+  return actions.map((a) => `${a.playerId}:${a.type}${formatParameter(a)}`).join(' ');
+}
+
+function formatParameter(a: Action | LegalAction): string {
+  switch (a.type) {
+    case 'bid':
+      return `(${a.raise})`;
+    case 'setDiceCount':
+      return `(${a.count})`;
+    case 'bankTransfer':
+      return 'max' in a ? `(${a.direction} 1..${a.max})` : `(${a.direction} ${a.amount})`;
+    default:
+      return '';
+  }
 }
 
 /** Reruns one game with the same players; same seed, same choices. */

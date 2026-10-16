@@ -102,13 +102,13 @@ function openNext(state: GameState, tiles: readonly TileIndex[]): AuctionStep {
 }
 
 /** The bidder's options: every raise their cash covers, passing the round and withdrawing. */
-export function auctionActions(state: GameState, phase: AuctionPhase): Action[] {
+export function auctionActions(state: GameState, phase: AuctionPhase): AuctionAction[] {
   const playerId = phase.bidder;
   const { cash } = playerOf(state, playerId);
   return [
     ...state.config.auctionRaises
       .filter((raise) => cash >= phase.price + raise)
-      .map((raise): Action => ({ type: 'bid', playerId, raise })),
+      .map((raise): AuctionAction => ({ type: 'bid', playerId, raise })),
     { type: 'passRound', playerId },
     { type: 'withdraw', playerId },
   ];

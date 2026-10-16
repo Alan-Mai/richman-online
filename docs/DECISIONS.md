@@ -2,6 +2,11 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-16 合法動作的範圍選項（`LegalAction`）
+- **決策**（`BANK_PLAN.md` 2-4）：`legalActions` 改回傳 `LegalAction`：一般動作原樣列出，金額型動作改成範圍選項（目前只有 `{ type: 'bankTransfer'; direction; max }`，金額 1..max）。`allows(option, action)` 判斷動作是否在選項內；`ServerUpdate.legalActions` 同型別。金額小於 1 時 `applyAction` 回 `invalidAction`，超過可動用的金額時回 `insufficientFunds`（和拍賣加價超過現金一致，依 ARCHITECTURE 的錯誤優先順序）。模擬器對每個範圍檢查 1、中間值、max 會被接受，max + 1 被拒絕為 `insufficientFunds`。
+- **原因**：存提款金額是 0 到上限的任意整數（原版），無法逐一列出；仍維持「客戶端只依伺服器下發的清單顯示選項」。
+- **替代方案**：列出固定檔位（不合原版）；另開「需要金額」的旗標、金額由客戶端自行驗證（違反伺服器權威）。
+
 ## 2026-10-15 農曆：自行實作天文演算法，預先產生精簡表
 - **決策**（使用者核准 `BANK_PLAN.md` 時決定）：
   - 農曆由 `tools/extract/src/lunar/` 計算：依 Jean Meeus《Astronomical Algorithms》（第 2 版）的公式自行實作朔望（第 49 章）、太陽視黃經（第 25 章低精度法、第 27 章的逼近法）與儒略日（第 7 章），ΔT 用 Espenak 與 Meeus（NASA《Five Millennium Canon of Solar Eclipses》，2006）的多項式；曆法規則為 1929 年以來的現行規則（UTC+8、朔日為月首、冬至所在月為十一月、13 個月的歲中第一個無中氣月為閏月）。沒有使用第三方程式碼或資料，授權不受影響。

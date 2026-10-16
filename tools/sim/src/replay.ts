@@ -2,6 +2,7 @@
 // a server would rebuild a game from its initial setup and action record.
 import {
   ENGINE_VERSION,
+  allows,
   type Action,
   type GameState,
   type PlayerSetup,
@@ -14,7 +15,6 @@ import {
   exceptionFailure,
   gameSetup,
   isBoardName,
-  sameAction,
   type BoardName,
   type Engine,
   type Failure,
@@ -27,12 +27,13 @@ import {
  * Bumped whenever the engine changes how a game unfolds from the same seed and actions; older logs
  * cannot be replayed.
  */
-export const LOG_VERSION = 7;
+export const LOG_VERSION = 8;
 
 /** Why logs of a given older version cannot be replayed, where that is worth spelling out. */
 const OLDER_VERSION_REASONS: Readonly<Record<number, string>> = {
   5: 'its config has no startDate (the calendar came in log version 6)',
   6: 'its computer seats have no profile and split their starting funds like humans (profiles came in log version 7)',
+  7: 'humans did not stop at banks (banks came in log version 8)',
 };
 
 export interface GameLog {
@@ -157,7 +158,7 @@ export function replay(log: GameLog, engine: Engine = ENGINE): ReplayResult {
         return { kind: 'failed', step, failure };
       }
       const offered = engine.legalActions(state, engine.actorOf(state) ?? '');
-      if (!offered.some((a) => sameAction(a, action))) {
+      if (!offered.some((option) => allows(option, action))) {
         return { kind: 'failed', step, failure: { kind: 'notOffered', action } };
       }
       const result = engine.applyAction(state, action);

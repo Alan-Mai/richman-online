@@ -5,6 +5,7 @@ import {
   TEST_BRANCH_BOARD,
   TEST_LOOP_BOARD,
   actorOf,
+  allows,
   applyAction,
   checkInvariants,
   computerAction,
@@ -23,6 +24,7 @@ import {
   type GameEvent,
   type GameSetup,
   type GameState,
+  type LegalAction,
   type PlayerId,
   type PlayerSetup,
   type RuleError,
@@ -125,7 +127,25 @@ const EXAMPLE_ACTIONS: Record<ActionType, (playerId: PlayerId) => Action> = {
   bid: (playerId) => ({ type: 'bid', playerId, raise: DEFAULT_RULE_CONFIG.auctionRaises[0] ?? 1 }),
   passRound: (playerId) => ({ type: 'passRound', playerId }),
   withdraw: (playerId) => ({ type: 'withdraw', playerId }),
+  bankTransfer: (playerId) => ({
+    type: 'bankTransfer',
+    playerId,
+    direction: 'withdraw',
+    amount: 1,
+  }),
+  leaveBank: (playerId) => ({ type: 'leaveBank', playerId }),
 };
+
+/**
+ * Concrete actions to try for an offer: the action itself, or a range's 1, middle and max. The
+ * range check in checkStep also tries max + 1.
+ */
+function samplesOf(option: LegalAction): Action[] {
+  if (option.type !== 'bankTransfer') return [option];
+  const { playerId, direction, max } = option;
+  const amounts = [...new Set([1, Math.ceil(max / 2), max])];
+  return amounts.map((amount) => ({ type: 'bankTransfer', playerId, direction, amount }));
+}
 
 export interface GameSpec {
   board: BoardName;
@@ -155,13 +175,15 @@ export type Failure =
   | { kind: 'priceIndexFell'; from: number; to: number }
   | { kind: 'noLegalActions'; playerId: PlayerId }
   /** Someone other than actorOf (the player the game waits for; nobody after game over) was offered actions. */
-  | { kind: 'offeredOutOfTurn'; playerId: PlayerId; actions: Action[] }
+  | { kind: 'offeredOutOfTurn'; playerId: PlayerId; actions: LegalAction[] }
   /** computerAction picked an unoffered action, nothing for a computer, or something for a human. */
   | { kind: 'computerActionNotLegal'; playerId: PlayerId; action: Action | null }
   /** A view sent hidden state (HIDDEN_KEYS). */
   | { kind: 'viewLeak'; viewer: string; key: string }
   | { kind: 'auctionTooLong'; tile: TileIndex; actions: number }
   | { kind: 'legalActionRejected'; action: Action; error: RuleError }
+  /** An amount just above an offered range was not refused as insufficientFunds. */
+  | { kind: 'rangeNotEnforced'; action: Action; outcome: string }
   /** An action type missing from legalActions was not refused with the expected error. */
   /** expected 'offered': the type is always offered in this phase, but was not. */
   | {
@@ -314,15 +336,29 @@ export function checkStep(
   if (legal.length === 0) {
     return { kind: 'noLegalActions', playerId: actor };
   }
-  for (const action of legal) {
-    const result = engine.applyAction(state, action);
-    if (!result.ok) {
-      return { kind: 'legalActionRejected', action, error: result.error };
+  for (const option of legal) {
+    for (const action of samplesOf(option)) {
+      const result = engine.applyAction(state, action);
+      if (!result.ok) {
+        return { kind: 'legalActionRejected', action, error: result.error };
+      }
+    }
+    if (option.type === 'bankTransfer') {
+      const { playerId, direction, max } = option;
+      const action: Action = { type: 'bankTransfer', playerId, direction, amount: max + 1 };
+      const result = engine.applyAction(state, action);
+      if (result.ok || result.error.code !== 'insufficientFunds') {
+        return {
+          kind: 'rangeNotEnforced',
+          action,
+          outcome: result.ok ? 'accepted' : result.error.code,
+        };
+      }
     }
   }
   const computer = state.players.find((p) => p.id === actor)?.controller === 'computer';
   const picked = engine.computerAction(state, actor);
-  const pickedLegal = picked !== null && legal.some((a) => sameAction(a, picked));
+  const pickedLegal = picked !== null && legal.some((option) => allows(option, picked));
   if (computer ? !pickedLegal : picked !== null) {
     return { kind: 'computerActionNotLegal', playerId: actor, action: picked };
   }
@@ -350,15 +386,16 @@ const PHASE_ACTIONS: Readonly<Record<PhaseKind, readonly ActionType[]>> = {
   awaitBuyDecision: ['buyProperty', 'decline'],
   awaitUpgradeDecision: ['upgradeProperty', 'decline'],
   auction: ['bid', 'passRound', 'withdraw'],
+  bank: ['bankTransfer', 'leaveBank'],
   gameOver: [],
 };
 
 /**
  * How an unoffered action type must be refused, following the error order in
  * docs/ARCHITECTURE.md: wrongPhase if the phase does not handle the type; otherwise the action's own
- * check, which is why it was not offered: no dice choice on foot (invalidAction) or cash short of
- * the smallest raise (insufficientFunds). The other types are always offered in their phases
- * ('offered').
+ * check, which is why it was not offered: no dice choice on foot (invalidAction), cash short of the
+ * smallest raise or nothing to move at a bank (insufficientFunds). The other types are always
+ * offered in their phases ('offered').
  */
 function expectedRefusal(state: GameState, type: ActionType): RuleError['code'] | 'offered' {
   if (!PHASE_ACTIONS[state.turn.phase.kind].includes(type)) {
@@ -368,14 +405,12 @@ function expectedRefusal(state: GameState, type: ActionType): RuleError['code'] 
     case 'setDiceCount':
       return 'invalidAction';
     case 'bid':
+    case 'bankTransfer':
       return 'insufficientFunds';
     default:
       return 'offered';
   }
 }
-
-export const sameAction = (a: Action, b: Action): boolean =>
-  JSON.stringify(a) === JSON.stringify(b);
 
 export function exceptionFailure(error: unknown): Failure {
   return error instanceof Error
@@ -445,9 +480,18 @@ export function runGame(spec: GameSpec, engine: Engine = ENGINE): GameRecord {
         const legal = engine.legalActions(state, actor);
         const [pick, next] = nextInt(chooser, legal.length);
         chooser = next;
-        action = legal[pick] ?? null;
-        if (action === null) {
+        const option = legal[pick];
+        if (option === undefined) {
           throw new Error(`picked ${pick} of ${legal.length} actions`);
+        }
+        if (option.type === 'bankTransfer') {
+          // Any amount in the range, uniformly.
+          const [amount, after] = nextInt(chooser, option.max);
+          chooser = after;
+          const { playerId, direction } = option;
+          action = { type: 'bankTransfer', playerId, direction, amount: amount + 1 };
+        } else {
+          action = option;
         }
       }
       const result = engine.applyAction(state, action);

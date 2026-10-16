@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Action, ActionType } from './actions';
+import type { Action, ActionType, LegalAction } from './actions';
 import type { RuleConfig } from './config';
 import { actorOf, applyAction, legalActions } from './engine';
 import { checkInvariants } from './invariants';
@@ -7,12 +7,14 @@ import { createRng, nextInt, type RngState } from './rng';
 import type { GameState } from './state';
 import {
   applyOk,
+  concrete,
   exampleAction,
   loopBoard,
   newTestGame,
   patchPlayer,
   patchTile,
   patchTurn,
+  sampleActions,
   unofferedRefusal,
 } from './testing';
 
@@ -25,6 +27,8 @@ const ACTION_TYPES: readonly ActionType[] = [
   'bid',
   'passRound',
   'withdraw',
+  'bankTransfer',
+  'leaveBank',
 ];
 
 /**
@@ -37,6 +41,7 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
   let chooser: RngState = createRng(seed ^ 0x5eed);
   let steps = 0;
   let auctionSteps = 0;
+  let bankSteps = 0;
   while (state.turn.phase.kind !== 'gameOver' && steps < maxSteps) {
     expect(checkInvariants(state)).toEqual([]);
     const current = actorOf(state) ?? '';
@@ -46,7 +51,21 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
 
     const legal = legalActions(state, current);
     expect(legal.length).toBeGreaterThan(0);
-    for (const action of legal) expect(applyAction(state, action).ok).toBe(true);
+    for (const option of legal) {
+      for (const action of sampleActions(option)) expect(applyAction(state, action).ok).toBe(true);
+      if (option.type === 'bankTransfer') {
+        // A range allows exactly 1..max: below is malformed, above is more than there is.
+        const outside: [number, string][] = [
+          [0, 'invalidAction'],
+          [option.max + 1, 'insufficientFunds'],
+        ];
+        for (const [amount, code] of outside) {
+          const action = { ...concrete(option), amount } as Action;
+          expect(applyAction(state, action)).toEqual({ ok: false, error: { code } });
+        }
+        bankSteps++;
+      }
+    }
     for (const type of ACTION_TYPES) {
       if (!legal.some((a) => a.type === type)) {
         const error = unofferedRefusal(state, type);
@@ -61,24 +80,34 @@ function playRandomGame(start: GameState, seed: number, maxSteps: number) {
     if (state.turn.phase.kind === 'auction') auctionSteps++;
     const [pick, next] = nextInt(chooser, legal.length);
     chooser = next;
-    const result = applyAction(state, legal[pick] as Action);
+    let action = concrete(legal[pick] as LegalAction);
+    if (action.type === 'bankTransfer') {
+      const [amount, after] = nextInt(chooser, action.amount);
+      chooser = after;
+      action = { ...action, amount: amount + 1 };
+    }
+    const result = applyAction(state, action);
     if (!result.ok) throw new Error(JSON.stringify(result.error));
     state = result.state;
     steps++;
   }
   expect(checkInvariants(state)).toEqual([]);
-  return { state, auctionSteps };
+  return { state, auctionSteps, bankSteps };
 }
 
 /** Plays seeds 1–5 and expects at least one of them to finish. */
 function expectRandomGamesHold(config: Partial<RuleConfig>, maxSteps: number): void {
   let finished = 0;
+  let bankSteps = 0;
   for (const seed of [1, 2, 3, 4, 5]) {
     const start = newTestGame({ config, playerCount: 4, seed });
-    const end = playRandomGame(start, seed, maxSteps).state;
-    if (end.turn.phase.kind === 'gameOver') finished++;
+    const played = playRandomGame(start, seed, maxSteps);
+    if (played.state.turn.phase.kind === 'gameOver') finished++;
+    bankSteps += played.bankSteps;
   }
   expect(finished).toBeGreaterThan(0);
+  // TEST_LOOP_BOARD has banks, so the transfer ranges get checked too.
+  expect(bankSteps).toBeGreaterThan(0);
 }
 
 describe('legalActions completeness', () => {
@@ -154,9 +183,9 @@ describe('actorOf', () => {
       for (const player of state.players) {
         expect(legalActions(state, player.id).length > 0).toBe(player.id === actor);
       }
-      const [action] = legalActions(state, actor ?? '');
-      if (action === undefined) break;
-      state = applyOk(state, action).state;
+      const [option] = legalActions(state, actor ?? '');
+      if (option === undefined) break;
+      state = applyOk(state, concrete(option)).state;
     }
   });
 });

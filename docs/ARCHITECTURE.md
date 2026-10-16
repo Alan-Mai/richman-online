@@ -26,7 +26,7 @@ function createGame(setup: GameSetup):
   | { ok: false; errors: CreateGameError[] };
 function applyAction(state: GameState, action: Action): Result;
 function actorOf(state: GameState): PlayerId | null;                     // 目前在等誰；遊戲結束為 null
-function legalActions(state: GameState, playerId: PlayerId): Action[];   // 只在伺服器執行
+function legalActions(state: GameState, playerId: PlayerId): LegalAction[];   // 只在伺服器執行；用 allows(option, action) 比對
 function computerAction(state: GameState, playerId: PlayerId): Action | null;  // 只在伺服器／模擬器執行
 function viewFor(state: GameState, viewer: Viewer): PlayerView;
 function checkInvariants(state: GameState): string[];                    // 模擬器與測試用
@@ -36,7 +36,7 @@ type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 
 觀戰者（`{ kind: 'spectator' }`）先保留在型別中，觀戰模式尚未實作。用可辨識聯合型別而不是 `PlayerId | 'spectator'`，是因為 `PlayerId` 是字串，id 剛好叫 `'spectator'` 的玩家會和觀戰者混淆。
 
-- `applyAction` 自行驗證動作格式（日後來自網路），依動作種類逐一檢查參數（`bid.raise`、`setDiceCount.count` 必須是整數）：格式錯誤回傳 `invalidAction`，不 throw。錯誤優先順序 `invalidAction` > `gameOver` > `unknownPlayer` > `notYourTurn`（送出者不是 `actorOf`）> `wrongPhase` > 動作本身的檢查（參數不在允許範圍的 `invalidAction`，例：不在加價檔位內、步行時選顆數；`insufficientFunds`）。
+- `applyAction` 自行驗證動作格式（日後來自網路），依動作種類逐一檢查參數（`bid.raise`、`setDiceCount.count`、`bankTransfer.amount` 必須是整數，`bankTransfer.direction` 必須是兩種之一）：格式錯誤回傳 `invalidAction`，不 throw。錯誤優先順序 `invalidAction` > `gameOver` > `unknownPlayer` > `notYourTurn`（送出者不是 `actorOf`）> `wrongPhase` > 動作本身的檢查（參數不在允許範圍的 `invalidAction`，例：不在加價檔位內、步行時選顆數、轉帳金額小於 1；錢不夠的 `insufficientFunds`，例：加價超過現金、轉帳超過可動用的金額）。
 - `PlayerView` 的欄位逐一列出複製，新增的 state 欄位預設不會外洩。不送：`rngState`、`lotteryPool`（彩券獎池，Phase 5 再定）、拍賣尚未開拍的地塊清單（只送剩餘塊數 `remaining`）、電腦的隱藏欄位（拍賣 `computerLimits`、`awaitRoll` 的 `computerDiceCount`、玩家的 `profile`；玩家以 `PlayerStateView` 逐欄複製）。
 - 金錢相關邏輯在 `money.ts`：`pay()`（強制付款：現金 → 存款 → 破產；收款進債權人存款，系統債務破產時餘款進 `lotteryPool`）、`spend()`（購地、加蓋、得標，只用現金）、價格 helper `buyPrice`／`upgradeCost`／`rentFor`／`auctionStartPrice`（收 `PriceView`）與 `netWorth`（收 `NetWorthView`）。`GameState`、`PlayerView` 與客戶端的 display model 都符合，前後端算出同樣的數字。
 - 其他模組：`movement.ts`（`stepFrom` 走一步、`previewPath` 預覽，實際移動與電腦預覽共用）、`auction.ts`（破產拍賣）、`computer.ts`（電腦出價上限與選顆數的抽取、出價選擇）、`tables.ts`（`parseOriginalTables`，見下方「原版資料表」）、`invariants.ts`。
@@ -91,7 +91,7 @@ interface PlayerState {
 }
 
 interface Board { id; name; tiles: TileDef[]; holidays?: HolidayRule[] }   // 沒有起點：每位玩家第一回合隨機放置；holidays 是地圖的節日表（holidays.ts）
-// TileDef 為依 kind 區分的聯合型別：'property'（price、upgradeCost、rents）| 'blank' | 'bank'（效果待實作）| 'unsupported'
+// TileDef 為依 kind 區分的聯合型別：'property'（price、upgradeCost、rents）| 'blank' | 'bank'（經過與停留時人類可存提款）| 'unsupported'
 // （尚未支援的地圖內容，例如大型建築；可經過、停留沒有效果、不會被選為起點）。每格有無向的 links
 // （最多 4 個，兩端都要列出；可設 blocked = 不能從這一端走出去），可設 noRandomPlacement。
 // 沒有前進方向：玩家記 prev（上一格），每步走「未封鎖且不是 prev」的相鄰格，多個時用 RNG 選，
@@ -99,13 +99,16 @@ interface Board { id; name; tiles: TileDef[]; holidays?: HolidayRule[] }   // �
 
 type Phase =
   | { kind: 'awaitRoll'; computerDiceCount?: number }        // 隱藏欄位只在電腦騎機車或汽車時有
+  | { kind: 'bank'; tile; trigger: { kind: 'pass'; stepsLeft } | { kind: 'land' } }   // 人類在銀行，站在 tile 上
   | { kind: 'awaitBuyDecision'; tile; price }
   | { kind: 'awaitUpgradeDecision'; tile; cost }
   | { kind: 'auction'; tile; queue; startPrice; price; leader; bidder; bidders; computerLimits }
   | { kind: 'gameOver'; winners };
 ```
 
-動作：`rollDice`、`setDiceCount{count}`、`buyProperty`、`upgradeProperty`、`decline`、`bid{raise}`、`passRound`、`withdraw`。股票、道具、卡片、狀態效果、銀行在之後的階段加入。
+動作：`rollDice`、`setDiceCount{count}`、`buyProperty`、`upgradeProperty`、`decline`、`bid{raise}`、`passRound`、`withdraw`、`bankTransfer{direction, amount}`、`leaveBank`。股票、道具、卡片、狀態效果、貸款在之後的階段加入。
+
+`legalActions` 回傳 `LegalAction`：一般動作原樣列出；金額無法逐一列舉的動作改成範圍選項 `{ type: 'bankTransfer'; direction; max }`（金額 1..max）。`allows(option, action)` 判斷一個動作是否在選項允許內，伺服器（目前是 `LocalGameHost`）、模擬器與重播都用它比對。
 
 ### 回合狀態轉移
 
@@ -117,9 +120,11 @@ awaitRoll ── setDiceCount{count}（機車、汽車；停在 awaitRoll）
           └─ rollDice
                  ▼
      擲骰（diceCount 顆）→ 逐格移動：每經過一格（不含停留格）執行該格的「經過觸發」
-              ├ 自動效果（目前沒有格子有經過效果）→ 繼續
-              └ 需玩家決定（日後，例如銀行）→ 暫停於新 phase，決定後走完剩下步數
+              ├ 自動效果（目前沒有）→ 繼續
+              └ 人類經過銀行 → PlayerMoved 在此切開、BankOpened → bank（pass）：
+                   bankTransfer（一次一筆）/ leaveBank → 走完剩下步數（可能再遇到銀行）
      停留格處理：
+       ├ 人類停在銀行 → BankOpened → bank（land）── bankTransfer / leaveBank → 回合結束
        ├ 無主地產且現金付得起 → awaitBuyDecision ── buyProperty / decline ─────────┐
        ├ 自己的地產、可加蓋且現金付得起 → awaitUpgradeDecision ── upgradeProperty / decline ─┤
        ├ 他人的地產 → 付過路費（現金 → 存款，進地主存款）──────────────────────┤
@@ -148,7 +153,7 @@ awaitRoll ── setDiceCount{count}（機車、汽車；停在 awaitRoll）
 interface ServerUpdate {
   events: GameEvent[];
   view: PlayerView;          // viewFor(state, { kind: 'player', id: playerId })
-  legalActions: Action[];    // legalActions(state, playerId)，非輪到該玩家時為空陣列
+  legalActions: LegalAction[];    // legalActions(state, playerId)，非輪到該玩家時為空陣列
 }
 ```
 
@@ -172,7 +177,7 @@ GameController ◀── ServerUpdate {events, view, legalActions} ──┘
           └ 全部播完：與 view 比對（不一致就警告並校正）→ 釋出 legalActions 給動作列
 ```
 
-- **不在客戶端判斷規則**：只有 `net/local-host.ts` 呼叫 `actorOf` / `legalActions` / `applyAction` / `computerAction`（它扮演伺服器；電腦座位每個動作送一次更新，電腦行動時不送可選動作）；其餘模組只讀 `ServerUpdate`。intent 帶完整參數（例：加價檔位、顆數），不帶 `playerId`，由主機補上（拍賣中是輪到出價的人）。
+- **不在客戶端判斷規則**：只有 `net/local-host.ts` 呼叫 `actorOf` / `legalActions` / `applyAction` / `computerAction`（它扮演伺服器；電腦座位每個動作送一次更新，電腦行動時不送可選動作）；其餘模組只讀 `ServerUpdate`。intent 帶完整參數（例：加價檔位、顆數、存提款金額），不帶 `playerId`，由主機補上（拍賣中是輪到出價的人）。
 - **事件驅動畫面**：`model/display.ts` 的 `applyEventToDisplay` 逐事件推進畫面狀態；測試確認「事件依序套在前一個 view 上必定得到下一個 view」，事件缺資訊時會被抓到。
 - **輸入鎖定**：`EventQueue` 播放期間 busy，按鈕全部移除；播完才以最新一筆更新的 `legalActions` 產生按鈕。動畫失敗會跳過，不卡住遊戲。
 - **分層**：Phaser 只畫棋盤、棋子、骰子與飄字（`scenes/`、`render/`）；HUD、設定畫面、結算框、原版地圖選單是 DOM（`ui/`），可用 Vitest + happy-dom 測試。版面為 CSS grid，寬度 ≤ 720px 時改為上下排列。

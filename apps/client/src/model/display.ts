@@ -150,6 +150,15 @@ export function applyEventToDisplay(model: DisplayModel, event: GameEvent): Disp
         cash: p.cash + event.amount,
         deposit: p.deposit - event.amount,
       }));
+    case 'BankOpened':
+      return model;
+    case 'BankTransferred': {
+      const moved = event.direction === 'withdraw' ? event.amount : -event.amount;
+      return updatePlayer(model, event.playerId, (p) => ({
+        cash: p.cash + moved,
+        deposit: p.deposit - moved,
+      }));
+    }
     case 'PropertyBought': {
       const paid = updatePlayer(model, event.playerId, (p) => ({ cash: p.cash - event.price }));
       // A tile released by a bankruptcy keeps its buildings when bought.

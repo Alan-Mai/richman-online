@@ -1,4 +1,4 @@
-import type { Action } from './actions';
+import type { LegalAction } from './actions';
 import type { GameEvent } from './events';
 import type { PlayerView } from './view';
 
@@ -8,6 +8,9 @@ export interface ServerUpdate {
   events: readonly GameEvent[];
   /** viewFor(state, the receiving viewer). */
   view: PlayerView;
-  /** legalActions(state, playerId); empty when it is not this player's turn. */
-  legalActions: readonly Action[];
+  /**
+   * legalActions(state, playerId); empty when it is not this player's turn. Ranges (amounts) are
+   * offered as one option each; see allows.
+   */
+  legalActions: readonly LegalAction[];
 }

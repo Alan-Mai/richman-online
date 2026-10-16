@@ -194,6 +194,26 @@ function checkPhase(state: GameState, current: PlayerState): string[] {
     case 'auction':
       errors.push(...checkAuction(state, phase).map((error) => `phase auction: ${error}`));
       break;
+    case 'bank': {
+      const stands = current.location.kind === 'onBoard' ? current.location.tile : 'off board';
+      if (current.controller !== 'human') {
+        errors.push(`phase bank: ${current.id} is not a human`);
+      }
+      if (phase.tile !== stands) {
+        errors.push(`phase bank: tile ${phase.tile} is not where ${current.id} stands (${stands})`);
+      }
+      if (board.tiles[phase.tile]?.kind !== 'bank') {
+        errors.push(`phase bank: tile ${phase.tile} is not a bank`);
+      }
+      const { trigger } = phase;
+      if (
+        trigger.kind === 'pass' &&
+        (!Number.isSafeInteger(trigger.stepsLeft) || trigger.stepsLeft < 1)
+      ) {
+        errors.push(`phase bank: stepsLeft ${trigger.stepsLeft} is not a positive integer`);
+      }
+      break;
+    }
     case 'gameOver':
       for (const winner of phase.winners) {
         const player = players.find((p) => p.id === winner);

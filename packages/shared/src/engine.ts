@@ -1,6 +1,12 @@
 // State transitions of the rule engine. Pure and deterministic: randomness only comes from
 // state.rngState (see CLAUDE.md and .claude/rules/shared-engine.md).
-import type { Action, ActionType } from './actions';
+import {
+  BANK_DIRECTIONS,
+  type Action,
+  type ActionType,
+  type BankDirection,
+  type LegalAction,
+} from './actions';
 import { applyAuctionAction, auctionActions, startAuctions, type AuctionStep } from './auction';
 import { computerBid, drawComputerDiceCount } from './computer';
 import { isPlaceable, validateBoard, type Board, type BoardError } from './board';
@@ -13,9 +19,10 @@ import { stepFrom } from './movement';
 import { isValidProfile, openingSplit, type CharacterProfile } from './profile';
 import { createRng, isUint32, nextInt, type RngState } from './rng';
 import { buyPrice, netWorth, pay, rentFor, spend, spendable, upgradeCost } from './money';
-import type { Controller, GameState, Phase, PhaseKind, PlayerState } from './state';
+import type { BankTrigger, Controller, GameState, Phase, PhaseKind, PlayerState } from './state';
 import { at, chain, findPlayer, playerOf, updatePlayer, updateTile, type Step } from './update';
 
+type BankPhase = Extract<Phase, { kind: 'bank' }>;
 type BuyDecision = Extract<Phase, { kind: 'awaitBuyDecision' }>;
 type UpgradeDecision = Extract<Phase, { kind: 'awaitUpgradeDecision' }>;
 
@@ -150,14 +157,18 @@ const ACTION_TYPES: ReadonlySet<string> = new Set<ActionType>([
   'bid',
   'passRound',
   'withdraw',
+  'bankTransfer',
+  'leaveBank',
 ]);
+
+const BANK_DIRECTION_SET: ReadonlySet<unknown> = new Set(BANK_DIRECTIONS);
 
 /** Actions arrive from the network; rebuild a clean Action or reject the shape. */
 function parseAction(raw: unknown): Action | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return null;
   }
-  const { type, playerId, raise, count } = raw as Record<string, unknown>;
+  const { type, playerId, raise, count, direction, amount } = raw as Record<string, unknown>;
   if (typeof type !== 'string' || !ACTION_TYPES.has(type) || typeof playerId !== 'string') {
     return null;
   }
@@ -177,6 +188,17 @@ function parseAction(raw: unknown): Action | null {
     case 'decline':
     case 'passRound':
     case 'withdraw':
+      return { type: actionType, playerId };
+    case 'bankTransfer':
+      return BANK_DIRECTION_SET.has(direction) && Number.isSafeInteger(amount)
+        ? {
+            type: actionType,
+            playerId,
+            direction: direction as BankDirection,
+            amount: amount as number,
+          }
+        : null;
+    case 'leaveBank':
       return { type: actionType, playerId };
   }
 }
@@ -239,6 +261,12 @@ export function applyAction(state: GameState, rawAction: Action): Result {
       const result = applyAuctionAction(state, phase, action);
       return result.ok ? accept(afterAuctionStep(result.step)) : reject(result.error);
     }
+    case 'bankTransfer':
+      return phase.kind === 'bank'
+        ? bankTransfer(state, phase, action.direction, action.amount)
+        : wrongPhase(phase.kind);
+    case 'leaveBank':
+      return phase.kind === 'bank' ? accept(closeBank(state, phase)) : wrongPhase(phase.kind);
   }
 }
 
@@ -282,13 +310,20 @@ export function computerAction(state: GameState, playerId: PlayerId): Action | n
       return { type: 'upgradeProperty', playerId };
     case 'auction':
       return computerBid(state, phase);
+    case 'bank':
+      // Computers move money by themselves and never open a bank; this is for Phase 4 stand-ins
+      // playing a human seat, whose behaviour there is still to be decided (ROADMAP Phase 4).
+      return { type: 'leaveBank', playerId };
     case 'gameOver':
       return null;
   }
 }
 
-/** Server-only: the actions playerId may send now. Empty unless it is their turn. */
-export function legalActions(state: GameState, playerId: PlayerId): Action[] {
+/**
+ * Server-only: what playerId may send now, as exact actions or ranges (LegalAction; check an
+ * action against them with allows). Empty unless it is their turn.
+ */
+export function legalActions(state: GameState, playerId: PlayerId): LegalAction[] {
   if (playerId !== actorOf(state)) {
     return [];
   }
@@ -298,7 +333,7 @@ export function legalActions(state: GameState, playerId: PlayerId): Action[] {
       const counts = Array.from({ length: most }, (_, i) => i + 1);
       return [
         { type: 'rollDice', playerId },
-        ...counts.map((count): Action => ({ type: 'setDiceCount', playerId, count })),
+        ...counts.map((count): LegalAction => ({ type: 'setDiceCount', playerId, count })),
       ];
     }
     case 'awaitBuyDecision':
@@ -313,6 +348,20 @@ export function legalActions(state: GameState, playerId: PlayerId): Action[] {
       ];
     case 'auction':
       return auctionActions(state, state.turn.phase);
+    case 'bank': {
+      // Withdrawing first, like the original's default mode (docs/GAME_RULES.md §4).
+      const { cash, deposit } = playerOf(state, playerId);
+      const transfers: [BankDirection, number][] = [
+        ['withdraw', deposit],
+        ['deposit', cash],
+      ];
+      return [
+        ...transfers.flatMap(([direction, max]): LegalAction[] =>
+          max > 0 ? [{ type: 'bankTransfer', playerId, direction, max }] : [],
+        ),
+        { type: 'leaveBank', playerId },
+      ];
+    }
     case 'gameOver':
       return [];
   }
@@ -383,28 +432,26 @@ function rollDice(state: GameState): Step {
   }
   const total = dice.reduce((sum, face) => sum + face, 0);
 
-  const moved = advance({ ...state, rngState: rng }, player.id, total);
-  const landed = resolveLanding(moved.state);
-  return {
-    state: landed.state,
-    events: [
-      { type: 'DiceRolled', playerId: player.id, dice, total },
-      ...moved.events,
-      ...landed.events,
-    ],
+  const rolled: Step = {
+    state: { ...state, rngState: rng },
+    events: [{ type: 'DiceRolled', playerId: player.id, dice, total }],
   };
+  return chain(rolled, (s) => walk(s, player.id, total));
 }
 
 /**
- * Walks `steps` tiles. Every tile passed (not the landing tile) gets its pass trigger; when a
- * trigger does something, the PlayerMoved path is split there so the client can play the effect at
- * the right spot.
+ * Walks `steps` tiles from where the player stands, then lands. Every tile passed (not the landing
+ * tile) gets its pass trigger; when one does something, the PlayerMoved path is split there so the
+ * client can play the effect at the right spot. A human passing a bank stops there to decide
+ * (phase bank) and walks the rest once done (closeBank).
  */
-function advance(state: GameState, playerId: PlayerId, steps: number): Step {
+function walk(state: GameState, playerId: PlayerId, steps: number): Step {
   let current = state;
   const events: GameEvent[] = [];
   let segment: TileIndex[] = [];
   let { tile, prev } = boardLocation(playerOf(state, playerId));
+  const standHere = (s: GameState) =>
+    updatePlayer(s, playerId, () => ({ location: { kind: 'onBoard', tile, prev } }));
   for (let step = 1; step <= steps; step++) {
     const next = stepFrom(state.board, tile, prev, current.rngState);
     current = { ...current, rngState: next.rng };
@@ -413,6 +460,11 @@ function advance(state: GameState, playerId: PlayerId, steps: number): Step {
     segment.push(tile);
     if (step === steps) {
       break;
+    }
+    if (opensBank(current, playerId, tile)) {
+      events.push({ type: 'PlayerMoved', playerId, path: segment });
+      const trigger = { kind: 'pass', stepsLeft: steps - step } as const;
+      return chain({ state: standHere(current), events }, (s) => openBank(s, tile, trigger));
     }
     const passed = resolvePass(current);
     if (passed.events.length > 0) {
@@ -424,18 +476,66 @@ function advance(state: GameState, playerId: PlayerId, steps: number): Step {
   if (segment.length > 0) {
     events.push({ type: 'PlayerMoved', playerId, path: segment });
   }
-  return {
-    state: updatePlayer(current, playerId, () => ({ location: { kind: 'onBoard', tile, prev } })),
-    events,
-  };
+  return chain({ state: standHere(current), events }, resolveLanding);
 }
 
 /**
- * Effect of walking over a tile without stopping. No tile has one yet; banks and road blocks
- * (Phase 5) will take the player and tile.
+ * Effect of walking over a tile without stopping, other than a human's bank (walk). None yet;
+ * computers rebalancing at a bank comes next (docs/BANK_PLAN.md 2-5), road blocks in Phase 5.
  */
 function resolvePass(state: GameState): Step {
   return { state, events: [] };
+}
+
+/**
+ * Whether reaching this tile opens a bank for the player: a human on a bank (docs/GAME_RULES.md
+ * §4). Computers move their money by themselves instead.
+ */
+function opensBank(state: GameState, playerId: PlayerId, tile: TileIndex): boolean {
+  return (
+    at(state.board.tiles, tile).kind === 'bank' && playerOf(state, playerId).controller === 'human'
+  );
+}
+
+function openBank(state: GameState, tile: TileIndex, trigger: BankTrigger): Step {
+  const playerId = state.turn.current;
+  return {
+    state: { ...state, turn: { ...state.turn, phase: { kind: 'bank', tile, trigger } } },
+    events: [{ type: 'BankOpened', playerId, tile, trigger: trigger.kind }],
+  };
+}
+
+/** One transfer per visit, then the bank closes (docs/GAME_RULES.md §4). */
+function bankTransfer(
+  state: GameState,
+  phase: BankPhase,
+  direction: BankDirection,
+  amount: number,
+): Result {
+  const playerId = state.turn.current;
+  const { cash, deposit } = playerOf(state, playerId);
+  const moved = direction === 'withdraw' ? amount : -amount;
+  if (amount < 1) {
+    return reject({ code: 'invalidAction' });
+  }
+  if (cash + moved < 0 || deposit - moved < 0) {
+    return reject({ code: 'insufficientFunds' });
+  }
+  const transferred: Step = {
+    state: updatePlayer(state, playerId, (p) => ({
+      cash: p.cash + moved,
+      deposit: p.deposit - moved,
+    })),
+    events: [{ type: 'BankTransferred', playerId, direction, amount }],
+  };
+  return accept(chain(transferred, (s) => closeBank(s, phase)));
+}
+
+/** Walks the rest of the roll after a bank on the way, or ends the turn after stopping on one. */
+function closeBank(state: GameState, phase: BankPhase): Step {
+  return phase.trigger.kind === 'pass'
+    ? walk(state, state.turn.current, phase.trigger.stepsLeft)
+    : endTurn(state);
 }
 
 /** Effect of stopping on the current player's tile. */
@@ -444,6 +544,9 @@ function resolveLanding(state: GameState): Step {
   const player = playerOf(state, state.turn.current);
   const index = boardLocation(player).tile;
   const tile = at(state.board.tiles, index);
+  if (opensBank(state, player.id, index)) {
+    return openBank(state, index, { kind: 'land' });
+  }
   if (tile.kind !== 'property') {
     return endTurn(state);
   }

@@ -1,4 +1,11 @@
-import type { Action, RuleError, ServerUpdate } from '@richman/shared';
+import {
+  allows,
+  type Action,
+  type LegalAction,
+  type PlayerId,
+  type RuleError,
+  type ServerUpdate,
+} from '@richman/shared';
 
 /** An action without its sender; the host fills in playerId (the server does so in Phase 4). */
 export type Intent = Action extends infer A
@@ -13,9 +20,14 @@ export function toIntent(action: Action): Intent {
   return Object.fromEntries(entries) as Intent;
 }
 
-/** Whether the action is the intent with a sender filled in. */
-export function sameIntent(action: Action, intent: Intent): boolean {
-  return JSON.stringify(toIntent(action)) === JSON.stringify(intent);
+/** The intent as sent by playerId. */
+export function withSender(intent: Intent, playerId: PlayerId): Action {
+  return { ...intent, playerId };
+}
+
+/** Whether the offer allows the intent, sent by the player it was offered to. */
+export function offerAllows(option: LegalAction, intent: Intent): boolean {
+  return allows(option, withSender(intent, option.playerId));
 }
 
 export type IntentRejection = { code: 'notLegal' } | RuleError;

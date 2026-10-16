@@ -2,6 +2,7 @@
 // calls legalActions/applyAction; the rest of the UI only sees ServerUpdate messages.
 import {
   actorOf,
+  allows,
   applyAction,
   computerAction,
   createGame,
@@ -13,7 +14,7 @@ import {
   type GameState,
   type ServerUpdate,
 } from '@richman/shared';
-import { sameIntent, type GameConnection, type HostMessage, type Intent } from './connection';
+import { withSender, type GameConnection, type HostMessage, type Intent } from './connection';
 
 export type CreateHostResult =
   { ok: true; host: LocalGameHost } | { ok: false; errors: CreateGameError[] };
@@ -54,8 +55,9 @@ export class LocalGameHost implements GameConnection {
   /** Every seat plays on this device, so an intent always acts for whoever the game waits for. */
   send(intent: Intent): void {
     const playerId = actorOf(this.state) ?? '';
-    const action = legalActions(this.state, playerId).find((a) => sameIntent(a, intent));
-    if (!this.started || action === undefined) {
+    const action = withSender(intent, playerId);
+    const offered = legalActions(this.state, playerId).some((option) => allows(option, action));
+    if (!this.started || !offered) {
       this.emit({ kind: 'rejected', intent, reason: { code: 'notLegal' } });
       return;
     }

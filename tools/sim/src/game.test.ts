@@ -1,4 +1,4 @@
-import type { Action, GameState, Result } from '@richman/shared';
+import { allows, type Action, type GameState, type Result } from '@richman/shared';
 import { describe, expect, it } from 'vitest';
 import {
   BOARDS,
@@ -6,7 +6,6 @@ import {
   MAX_AUCTION_ACTIONS,
   chooserSeedFor,
   gameSetup,
-  sameAction,
   gameSeedFor,
   runGame,
   type Engine,
@@ -358,7 +357,9 @@ describe('runGame checks on computers, views and auctions', () => {
   it('reports a computer choice for a human seat', () => {
     const engine: Engine = {
       ...ENGINE,
-      computerAction: (state, playerId) => ENGINE.legalActions(state, playerId)[0] ?? null,
+      // The first offer while waiting to roll is rollDice, an exact action.
+      computerAction: (state, playerId) =>
+        (ENGINE.legalActions(state, playerId)[0] as Action | undefined) ?? null,
     };
     expect(failureOf(runGame(RICHEST, engine)).failure).toEqual({
       kind: 'computerActionNotLegal',
@@ -386,7 +387,7 @@ describe('runGame checks on computers, views and auctions', () => {
       // Bidding moves are accepted but change nothing, so the same bidder keeps being asked.
       applyAction: (state, action) =>
         state.turn.phase.kind === 'auction' &&
-        base.legalActions(state, action.playerId).some((a) => sameAction(a, action))
+        base.legalActions(state, action.playerId).some((option) => allows(option, action))
           ? { ok: true, state, events: [] }
           : base.applyAction(state, action),
     };

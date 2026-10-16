@@ -1,3 +1,4 @@
+import type { BankDirection } from './actions';
 import type { CalendarDate } from './calendar';
 import type { PlayerId, TileIndex } from './ids';
 
@@ -73,6 +74,13 @@ export type GameEvent =
   | { type: 'AuctionWon'; playerId: PlayerId; tile: TileIndex; price: number }
   /** Nobody bought it; it stays unowned with its buildings. */
   | { type: 'AuctionUnsold'; tile: TileIndex }
+  /**
+   * A human reached a bank, walking over it or stopping on it, and may now move money between
+   * cash and deposit (docs/GAME_RULES.md §4). A PlayerMoved ending on the bank comes first.
+   */
+  | { type: 'BankOpened'; playerId: PlayerId; tile: TileIndex; trigger: 'pass' | 'land' }
+  /** Moved between the player's cash and deposit at a bank. */
+  | { type: 'BankTransferred'; playerId: PlayerId; direction: BankDirection; amount: number }
   | {
       type: 'GameEnded';
       /**

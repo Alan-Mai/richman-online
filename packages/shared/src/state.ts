@@ -91,6 +91,12 @@ export interface AuctionPhase {
   computerLimits: Readonly<Record<PlayerId, number>>;
 }
 
+/**
+ * Why a bank opened: walking over it, with stepsLeft (at least 1) still to walk afterwards, or
+ * stopping on it.
+ */
+export type BankTrigger = { kind: 'pass'; stepsLeft: number } | { kind: 'land' };
+
 /** What the game is waiting for. */
 export type Phase =
   | {
@@ -102,6 +108,11 @@ export type Phase =
        */
       computerDiceCount?: number;
     }
+  /**
+   * A human at a bank, choosing whether to move money between cash and deposit
+   * (docs/GAME_RULES.md §4); they stand on `tile`.
+   */
+  | { kind: 'bank'; tile: TileIndex; trigger: BankTrigger }
   | { kind: 'awaitBuyDecision'; tile: TileIndex; price: number }
   | { kind: 'awaitUpgradeDecision'; tile: TileIndex; cost: number }
   | AuctionPhase
