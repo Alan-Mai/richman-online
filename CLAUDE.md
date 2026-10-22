@@ -54,6 +54,9 @@ pnpm -F sim sim -- replay out/failure-<seed>.json                 # 重播失敗
 pnpm lint                 # ESLint + Prettier 檢查
 pnpm format               # Prettier 自動格式化（不含 *.md）
 pnpm typecheck
+pnpm check:commit         # commit 前檢查（素材、TEMP-DEBUG、格式、lint、typecheck、test）
+pnpm check:commits <range>  # 逐 commit 的素材檢查（/pre-push）
+pnpm -F smoke shot -- --out <倉庫外絕對路徑>  # 客戶端截圖煙霧測試
 ```
 
 （指令有變動時，以 `package.json` 實際內容為準，並更新此段。）
@@ -61,18 +64,18 @@ pnpm typecheck
 ## 開發流程
 
 1. 動手前先讀相關文件：架構看 `docs/ARCHITECTURE.md`，目前進度看 `docs/ROADMAP.md`，規則細節看 `docs/GAME_RULES.md`，檔案格式看 `docs/ASSET_FORMATS.md`。
-2. 非小改動先提出計畫，等我確認再寫。跨多個 session 的分批計畫核准後存成 `docs/` 內的檔案，在 ROADMAP 對應項目註明位置；進度、與計畫的差異、實作中發現的待補項寫回該檔對應批次。分批計畫全部完成後，在收尾 commit 刪除該計畫檔，或在檔頭標「已完成，僅供歷史參考」，並移除 ROADMAP 的指向；刪除前先 `git grep` 計畫檔名，程式註解與文件中的引用改指向永久文件（DECISIONS、GAME_RULES、ROADMAP），另開 commit 放在收尾之前（DECISIONS 舊條目的出處保留為歷史紀錄）。計畫中標明需要我目視確認的 commit，做到該處先停下、不要 commit，確認後把我的回饋併進同一個 commit。要修正未推送、但不在最上面的 commit 時，優先新增一個修正 commit；只有我要求改寫歷史時，才用暫時分支 amend 再 cherry-pick 的方式（不用 `git rebase -i`），完成後確認新舊頂端的 diff 只有預期改動。
+2. 何時停下、何時自行決定、審查與接續見 `.claude/rules/autonomy.md`。每個 ROADMAP 勾選項先提出計畫，經 `reviewer` 審查後等我核准；核准後存成 `docs/` 內的計畫檔（開頭維持「接續狀態」），在 ROADMAP 對應項目註明位置；進度、與計畫的差異、實作中發現的待補項寫回該檔對應批次。計畫全部完成後，在收尾 commit 刪除該計畫檔，或在檔頭標「已完成，僅供歷史參考」，並移除 ROADMAP 的指向；刪除前先 `git grep` 計畫檔名，程式註解與文件中的引用改指向永久文件（DECISIONS、GAME_RULES、ROADMAP），另開 commit 放在收尾之前（DECISIONS 舊條目的出處保留為歷史紀錄）。需要我目視確認的項目照常 commit，留到里程碑一次確認，回饋用修正 commit。要修正未推送、但不在最上面的 commit 時，優先新增一個修正 commit；只有我要求改寫歷史時，才用暫時分支 amend 再 cherry-pick 的方式（不用 `git rebase -i`），完成後確認新舊頂端的 diff 只有預期改動。
 3. 規則引擎採測試先行，確認斷言失敗後才實作；細節見 `.claude/rules/test-first.md`。
-4. **每個 commit 前** `pnpm format` → `pnpm test` → `pnpm lint` → `pnpm typecheck`，全部通過才 commit；細節（stash 與 patch 備份、管線過濾與偶發失敗、測試逾時）見 `.claude/rules/commit-workflow.md`。
-5. 每次 commit 只做一件事，訊息用 Conventional Commits（`feat(shared): ...`）。工作中發現不屬於目前範圍的問題（過時的程式註解、不穩定的測試等），先記下並回報，經同意後另開 commit，不併入目前的 commit；只改文件的批次也照這條處理。
-6. 重要技術決策寫進 `docs/DECISIONS.md`；完成路線圖項目時，在同一個 commit 內更新 `docs/ROADMAP.md` 的勾選。項目內文有沒做到的部分時，不要原樣勾選：把內文改成實際完成的內容，刪掉和現有決策矛盾的句子，沒做的部分移到對應的項目（沒有就新增），先問我再勾。
+4. **每個 commit 前** `pnpm format` 並 add，再跑 `pnpm check:commit`，通過才 commit（hook 會擋下暫存內容沒通過檢查的 commit）；細節（stash 與 patch 備份、偶發失敗、測試逾時）見 `.claude/rules/commit-workflow.md`。
+5. 每次 commit 只做一件事，訊息用 Conventional Commits（`feat(shared): ...`）。工作中發現不屬於目前範圍的問題（過時的程式註解、不穩定的測試等）另開 commit，不併入目前的 commit，並記在 `docs/REVIEW_QUEUE.md`；只改文件的批次也照這條處理。
+6. 重要技術決策寫進 `docs/DECISIONS.md`；完成路線圖項目時，在同一個 commit 內更新 `docs/ROADMAP.md` 的勾選。項目內文有沒做到的部分時，不要原樣勾選：把內文改成實際完成的內容，刪掉和現有決策矛盾的句子，沒做的部分移到對應的項目（沒有就新增），改寫記在 REVIEW_QUEUE，勾選留到里程碑由我確認。
 7. `GAME_RULES.md` 標「待確認」的規則不要自行猜測，其他大富翁類遊戲的慣例也不能當成原版規則；先問我，不要自行補成非原版選項（引擎只實作原版規則，見 `DECISIONS.md`）。原版程式會當機或結果未定義的邊界情況（例：0 個候選仍取亂數），不照抄也不自訂退路，先問我；預設做法是用驗證讓它不可能發生，萬一發生就視為內部錯誤。其餘看似缺陷但結果確定的原版行為，照原版實作。寫作慣例見 `GAME_RULES.md` 開頭。
-8. 輸出很長的工作（掃描 git 歷史、等 CI、分析二進位檔、大範圍搜尋）優先交給 subagent，只回報結論；分析原版素材時，要求 subagent 的回報只含結構與統計，不含原版內容數值。subagent 的逆向結論要寫成 🔍 之前，主 session 必須親自對照反組譯核對關鍵指令，並在 `notes.md` 記下核對了哪些位址；不論是不是透過 `/asset-analyze` 進行，都適用。做任何逆向分析前（不論是否透過 `/asset-analyze`），先讀 `.claude/skills/asset-analyze/SKILL.md` 的 Ghidra 段落。
+8. 輸出很長的工作（掃描 git 歷史、等 CI、分析二進位檔、大範圍搜尋）優先交給 subagent，只回報結論；分析原版素材時，要求 subagent 的回報只含結構與統計，不含原版內容數值。不論是否透過 `/asset-analyze`：逆向分析前先讀 `.claude/skills/asset-analyze/SKILL.md` 的 Ghidra 段落；subagent 的逆向結論寫成 🔍 前，主 session 必須親自對照反組譯核對關鍵指令，並在 `notes.md` 記下核對的位址。
 9. 推送前執行 `/pre-push`。
 10. 新增有 peer 依賴限制的套件時，確認版本範圍相容（例：typescript-eslint 對 TypeScript）；也避免選用發布未滿兩週的版本（尤其是新的主版本）。
 11. 不要在本倉庫用 `git add -f` 測試防護機制，改用暫存目錄的另一個倉庫。
 12. 描述原版素材時，從 `RICHMAN4_DIR` 觀察到的現象一律寫成「本機副本中…」；需要原版佐證的列入 ROADMAP 未解問題。
-13. `/pre-push`、`/wrap-up`、`/asset-analyze` 等專案 skill 只能由使用者輸入；流程走到這些步驟時，停下來提醒我輸入。
+13. `/pre-push`、`/wrap-up`、`/asset-analyze` 等專案 skill 只能由使用者輸入；流程走到這些步驟時，停下來提醒我輸入（里程碑時提醒 `/wrap-up`；我試玩完成前不提醒 `/pre-push`）。
 
 ## 程式風格
 

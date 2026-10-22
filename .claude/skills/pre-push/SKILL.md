@@ -18,16 +18,9 @@ disable-model-invocation: true
    - 一併掃描 commit 訊息與 diff，確認沒有私人 email、token（`ghp_`、`github_pat_`）、私鑰（`BEGIN ... PRIVATE KEY`）。
 
 3. **逐一檢查每個 commit 的素材**（每一個都要查，不能只查 HEAD）
-   - 對每個 commit 執行 `git ls-tree -r -l <commit>`，確認沒有：
-     - 原版副檔名：`mkf`、`exe`、`dll`、`avi`、`mid`、`wav`、`iso`（大小寫不拘；`tools/**/fixtures/` 除外）
-     - `.env` 或 `.env.*`（`.env.example` 除外）
-     - `local-assets/` 底下的任何檔案
-     - `tools/sim/out/` 底下的任何檔案（模擬器的失敗紀錄與 replay 檔，可能含匯入的原版角色比例）
-     - 任何目錄下名為 `tables.json` 的檔案（`tools/extract` 匯出的原版資料表；測試用的假資料請用別的檔名）
-     - 超過 1 MB（1,048,576 bytes）的檔案
-   - 對每個 commit 執行 `git grep -n TEMP-DEBUG <commit> -- . ':!*.md' ':!.claude/'`，結果必須為空（暫時除錯程式不得推送；文件與規則檔提到這個標記不算）。
-   - 列出每個 commit 的檔案數與最大檔，作為佐證。
-   - 這一步輸出很長，交給 subagent 執行，只回報結論與違規項目。
+   - 執行 `pnpm check:commits <第 1 步的範圍>`（遠端沒有分支時用 `HEAD`）。規則在 `scripts/asset-rules.js`：原版副檔名（`tools/**/fixtures/` 除外）、`.env*`（`.env.example` 除外）、`local-assets/`、`tools/sim/out/`、任何目錄下的 `tables.json`、超過 1 MB 的檔案，以及程式碼中的 `TEMP-DEBUG`（`.md`、`.claude/` 與檢查腳本本身除外）。
+   - exit 0 = 無違規，1 = 有違規（列出違規項目後停下），2 = 參數或 git 錯誤（回報錯誤，不推送）。
+   - 腳本已列出每個 commit 的檔案數與最大檔，回報時附上作為佐證。
 
 4. **工作區與目前狀態**
    - `git status --short` 應為空；有未提交的變更就列出來問我。

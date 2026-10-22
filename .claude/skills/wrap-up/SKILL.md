@@ -17,7 +17,11 @@ disable-model-invocation: true
    - 若有未解問題，在同一處列成 `**未解問題**：` 清單（例如待我確認的規則、卡住的格式分析、CI 警告）。
    - 舊的「下一步／未解問題」已過時就改寫，不要累積。
 
-3. **這次 session 學到的規則**
+3. **REVIEW_QUEUE**
+   - `docs/REVIEW_QUEUE.md`「待審」中我已審過的項目：同意的刪除（影響架構、有替代方案可比較的轉寫成 `DECISIONS.md` 條目），不同意的確認已有修正 commit 後刪除。
+   - 還沒審的保留，在回報中列出筆數。
+
+4. **這次 session 學到的規則**
    - 回顧這次 session：我給過的指示、修正過的做法、踩到的坑、做出的技術決策。
    - 先自行把每一條依下列原則歸類，再整理成提案：
      | 性質 | 寫到哪裡 |
@@ -31,7 +35,7 @@ disable-model-invocation: true
    - **我確認前不要寫入。**
    - 已經寫進文件的、只跟這次 session 有關的，不要列。
 
-4. **Commit 與回報**
+5. **Commit 與回報**
    - 我確認後，把文件變更 commit（Conventional Commits，例如 `docs: session 收尾，更新 ROADMAP 下一步`）；不要自行推送，停下來提醒我輸入 `/pre-push`。
    - 最後回報：
      - `可以 /clear`
