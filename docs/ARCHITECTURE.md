@@ -39,7 +39,7 @@ type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 - `applyAction` 自行驗證動作格式（日後來自網路），依動作種類逐一檢查參數（`bid.raise`、`setDiceCount.count`、`bankTransfer.amount`、`borrow.amount`、`repay.amount` 必須是整數，`bankTransfer.direction` 必須是兩種之一）：格式錯誤回傳 `invalidAction`，不 throw。錯誤優先順序 `invalidAction` > `gameOver` > `unknownPlayer` > `notYourTurn`（送出者不是 `actorOf`）> `wrongPhase` > 動作本身的檢查（參數不在允許範圍的 `invalidAction`，例：不在加價檔位內、步行時選顆數、金額小於 1、還款超過貸款餘額；錢不夠的 `insufficientFunds`，例：加價超過現金、轉帳超過可動用的金額、借款超過可借上限、還款超過現金 + 存款）。
 - `PlayerView` 的欄位逐一列出複製，新增的 state 欄位預設不會外洩。不送：`rngState`、`lotteryPool`（彩券獎池，Phase 5 再定）、拍賣尚未開拍的地塊清單（只送剩餘塊數 `remaining`）、電腦的隱藏欄位（拍賣 `computerLimits`、`awaitRoll` 的 `computerDiceCount`、玩家的 `profile`；玩家以 `PlayerStateView` 逐欄複製）。
 - 金錢相關邏輯在 `money.ts`：`pay()`（強制付款：現金 → 存款 → 破產；收款進債權人存款，系統債務破產時餘款進 `lotteryPool`；償還貸款的債務種類 `loan` 反過來先扣存款，破產時餘款不給任何人；任何破產都清掉貸款與到期日）、`spend()`（購地、加蓋、得標，只用現金）、價格 helper `buyPrice`／`upgradeCost`／`rentFor`／`auctionStartPrice`（收 `PriceView`）與 `netWorth`（收 `NetWorthView`）。`GameState`、`PlayerView` 與客戶端的 display model 都符合，前後端算出同樣的數字。
-- 其他模組：`movement.ts`（`stepFrom` 走一步、`previewPath` 預覽，實際移動與電腦預覽共用）、`auction.ts`（破產拍賣）、`computer.ts`（電腦出價上限與選顆數的抽取、出價選擇）、`tables.ts`（`parseOriginalTables`，見下方「原版資料表」）、`invariants.ts`。
+- 其他模組：`movement.ts`（`stepFrom` 走一步、`previewPath` 預覽，實際移動與電腦預覽共用）、`auction.ts`（破產拍賣）、`computer.ts`（電腦出價上限與選顆數的抽取、出價選擇）、`bank.ts`（電腦的重新分配 `rebalance`）、`loan.ts`（借款上限 `borrowLimit`、還款上限 `repayLimit`、到期日 `loanDueDate`、利息 `withInterest`、電腦借還款的判斷）、`profile.ts`（角色比例 `CharacterProfile`、開局拆法 `openingSplit`、呼叫端用的 `drawCharacters`／`profilesFromTables`）、`calendar.ts`（日期與日序）、`lunar.ts`＋產生的 `lunar-data.ts`（農曆查表，1997–2199，超出範圍 throw）、`holidays.ts`（`Board.holidays` 的節日規則與 `isSundayOrHoliday`）、`tables.ts`（`parseOriginalTables`、`originalHolidays`，見下方「原版資料表」）、`invariants.ts`。
 
 原則：
 
@@ -55,12 +55,13 @@ type Viewer = { kind: 'player'; id: PlayerId } | { kind: 'spectator' };
 - 同一時間只有一位行動者：`actorOf(state)` 平常是 `turn.current`，拍賣中是輪到出價的人（`phase.bidder`），遊戲結束時是 `null`。`applyAction` 與 `legalActions` 都以它判斷是否輪到。
 - 每位玩家有 `controller: 'human' | 'computer'`。`PlayerSetup` 是依 `controller` 區分的聯合型別，電腦座位必帶角色比例 `profile: CharacterProfile`（`profile.ts`，由呼叫端選，未匯入 `tables.json` 時用 `PROVISIONAL_COMPUTER_PROFILE`）；`PlayerState.profile` 在人類座位為 `null`，不送給客戶端。電腦的動作由 `computerAction(state, id)` 產生，結果一定在 `legalActions` 內，照樣送進 `applyAction`，所以動作紀錄與重播與人類相同。
 - 電腦決策需要的亂數，由引擎在決策開始時從 `rngState` 抽好、存成 phase 的隱藏欄位（拍賣開拍時的 `computerLimits`、電腦回合開始時的 `computerDiceCount`），`computerAction` 本身只是讀狀態的純函式，不消耗亂數。
+- 電腦在銀行的處理不經過 phase 或動作：經過或停留銀行時引擎直接重新分配現金與存款（不取亂數），停留時接著自動借還款（沒有貸款時在當下從 `rngState` 抽一次），和 `pay` 一樣是決定性的自動效果（`DECISIONS.md` 2026-10-16）。所以電腦不會進入 `bank`／`bankCounter` phase；`computerAction` 在這兩個 phase 回傳 `leaveBank`／`leaveCounter`，只供 Phase 4 代打人類座位時使用（行為待定，見 ROADMAP Phase 4）。
 - 呼叫者：伺服器（Phase 4）、模擬器、客戶端的 `LocalGameHost`（hot-seat，扮演伺服器）。電腦購地與加蓋目前是非原版的暫定策略（有提供就買、就蓋），見 ROADMAP Phase 5。
 
 ### 原版資料表
 
 - 執行檔資料表（動畫表、道具表、設定選項表、角色範本、各地圖的節日表）由 `tools/extract` 的 `cli tables` 匯出成本機的 `local-assets/tables.json`，倉庫不放數值（`DECISIONS.md` 2026-10-14、2026-10-15）。
-- shared 只提供型別 `OriginalTables` 與純函式 `parseOriginalTables(json: unknown)`：一次回傳全部錯誤的清單（可辨識聯合型別，含欄位路徑），不 throw。引擎不讀檔、`RuleConfig` 不直接引用這些表；讀檔與換算在呼叫端（目前只有客戶端設定畫面匯入，用於動畫表），公開伺服器不載入。
+- shared 只提供型別 `OriginalTables` 與純函式 `parseOriginalTables(json: unknown)`：一次回傳全部錯誤的清單（可辨識聯合型別，含欄位路徑），不 throw。引擎不讀檔、`RuleConfig` 不直接引用這些表；讀檔與換算在呼叫端，公開伺服器不載入。目前的呼叫端：客戶端設定畫面匯入（動畫表、電腦的角色比例）與模擬器的 `--tables`；兩者都在開局前用 `drawCharacters`（依種子不重複抽角色）與 `profilesFromTables` 取得比例，寫進 `GameSetup`。節日表的 `originalHolidays` 目前沒有呼叫端（原版地圖還不能玩）。
 
 ### 主要型別
 
@@ -117,7 +118,8 @@ type Phase =
 
 ```
 createGame ──▶ startTurn（座位 0）
-startTurn(玩家)：TurnStarted → 貸款到期檢查 → 尚未放置則隨機放置（PlayerPlaced）
+startTurn(玩家)：TurnStarted → 貸款到期檢查（剩 3／2／1 天 LoanReminder；當天 LoanCalledIn）
+                 → 尚未放置則隨機放置（PlayerPlaced）
                  → 電腦騎機車或汽車：預抽本回合顆數（隱藏）→ awaitRoll
 awaitRoll ── setDiceCount{count}（機車、汽車；停在 awaitRoll）
           └─ rollDice
@@ -129,7 +131,7 @@ awaitRoll ── setDiceCount{count}（機車、汽車；停在 awaitRoll）
      停留格處理：
        ├ 人類停在銀行 → BankOpened → bank（land）── bankTransfer / leaveBank
        │    → CounterOpened → bankCounter ── borrow / repay / leaveCounter（一次一筆）→ 回合結束
-       ├ 電腦停在銀行 → 重新分配（BankRebalanced）→ 回合結束
+       ├ 電腦停在銀行 → 重新分配（BankRebalanced）→ 自動借還款（LoanBorrowed／LoanRepaid）→ 回合結束
        ├ 無主地產且現金付得起 → awaitBuyDecision ── buyProperty / decline ─────────┐
        ├ 自己的地產、可加蓋且現金付得起 → awaitUpgradeDecision ── upgradeProperty / decline ─┤
        ├ 他人的地產 → 付過路費（現金 → 存款，進地主存款）──────────────────────┤
@@ -200,12 +202,14 @@ GameController ◀── ServerUpdate {events, view, legalActions} ──┘
 
 ## 模擬器（tools/sim）
 
-- 跑大量對局，每一步檢查不變量；失敗時輸出種子與動作序列。座位由 `--controllers` 決定：`random`（全部隨機，從 `legalActions` 均勻選）、`computer`（座位 0 隨機、其餘電腦）、`mixed`（座位 1、3 電腦，0、2 隨機）；隨機座位的 `controller` 是 `human`，電腦座位照 `computerAction` 行動。
+- 跑大量對局，每一步檢查不變量；失敗時輸出種子與動作序列。座位由 `--controllers` 決定：`random`（全部隨機，從 `legalActions` 均勻選）、`computer`（座位 0 隨機、其餘電腦）、`mixed`（座位 1、3 電腦，0、2 隨機）；隨機座位的 `controller` 是 `human`，電腦座位照 `computerAction` 行動。隨機座位遇到範圍選項時取範圍內的隨機金額。
+- 電腦座位的角色比例：預設 `PROVISIONAL_COMPUTER_PROFILE`；`--tables <path>` 讀入本機的 `tables.json`（相對路徑依呼叫 pnpm 時的目錄 `INIT_CWD` 解析，沒有時用 `process.cwd()`），每局以遊戲種子為電腦座位不重複抽角色，紀錄檔的 `players` 含抽到的比例（replay 不需要原檔；紀錄檔只寫在 gitignored 的 `tools/sim/out/`）。
 - 不屬於規則引擎，可使用 `console` 與檔案 I/O。
 - 模組：`args.ts`（參數）、`game.ts`（單局與逐步檢查，engine 可注入以測試失敗偵測）、`replay.ts`（紀錄檔與重播）、`stats.ts`（統計與輸出格式）、`simulate.ts`（流程，I/O 注入）、`main.ts`（接上 console 與檔案）。
-- 不變量由 `packages/shared` 的 `checkInvariants(state): string[]` 提供，模擬器另外檢查：輪到的玩家（`actorOf`）有合法動作且每個都被接受（範圍選項試 1、中間值與 max，並確認 max + 1 被拒絕）、清單外的動作類型各造一個範例並確認被拒絕（通常是 `wrongPhase`）、銀行轉帳與重新分配不改變現金 + 存款、其他玩家（遊戲結束後所有人）沒有動作、電腦的選擇在 `legalActions` 內且人類座位的 `computerAction` 是 `null`、物價指數不下降、每位玩家與旁觀者的 `viewFor` 不含隱藏欄位、單一拍賣的動作數上限、`gameOver` 時有 `GameEnded` 事件。
+- 不變量由 `packages/shared` 的 `checkInvariants(state): string[]` 提供，模擬器另外檢查：輪到的玩家（`actorOf`）有合法動作且每個都被接受（範圍選項試 1、中間值與 max，並確認 max + 1 被拒絕）、清單外的動作類型各造一個範例並確認被拒絕（通常是 `wrongPhase`）、銀行轉帳與重新分配不改變現金 + 存款（同一動作中有過路費、購地、加蓋、得標、破產、借還款、到期收回或月初計息的玩家除外）、其他玩家（遊戲結束後所有人）沒有動作、電腦的選擇在 `legalActions` 內且人類座位的 `computerAction` 是 `null`、物價指數不下降、每位玩家與旁觀者的 `viewFor` 不含隱藏欄位、單一拍賣的動作數上限、`gameOver` 時有 `GameEnded` 事件。
 - 天數上限與淨值目標不限時，模擬器有不屬於規則的安全上限 `--max-days`（預設 1000），到達時記為「未結束」而不是失敗；`--max-steps` 超過則是失敗。
 - 每個失敗寫入 `tools/sim/out/failure-<該局種子>.json`（gitignore），內容為 config、玩家、種子、動作序列與模擬器看到的結果；`replay` 只依動作序列重播並判斷是否重現。終端機只印前 `--max-failure-details`（預設 5）筆的完整內容，最後印失敗原因分組統計。
+- 統計（`stats.ts`）：局長、結束原因、座位勝率、破產、物價指數、拍賣、銀行（人類開啟、存提款、電腦重新分配）、貸款（人類與電腦借還款、到期收回、因貸款破產）、岔路與掉頭、各顆數的擲骰比例。
 - 輸出用英文 ASCII，避免 Windows 主控台字碼頁造成亂碼。
 
 ## 法律界線
