@@ -1,0 +1,16 @@
+{
+  "name": "@richman/smoke",
+  "version": "0.0.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "shot": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "playwright-core": "~1.63.0",
+    "tsx": "^4.23.15"
+  }
+}
