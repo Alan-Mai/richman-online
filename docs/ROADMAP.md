@@ -76,9 +76,10 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
   - 特殊地塊類型如何變成非 0；淨值計算的地產部分不乘物價指數是否有意；大型建築收費對話框的倍數來源。
 - 破產拍賣（步驟 5）留下的線索，列為 Phase 5 再追：拍賣函式另有 3 處由事件或選單觸發（賣方為目前玩家或系統）。拍賣所得、系統債務餘款、破產者股票賣出所得流入的池已查到是彩券獎池（步驟 8），彩券見 Phase 5。
 - 執行檔內疑似股票資料（每張地圖一組 12 筆，新局時複製到玩家持股旁的表）：列為 Phase 5「股票市場」的線索，之後分析時找出規則，不原樣複製表；需要表內數值時，比照「執行檔資料表匯出」由 `tools/extract` 匯出到 `local-assets/`。
-- CI 維護（2026-10-19 之後第一次跑 CI 時檢查）：
-  - `ubuntu-latest` 改為 Ubuntu 26 後 ubuntu job 是否正常。
-  - actions/setup-node 的 Node 棄用警告（DEP0040 `punycode`、DEP0169 `url.parse()`）與 pnpm/action-setup 的警告（Windows 的 DEP0190、PNPM_HOME 版面提示）是否需要更新 action 版本；更新時遵守 CLAUDE.md 第 10 條，不選發布未滿兩週的版本（尤其新的主版本）。
+- CI 維護（2026-10-22 推送後的 CI 已查，兩個 job 都通過）：
+  - Ubuntu 26：當次的 `ubuntu-latest` 仍是 Ubuntu 24.04（annotation 說 10/19 起陸續切換）。等 runner 實際切到 Ubuntu 26 後，再確認 ubuntu job 是否正常。
+  - 警告（都不影響結果）：`actions/setup-node@v5` 在兩個系統都有 DEP0040（`punycode`）與 DEP0169（`url.parse()`）；`pnpm/action-setup@v6` 在 Windows 有 DEP0190（child process 的 shell 參數），兩個系統都有 PNPM_HOME 版面提示（pnpm v11 要把執行檔放在 `PNPM_HOME/bin`）。是否更新 action 版本待決定；更新時遵守 CLAUDE.md 第 10 條，不選發布未滿兩週的版本（尤其新的主版本）。
+- 工作流程（下一批「工作流程改造」時處理）：`/pre-push` 的逐 commit 素材檢查目前由 subagent 臨時寫腳本執行，2026-10-22 那次全部通過，腳本卻以 exit 1 結束（推測是最後一個 grep 找不到符合時回傳 1），只能另外人工複核。改成 exit code 能正確區分「有違規」與「無違規」的做法（例：倉庫內固定的檢查腳本）。
 - 選顆數相關（逆向步驟 9b，信心中）：玩家狀態 `+0x38` 疑似「停留一回合」，非 0 時顆數按鈕全暗、不擲骰；電腦選顆數前會先隨機用道具或卡片。這兩點都要等 Phase 5 的狀態與道具系統才實作。
 - 擲骰動畫的幀數存在動畫檔中（不在執行檔），不分析；客戶端用自訂長度。
 - 出場與拍賣動畫的長度（`GAME_RULES.md` 第 10 節）：出場動畫在 `Data.mkf` 子檔 0x22f + 角色編號（本機副本中是格式未知的壓縮子檔，需先分析格式），出價與得標動畫在 `Panel.mkf` 子檔 角色編號 × 3 + 0x1b、+ 0x1d（壓縮的 `SPR`，張數即幀數）。匯入素材時客戶端用「幀數 × 幀長」還原原版長度：出場目前用自訂值；拍賣加價目前固定用 10 tick 下限（`timings.ts` 的 `auctionActionMs` 已可帶入幀數），得標動畫目前不播。
