@@ -8,6 +8,7 @@
 - [x] 根目錄 `pnpm test` / `pnpm lint` / `pnpm typecheck` 可執行
 - [x] `.gitignore` 排除 `local-assets/`、`.env`，並以副檔名排除原版檔案類型
 - [x] CI（GitHub Actions）跑 test + lint + typecheck（ubuntu-latest + windows-latest）
+- [x] 工作流程改造（2026-10-22）：自主決策政策（`.claude/rules/autonomy.md`）與 `docs/REVIEW_QUEUE.md`；獨立審查 agent `reviewer`；`pnpm check:commit`（commit 前的單一檢查，hook 擋下暫存內容沒通過檢查的 commit）與 `pnpm check:commits`（`/pre-push` 逐 commit 的素材檢查，exit code 區分有無違規）；`git push` 與修改規則檔時 hook 要求使用者確認；SessionStart hook 印出進行中計畫檔的接續狀態；客戶端截圖煙霧測試 `tools/smoke`（本機 Edge）。試行：「匯入資料表後，設定畫面改用原版檔位」。
 
 **完成條件**：空專案所有檢查通過。
 
@@ -55,7 +56,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 **Phase 3 前置**（Phase 3 開始前完成）：
 - [x] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**（已完成：LZ + 動態 Huffman，見 `ASSET_FORMATS.md`「MKF 壓縮」；462 個壓縮子檔全部通過驗證，`jump.mkf` 子檔 9–44 縮圖經使用者目視確認。）
 
-**下一步**：「匯入資料表後，設定畫面改用原版檔位」（見下方）：先讀 `packages/shared/src/tables.ts` 的 `setupOptions`（起始資金、天數上限、淨值目標各 6 檔）與 `apps/client/src/ui/setup-form.ts`／`setup-screen.ts`，提出計畫：有匯入 `tables.json` 時三個設定改成 6 檔選項（第 1 檔「不限」照結構寫），未匯入時維持自訂輸入；等確認再寫。範圍小，做完接著做「原版地圖轉成可玩 `Board`」（`/phase-check` 建議不要被前一項擋住）。「銀行格與存提款」已完成（`DECISIONS.md` 2026-10-16「銀行格與存提款完成」）。
+**下一步**：「匯入資料表後，設定畫面改用原版檔位」（見下方）：先讀 `packages/shared/src/tables.ts` 的 `setupOptions`（起始資金、天數上限、淨值目標各 6 檔）與 `apps/client/src/ui/setup-form.ts`／`setup-screen.ts`，提出計畫：有匯入 `tables.json` 時三個設定改成 6 檔選項（第 1 檔「不限」照結構寫），未匯入時維持自訂輸入；計畫經 `reviewer` 審查後等確認再寫。這是新工作流程（`.claude/rules/autonomy.md`）的試行項目：核准後批次之間不停，做完一次交付里程碑，並在計畫檔末尾寫試行回顧。範圍小，做完接著做「原版地圖轉成可玩 `Board`」（`/phase-check` 建議不要被前一項擋住）。「銀行格與存提款」已完成（`DECISIONS.md` 2026-10-16「銀行格與存提款完成」）。
 
 **未解問題**：
 - 壓縮子檔中沒有已知 magic 的 308 個（`Data.mkf` 302、`Panel.mkf` 6）格式未知，需另外分析（可用 `decompressMkf` 解壓後再看）。
@@ -79,7 +80,6 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 - CI 維護（2026-10-22 推送後的 CI 已查，兩個 job 都通過）：
   - Ubuntu 26：當次的 `ubuntu-latest` 仍是 Ubuntu 24.04（annotation 說 10/19 起陸續切換）。等 runner 實際切到 Ubuntu 26 後，再確認 ubuntu job 是否正常。
   - 警告（都不影響結果）：`actions/setup-node@v5` 在兩個系統都有 DEP0040（`punycode`）與 DEP0169（`url.parse()`）；`pnpm/action-setup@v6` 在 Windows 有 DEP0190（child process 的 shell 參數），兩個系統都有 PNPM_HOME 版面提示（pnpm v11 要把執行檔放在 `PNPM_HOME/bin`）。是否更新 action 版本待決定；更新時遵守 CLAUDE.md 第 10 條，不選發布未滿兩週的版本（尤其新的主版本）。
-- 工作流程（下一批「工作流程改造」時處理）：`/pre-push` 的逐 commit 素材檢查目前由 subagent 臨時寫腳本執行，2026-10-22 那次全部通過，腳本卻以 exit 1 結束（推測是最後一個 grep 找不到符合時回傳 1），只能另外人工複核。改成 exit code 能正確區分「有違規」與「無違規」的做法（例：倉庫內固定的檢查腳本）。
 - 選顆數相關（逆向步驟 9b，信心中）：玩家狀態 `+0x38` 疑似「停留一回合」，非 0 時顆數按鈕全暗、不擲骰；電腦選顆數前會先隨機用道具或卡片。這兩點都要等 Phase 5 的狀態與道具系統才實作。
 - 擲骰動畫的幀數存在動畫檔中（不在執行檔），不分析；客戶端用自訂長度。
 - 出場與拍賣動畫的長度（`GAME_RULES.md` 第 10 節）：出場動畫在 `Data.mkf` 子檔 0x22f + 角色編號（本機副本中是格式未知的壓縮子檔，需先分析格式），出價與得標動畫在 `Panel.mkf` 子檔 角色編號 × 3 + 0x1b、+ 0x1d（壓縮的 `SPR`，張數即幀數）。匯入素材時客戶端用「幀數 × 幀長」還原原版長度：出場目前用自訂值；拍賣加價目前固定用 10 tick 下限（`timings.ts` 的 `auctionActionMs` 已可帶入幀數），得標動畫目前不播。
