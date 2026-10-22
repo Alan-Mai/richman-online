@@ -2,6 +2,11 @@
 
 新決策加在最上面。格式：日期、決策、原因、考慮過的替代方案。
 
+## 2026-10-22 工作流程改造：自主決策、獨立審查、檢查機制化
+- **決策**（使用者核准）：每個 ROADMAP 勾選項只在開頭（計畫經 `reviewer` 後核准）與結尾（里程碑）停下；可自行決定的判斷記進 `docs/REVIEW_QUEUE.md`，里程碑時一次審（規則在 `.claude/rules/autonomy.md`）。commit 前的檢查集中在 `pnpm check:commit`，它記下通過的暫存 tree id，Claude Code 的 PreToolUse hook 只放行相同內容的 `git commit`；hook 依 `cd`／`git -C` 推算每個 git 指令的目錄，用 `rev-parse --show-toplevel` 判斷是否同一倉庫。`git push` 與修改 `CLAUDE.md`、`.claude/` 時由 hook 要求確認。客戶端煙霧測試用 `playwright-core` 加本機 Edge，截圖只寫到倉庫外。
+- **原因**：人工審查的重點固定，可以交給沒看過實作過程的審查者；能機械判斷的檢查做成腳本，就不必靠記憶照做。
+- **替代方案**：git 的 pre-commit hook（husky 等），但會影響使用者自己的 commit，也要額外安裝；在 hook 內直接跑全部測試，但太慢、可能逾時；Playwright 下載瀏覽器，但多一個未審查的下載來源；只看指令文字判斷是否「在別處」，但會被 `cd` 到子目錄繞過，所以改用實際倉庫判斷。
+
 ## 2026-10-16 銀行格與存提款完成
 - **決策**（分批計畫 `BANK_PLAN.md` 批次 1–4 的最終結果；計畫檔已在收尾 commit 刪除，以下記錄留下來的決定與和計畫的差異）：
   - **日曆**：`RuleConfig.startDate`（預設 2010/1/1，範圍 1998/1/1–2010/12/31）、`GameState.date` 每輪 +1 日，不變量「日序(date) − 日序(startDate) = day」。農曆見 2026-10-15「農曆：自行實作天文演算法」；節日規則放在 `Board.holidays`（最多 24 筆），原版地圖的節日表由 `tables.json` v2 匯出、`originalHolidays` 轉換，等原版地圖可玩時接上。

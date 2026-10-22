@@ -16,15 +16,15 @@
 
 ## 自行決定，記在 `docs/REVIEW_QUEUE.md`
 
-實作細節與非原版暫定值、範圍外的小修正（另開 commit）、時限內的逆向查證、測試與效能問題、和計畫的差異、ROADMAP 部分完成時改寫的內文（勾選留到里程碑）。照計畫或規則檔明寫的做法不用記。每筆和對應的改動放同一個 commit，格式見該檔開頭。
+實作細節與非原版暫定值、範圍外的小修正（另開 commit）、時限內的逆向查證、測試與效能問題、和計畫的差異、ROADMAP 部分完成時改寫的內文（勾選留到里程碑）。照計畫或規則檔明寫的做法不用記。每筆和對應的改動放同一個 commit，格式見該檔開頭。理由與依據要先查證（例：「某處已能處理」先搜尋確認、「既有測試沒涵蓋」先讀測試）；查不到的寫成推測。
 
 ## 審查
 
-用 Agent 工具呼叫 `reviewer`，只給輸入、不轉述過程：計畫給我核准前用 `plan <計畫檔>`；每批 commit 完成後、開始下一批前用 `batch <base>..<head> <計畫檔>`。不通過就用新 commit 修正後重審。改到 `apps/client` 的批次，審查前先跑 `pnpm -F smoke shot -- --out <scratchpad>` 並自己看截圖。
+用 Agent 工具呼叫 `reviewer`，只給輸入、不轉述過程：計畫給我核准前用 `plan <計畫檔>`；每批 commit 完成後、開始下一批前用 `batch <base>..<head> <計畫檔>`。不通過就用新 commit 修正後重審。改到 `apps/client` 的批次，審查前先跑 `pnpm -F smoke shot -- --out <scratchpad>` 並自己看截圖。reviewer 的「建議」屬於上面「自行決定」的範圍時，直接處理：另開 commit、記進 REVIEW_QUEUE、重審，不必先問。
 
 ## 里程碑
 
-勾選項做完時一次交付：🎮 試玩清單（附煙霧測試截圖路徑）、REVIEW_QUEUE 待審項（補上 commit hash）、規則提案（`/wrap-up` 第 3 步的分類）、待我確認的 ROADMAP 勾選，最後提醒我輸入 `/wrap-up`。我試玩完成前不提醒推送。回饋的修正用新 commit。
+勾選項做完時一次交付：🎮 試玩清單（附煙霧測試截圖路徑）、REVIEW_QUEUE 待審項（補上 commit hash）、規則提案（`/wrap-up` 第 4 步的分類）、待我確認的 ROADMAP 勾選，最後提醒我輸入 `/wrap-up`。我試玩完成前不提醒推送。回饋的修正用新 commit。
 
 ## 接續
 

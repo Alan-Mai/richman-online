@@ -56,7 +56,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 **Phase 3 前置**（Phase 3 開始前完成）：
 - [x] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**（已完成：LZ + 動態 Huffman，見 `ASSET_FORMATS.md`「MKF 壓縮」；462 個壓縮子檔全部通過驗證，`jump.mkf` 子檔 9–44 縮圖經使用者目視確認。）
 
-**下一步**：「匯入資料表後，設定畫面改用原版檔位」（見下方）：先讀 `packages/shared/src/tables.ts` 的 `setupOptions`（起始資金、天數上限、淨值目標各 6 檔）與 `apps/client/src/ui/setup-form.ts`／`setup-screen.ts`，提出計畫：有匯入 `tables.json` 時三個設定改成 6 檔選項（第 1 檔「不限」照結構寫），未匯入時維持自訂輸入；計畫經 `reviewer` 審查後等確認再寫。這是新工作流程（`.claude/rules/autonomy.md`）的試行項目：核准後批次之間不停，做完一次交付里程碑，並在計畫檔末尾寫試行回顧。範圍小，做完接著做「原版地圖轉成可玩 `Board`」（`/phase-check` 建議不要被前一項擋住）。「銀行格與存提款」已完成（`DECISIONS.md` 2026-10-16「銀行格與存提款完成」）。
+**下一步**：先實測工作流程改造的 hook：在 `.claude/` 底下新建一個檔案（例：暫時的 `.claude/rules/_probe.md`），確認 `ask-rule-edits.mjs` 會跳出確認，結果回報後刪掉該檔、不 commit；同時確認 session 開頭有 SessionStart hook 的接續訊息。接著做「匯入資料表後，設定畫面改用原版檔位」（見下方）：先讀 `packages/shared/src/tables.ts` 的 `setupOptions`（起始資金、天數上限、淨值目標各 6 檔）與 `apps/client/src/ui/setup-form.ts`／`setup-screen.ts`，提出計畫：有匯入 `tables.json` 時三個設定改成 6 檔選項（第 1 檔「不限」照結構寫），未匯入時維持自訂輸入；計畫經 `reviewer` 審查後等確認再寫。這是新工作流程（`.claude/rules/autonomy.md`）的試行項目：核准後批次之間不停，做完一次交付里程碑，並在計畫檔末尾寫試行回顧。範圍小，做完接著做「原版地圖轉成可玩 `Board`」（`/phase-check` 建議不要被前一項擋住）。「銀行格與存提款」已完成（`DECISIONS.md` 2026-10-16「銀行格與存提款完成」）。
 
 **未解問題**：
 - 壓縮子檔中沒有已知 magic 的 308 個（`Data.mkf` 302、`Panel.mkf` 6）格式未知，需另外分析（可用 `decompressMkf` 解壓後再看）。
