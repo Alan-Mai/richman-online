@@ -381,7 +381,7 @@ const MONEY_EVENTS: ReadonlySet<GameEventType> = new Set<GameEventType>([
 ]);
 
 /**
- * Moving money at a bank keeps cash + deposit (docs/BANK_PLAN.md 2-6), checked over one action
+ * Moving money at a bank keeps cash + deposit (docs/GAME_RULES.md §4), checked over one action
  * from the state before it. A rebalance carries the new amounts and comes before any payment in
  * the action, so it is always checked; a transfer carries only the amount, so it is checked
  * against the state after the action unless money went in or out for that player meanwhile.

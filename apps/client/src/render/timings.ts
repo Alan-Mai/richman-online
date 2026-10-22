@@ -115,7 +115,7 @@ export const FIXED_MS = {
 export const PROJECT_MS = {
   /**
    * The month-start report. Non-original: the original's report dialog runs its own timer
-   * (0x00437e61, docs/BANK_PLAN.md batch 3-9), not traced yet.
+   * (0x00437e61, docs/ROADMAP.md open questions), not traced yet.
    */
   monthReport: 3000,
   /**

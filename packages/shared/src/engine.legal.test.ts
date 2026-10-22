@@ -56,7 +56,7 @@ function aboveRangeCode(state: GameState, option: AmountOption): string {
  * Plays random legal actions (choices drawn from a separate seeded RNG) and checks at every step
  * that each offered action is accepted, nobody else is offered anything, and unoffered action
  * types are refused. Problems are collected and compared once at the end: an expect per check
- * made this test take seconds (docs/BANK_PLAN.md, batch 3 timeouts).
+ * made this test take seconds (.claude/rules/commit-workflow.md, test timeouts).
  */
 function playRandomGame(start: GameState, seed: number, maxSteps: number) {
   let state = start;

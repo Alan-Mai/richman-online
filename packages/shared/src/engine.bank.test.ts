@@ -280,7 +280,7 @@ describe('bank actions', () => {
   });
 
   it('is left by computerAction for a computer seat, never for a human', () => {
-    // Computers never open a bank; Phase 4 stand-ins for humans will (docs/BANK_PLAN.md).
+    // Computers never open a bank; Phase 4 stand-ins for humans will (docs/ROADMAP.md Phase 4).
     const state = paused();
     expect(computerAction(state, 'p1')).toBeNull();
     const computer = patchPlayer(state, 'p1', {
