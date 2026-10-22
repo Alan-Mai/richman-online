@@ -193,6 +193,29 @@ describe('validateRuleConfig', () => {
     }
   });
 
+  it('rejects a crowded minimum above the motorbike or car maximum instead of clamping it', () => {
+    const dice = DEFAULT_RULE_CONFIG.computerDice;
+    const maxes = DEFAULT_RULE_CONFIG.vehicleMaxDice;
+    // On foot the computer never chooses, so the walking maximum does not matter.
+    expect(
+      validateRuleConfig(
+        withConfig({
+          computerDice: { ...dice, crowdedMinDice: 2 },
+          vehicleMaxDice: { ...maxes, walk: 1 },
+        }),
+      ),
+    ).toEqual([]);
+    for (const config of [
+      { computerDice: { ...dice, crowdedMinDice: 3 } },
+      { vehicleMaxDice: { ...maxes, motorbike: 1 } },
+      { vehicleMaxDice: { ...maxes, car: 1 } },
+    ]) {
+      expect(validateRuleConfig(withConfig(config))).toEqual([
+        { field: 'computerDice', reason: 'invalidComputerDice' },
+      ]);
+    }
+  });
+
   it('no longer has a default dice count', () => {
     expect(Object.keys(DEFAULT_RULE_CONFIG)).not.toContain('defaultDiceCount');
   });

@@ -18,4 +18,8 @@ Claude 自行決定、需要使用者在里程碑時審查的判斷（規則見 
 
 ## 待審
 
-（目前沒有）
+### 2026-10-22 · fix(shared): 電腦選顆數的下限改由設定驗證保證，移除夾限
+- 類別：範圍外修正
+- 判斷：`drawComputerDiceCount` 不再用 `Math.min(crowdedMinDice, 上限)` 夾住下限；改由 `validateRuleConfig` 要求 `crowdedMinDice` 不超過機車與汽車的顆數上限，違反時回報 `computerDice` / `invalidComputerDice`（沿用既有的錯誤種類，不新增）。步行不選顆數，不檢查。某個交通工具的上限本身無效時，只回報 `vehicleMaxDice`，不重複回報 `computerDice`。
+- 理由：夾限是原版沒有的自訂退路（CLAUDE.md 第 7 條：用驗證讓它不可能發生）。預設值下結果和原版相同，所以對局行為不變；設定不合法時，`createGame` 會回報設定錯誤，引擎裡不會走到這段。沿用 `invalidComputerDice`，因為 `computerDice` 的其他不合法情況也用這個種類；客戶端與模擬器都不會設定 `computerDice` 或 `vehicleMaxDice`（只用預設值），所以不需要新的錯誤種類或顯示文字。
+- 依據：`packages/shared/src/config.ts` 的 `validateRuleConfig`（computerDice 段）、`packages/shared/src/computer.ts` 的 `drawComputerDiceCount`；`docs/GAME_RULES.md` 第 9 節（電腦選顆數）；reviewer 驗證 E3 批次時指出（2026-10-22，工作流程改造）。驗證：新測試先因斷言失敗（`expected [] to deeply equal [ { field: 'computerDice', … } ]`）；模擬器 200 局（`--controllers computer --vehicle car`，種子 1）exit 0。

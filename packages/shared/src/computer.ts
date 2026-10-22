@@ -129,8 +129,8 @@ export function drawComputerDiceCount(
   }
 
   if (good === 0 && bad >= rules.crowdedBadTiles) {
-    const low = Math.min(rules.crowdedMinDice, most);
-    const drawn = pickBetween(low, most, preview.rng);
+    // validateRuleConfig keeps crowdedMinDice within every choosing vehicle's most.
+    const drawn = pickBetween(rules.crowdedMinDice, most, preview.rng);
     return { count: drawn.value, rng: drawn.rng };
   }
   if (good >= rules.clearGoodTiles && bad <= rules.clearBadTiles) {

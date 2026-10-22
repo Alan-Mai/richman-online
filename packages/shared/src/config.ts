@@ -196,7 +196,18 @@ export function validateRuleConfig(config: RuleConfig): RuleConfigError[] {
 
   const dice = config.computerDice;
   const counts = [dice.previewSteps, dice.crowdedBadTiles, dice.clearGoodTiles, dice.clearBadTiles];
-  if (!counts.every(isNonNegativeInteger) || !isPositiveInteger(dice.crowdedMinDice)) {
+  // The crowded draw runs from crowdedMinDice up to the vehicle's most, so it must fit every
+  // vehicle that chooses a count (not walking); the engine has no fallback for a larger minimum.
+  // A maximum that is not a positive integer is reported under vehicleMaxDice instead.
+  const fitsVehicles = (['motorbike', 'car'] as const).every((vehicle) => {
+    const most = config.vehicleMaxDice[vehicle];
+    return !isPositiveInteger(most) || dice.crowdedMinDice <= most;
+  });
+  if (
+    !counts.every(isNonNegativeInteger) ||
+    !isPositiveInteger(dice.crowdedMinDice) ||
+    !fitsVehicles
+  ) {
     errors.push({ field: 'computerDice', reason: 'invalidComputerDice' });
   }
 
