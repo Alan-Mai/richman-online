@@ -78,6 +78,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 - 破產拍賣（步驟 5）留下的線索，列為 Phase 5 再追：拍賣函式另有 3 處由事件或選單觸發（賣方為目前玩家或系統）。拍賣所得、系統債務餘款、破產者股票賣出所得流入的池已查到是彩券獎池（步驟 8），彩券見 Phase 5。
 - 執行檔內疑似股票資料（每張地圖一組 12 筆，新局時複製到玩家持股旁的表）：列為 Phase 5「股票市場」的線索，之後分析時找出規則，不原樣複製表；需要表內數值時，比照「執行檔資料表匯出」由 `tools/extract` 匯出到 `local-assets/`。
 - CI 維護（2026-10-22 推送後的 CI 已查，兩個 job 都通過）：
+  - 2026-10-23 ubuntu job 曾在 `pnpm/action-setup@v6` 切換 pnpm 版本時簽章驗證中斷（terminated），重跑通過，推測為偶發下載問題。
   - Ubuntu 26：當次的 `ubuntu-latest` 仍是 Ubuntu 24.04（annotation 說 10/19 起陸續切換）。等 runner 實際切到 Ubuntu 26 後，再確認 ubuntu job 是否正常。
   - 警告（都不影響結果）：`actions/setup-node@v5` 在兩個系統都有 DEP0040（`punycode`）與 DEP0169（`url.parse()`）；`pnpm/action-setup@v6` 在 Windows 有 DEP0190（child process 的 shell 參數），兩個系統都有 PNPM_HOME 版面提示（pnpm v11 要把執行檔放在 `PNPM_HOME/bin`）。是否更新 action 版本待決定；更新時遵守 CLAUDE.md 第 10 條，不選發布未滿兩週的版本（尤其新的主版本）。
 - 選顆數相關（逆向步驟 9b，信心中）：玩家狀態 `+0x38` 疑似「停留一回合」，非 0 時顆數按鈕全暗、不擲骰；電腦選顆數前會先隨機用道具或卡片。這兩點都要等 Phase 5 的狀態與道具系統才實作。
