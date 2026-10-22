@@ -13,7 +13,9 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "pnpm -r typecheck",
-    "check:assets": "node scripts/check-assets.js"
+    "check:assets": "node scripts/check-assets.js",
+    "check:commit": "node scripts/check-commit.js",
+    "check:commits": "node scripts/check-commits.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
