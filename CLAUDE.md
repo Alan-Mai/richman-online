@@ -61,7 +61,7 @@ pnpm typecheck
 ## 開發流程
 
 1. 動手前先讀相關文件：架構看 `docs/ARCHITECTURE.md`，目前進度看 `docs/ROADMAP.md`，規則細節看 `docs/GAME_RULES.md`，檔案格式看 `docs/ASSET_FORMATS.md`。
-2. 非小改動先提出計畫，等我確認再寫。跨多個 session 的分批計畫核准後存成 `docs/` 內的檔案，在 ROADMAP 對應項目註明位置；進度、與計畫的差異、實作中發現的待補項寫回該檔對應批次。分批計畫全部完成後，在收尾 commit 刪除該計畫檔，或在檔頭標「已完成，僅供歷史參考」，並移除 ROADMAP 的指向。計畫中標明需要我目視確認的 commit，做到該處先停下、不要 commit，確認後把我的回饋併進同一個 commit。要修正未推送、但不在最上面的 commit 時，優先新增一個修正 commit；只有我要求改寫歷史時，才用暫時分支 amend 再 cherry-pick 的方式（不用 `git rebase -i`），完成後確認新舊頂端的 diff 只有預期改動。
+2. 非小改動先提出計畫，等我確認再寫。跨多個 session 的分批計畫核准後存成 `docs/` 內的檔案，在 ROADMAP 對應項目註明位置；進度、與計畫的差異、實作中發現的待補項寫回該檔對應批次。分批計畫全部完成後，在收尾 commit 刪除該計畫檔，或在檔頭標「已完成，僅供歷史參考」，並移除 ROADMAP 的指向；刪除前先 `git grep` 計畫檔名，程式註解與文件中的引用改指向永久文件（DECISIONS、GAME_RULES、ROADMAP），另開 commit 放在收尾之前（DECISIONS 舊條目的出處保留為歷史紀錄）。計畫中標明需要我目視確認的 commit，做到該處先停下、不要 commit，確認後把我的回饋併進同一個 commit。要修正未推送、但不在最上面的 commit 時，優先新增一個修正 commit；只有我要求改寫歷史時，才用暫時分支 amend 再 cherry-pick 的方式（不用 `git rebase -i`），完成後確認新舊頂端的 diff 只有預期改動。
 3. 規則引擎採測試先行，確認斷言失敗後才實作；細節見 `.claude/rules/test-first.md`。
 4. **每個 commit 前** `pnpm format` → `pnpm test` → `pnpm lint` → `pnpm typecheck`，全部通過才 commit；細節（stash 與 patch 備份、管線過濾與偶發失敗、測試逾時）見 `.claude/rules/commit-workflow.md`。
 5. 每次 commit 只做一件事，訊息用 Conventional Commits（`feat(shared): ...`）。工作中發現不屬於目前範圍的問題（過時的程式註解、不穩定的測試等），先記下並回報，經同意後另開 commit，不併入目前的 commit；只改文件的批次也照這條處理。
