@@ -216,6 +216,18 @@ describe('validateRuleConfig', () => {
     }
   });
 
+  it('reports an invalid motorbike or car maximum only under vehicleMaxDice', () => {
+    const maxes = DEFAULT_RULE_CONFIG.vehicleMaxDice;
+    for (const vehicleMaxDice of [
+      { ...maxes, motorbike: 0 },
+      { ...maxes, car: 0 },
+    ]) {
+      expect(validateRuleConfig(withConfig({ vehicleMaxDice }))).toEqual([
+        { field: 'vehicleMaxDice', reason: 'notPositiveInteger' },
+      ]);
+    }
+  });
+
   it('no longer has a default dice count', () => {
     expect(Object.keys(DEFAULT_RULE_CONFIG)).not.toContain('defaultDiceCount');
   });
