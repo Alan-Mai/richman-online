@@ -307,7 +307,7 @@ Claude Code：遇到 `❓ 待確認` 時不要自行決定，先詢問或做成�
 引擎（引擎改造 E1–E3）：
 - 玩家的交通工具 `vehicle`（`walk`／`motorbike`／`car`）、全體共用的 `RuleConfig.startingVehicle`（預設步行，同原版）、各交通工具的顆數上限 `vehicleMaxDice`（1／2／3）；開局顆數為上限。
 - 擲骰前可用 `setDiceCount` 在 1 到上限之間選擇（只限機車與汽車；步行時不提供，送出時以 `invalidAction` 拒絕），之後的回合沿用。
-- 電腦依下方規則選顆數：回合開始、放置之後抽好，存在 `awaitRoll` 的隱藏欄位，由 `computerAction` 送出 `setDiceCount`；預覽步數與門檻放在 `RuleConfig.computerDice`。
+- 電腦依下方規則選顆數：回合開始、放置之後抽好，存在 `awaitRoll` 的隱藏欄位，由 `computerAction` 送出 `setDiceCount`；預覽步數與門檻放在 `RuleConfig.computerDice`。隨機範圍的下限 `crowdedMinDice` 超過機車或汽車的顆數上限時，`validateRuleConfig` 回報 `invalidComputerDice`（引擎不夾限；上限本身無效時只回報 `vehicleMaxDice`）。
 - 尚未實作：跟隨物（電腦選顆數的第 2 步，Phase 5）；大型建築要等引擎有大型建築才計入預覽；開局扣全場庫存、臨時交通工具與其他道具化內容屬 Phase 5「交通工具道具化」。
 
 種類與骰子數：

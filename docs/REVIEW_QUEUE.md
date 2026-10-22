@@ -29,3 +29,9 @@ Claude 自行決定、需要使用者在里程碑時審查的判斷（規則見 
 - 判斷：照 reviewer 的建議（`519501e` 的審查）補一個測試：機車或汽車的上限是 0 時，`validateRuleConfig` 只回報 `vehicleMaxDice`，不另外回報 `computerDice`。
 - 理由：上一筆的判斷提到這個行為。查證後發現既有測試「requires a positive integer dice limit for every vehicle」已經間接涵蓋（機車 1.5、汽車 −3、缺少汽車都只回報 `vehicleMaxDice`），reviewer 的建議實際上已經滿足；但你指示照建議補上，所以新增的測試把「不重複回報 `computerDice`」寫進測試名稱，並補上 0 這個值。兩個測試重疊，保留的理由是新測試說明的是兩個檢查之間的關係，舊測試說明的是上限本身的格式。
 - 依據：`packages/shared/src/config.test.ts` 的新測試；`config.ts` 的 `validateRuleConfig`（`fitsVehicles`）。驗證：暫時把 `!isPositiveInteger(most) ||` 拿掉，新測試與既有測試都因斷言失敗（`expected [ …(2) ] to deeply equal [ { field: 'vehicleMaxDice', …(1) } ]`），改回後通過。
+
+### 2026-10-22 · docs(rules): GAME_RULES 第 9 節補上電腦選顆數的設定驗證
+- 類別：範圍外修正
+- 判斷：照 reviewer 的建議（`519501e` 的審查），在第 9 節「引擎」段寫明 `crowdedMinDice` 超過機車或汽車上限時 `validateRuleConfig` 回報 `invalidComputerDice`、引擎不夾限，以及上限本身無效時只回報 `vehicleMaxDice`。
+- 理由：讓規則文件和驗證一致；寫法比照第 2 節開局日期（寫出 `validateRuleConfig` 回報的條件與錯誤種類）。只寫結構與引擎行為，沒有新增原版數值。
+- 依據：`docs/GAME_RULES.md` 第 9 節「引擎」段、第 2 節開局日期那一條；`packages/shared/src/config.ts` 的 `validateRuleConfig`。
