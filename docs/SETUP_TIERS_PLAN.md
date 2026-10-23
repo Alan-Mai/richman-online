@@ -6,9 +6,9 @@
 
 ## 接續狀態
 
-- 目前批次：批次 0 完成（待 commit 與 reviewer batch）。計畫已核准（2026-10-23）；plan 審查第 1、3 次通過，第 2 次不通過後已修正。
-- 下一個動作：commit 批次 0（GAME_RULES、ROADMAP、REVIEW_QUEUE、本檔），`reviewer batch`，之後批次 0b
-- 未 commit 的工作：批次 0 的文件
+- 目前批次：批次 0b（本 commit 完成實作）。批次 0 已 commit（`5816c0b`），batch 審查通過。計畫已核准（2026-10-23）。
+- 下一個動作：`reviewer batch` 審 0b，之後批次 1
+- 未 commit 的工作：無
 - 待審筆數（REVIEW_QUEUE）：2
 
 ## 現況
@@ -112,6 +112,8 @@
   - 天數上限的選項文字是執行檔內的字串表 → 新增批次 0b，`tables.json` v3 匯出這張表。
   - 設計第 1、5 點的 `tiers.startingFunds: number | null` 改成 `number`。
   - 選項位置：原版三者都在主要區域、順序是起始資金、天數上限、淨值目標，與使用者決定的「移出進階設定、並列」一致。
+  - batch 審查建議，留給後面的批次：ROADMAP 本項內文的「第 1 檔『不限』照結構寫」在批次 3 改寫（起始資金沒有不限、天數上限的第 1 檔顯示匯出的文字）；客戶端 `lastForm` 的沿用範圍和原版「接續開新局」的觸發條件是否相同，在批次 2 的 REVIEW_QUEUE 或試玩清單帶到。
+- 批次 0b：照計畫。字串長度上限 64（extract 以 bytes、shared 以字數），計畫原寫 32，改成兩邊一致的 64，記在 REVIEW_QUEUE 第 2 筆的補充。本機重新匯出 `local-assets/tables.json` 後 shared 驗證通過（6 段文字）。
 
 ## 試行回顧
 

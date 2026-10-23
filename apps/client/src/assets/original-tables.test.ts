@@ -22,6 +22,7 @@ function fakeTables() {
       startingFunds: [111, 222, 333, 444, 555, 666],
       dayLimit: [0, 31, 62, 93, 124, 155],
       netWorthTargetMultiple: [0, 7, 6, 5, 4, 3],
+      dayLimitLabels: ['none', 'short', 'medium', 'long', 'longer', 'longest'],
     },
     characters: Array.from({ length: 12 }, (_, i) => ({
       id: i,

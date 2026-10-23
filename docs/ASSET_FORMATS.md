@@ -417,6 +417,7 @@
   - 整張表落在同一個區段有檔案內容的範圍內。
   - 程式碼區段（依區段屬性判斷）中，至少有一個 4 bytes 絕對位址落在表的範圍內（不要求指向表頭，例如只參照某筆的某欄位）。
   - 規則性質，各有 `GAME_RULES.md` 的依據：每幀位移 > 0（每步幀數以它為除數）；起始資金各檔 > 0（物價指數以它為除數）；天數上限與淨值目標倍數的第 1 檔為 0（「不限」）。
+  - 字串表（天數上限的選項文字）：每個指標都落在有檔案內容的區段內，指向 1–64 bytes、以 NUL 結尾的字串，能以 Big5 嚴格解碼（錯誤訊息只說哪一檔、哪一項檢查失敗，不印內容）。
 - 各表（位址為本機副本的虛擬位址；筆數與寬度的證據是讀取它的指令）：
 
   | 表 | 位址 | 筆數 × 寬度 | 索引 | 證據 |
@@ -426,6 +427,7 @@
   | 擲骰動畫延遲 | `0x475264` | 4 × u32 | 遊戲速度 0–3 | 擲骰 0x419605（`×4` 索引），值左移 4 位後傳給阻塞播放動畫 |
   | 道具 | `0x47fee0` | 13 × 8 bytes | 道具編號 1–13（與玩家道具欄 +k 對應） | 道具欄迴圈上限 13（0x42896f、0x42ee37、0x42ef4e） |
   | 起始資金選項 | `0x46cb94` | 6 × i32 | 設定畫面檔位 | 新局 0x407177；依目前值找檔位的迴圈上限 6（0x406f5c） |
+  | 天數上限選項文字 | `0x46cbd0` | 6 × u32（字串指標） | 同上 | 設定畫面繪製 0x40477d 以檔位 × 4 索引；緊接在天數上限選項之前、筆數相同（逆向步驟 11）。設定畫面不格式化天數，只顯示這些字串 |
   | 天數上限選項 | `0x46cbe8` | 6 × i32 | 同上 | 0x407382；迴圈上限 6（0x406f8f） |
   | 淨值目標倍數選項 | `0x46cc00` | 6 × i32 | 同上 | 0x407399（再乘起始資金）；迴圈上限 6（0x406fbd） |
   | 角色範本 | `0x47e80c` | 12 × 0x68 bytes | 角色編號（玩家 +0x13） | 新局整筆複製到玩家（0x4072dd）；各角色陣列的迴圈上限 12（例：0x404348、0x404f60）；第 13 筆的位置正好是另一張表的起點（0x40731b 從那裡複製） |
@@ -439,7 +441,7 @@
   - 玩家的 +0x19 在遊戲中還有一個寫入者：選單開啟的玩家設定對話框（0x41e283，按確定時寫回），只列出人類座位、以 10 為一級調整。它只能在開局之後打開，不影響開局拆分；電腦座位一律用範本值。
   - 道具紀錄之前（`0x47fdf0` 起，30 筆，同樣 8 bytes）是另一張以相同格式排列的表（新局把 +6 複製到另一個庫存陣列），推測是卡片，Phase 5 再分析。
   - **農曆表**（不匯出）：`0x47639c` 起，每日一筆 u32，以日序（1998/1/1 = 0）為索引；低 16 位元 = 月 << 8 | 日，高 16 位元程式不讀。筆數 8399（到下一個被程式參照的位址為止，約到 2020 年底）。唯一讀取者是節日比對的農曆分支（0x452285，逆向步驟 10b）。本專案改用自己的演算法產生農曆（`tools/extract/src/lunar/`，`DECISIONS.md` 2026-10-15「農曆」）；`pnpm -F extract cli lunar-check` 在本機和這張表逐筆比對，只印筆數，結果是 8399 筆全部一致，所以不匯出。
-- `tables.json`：`version`（目前 2；v1 沒有借款比例與節日表，shared 回 `unsupportedVersion`，需重新匯出）、`source`（檔名、大小、sha256，只供本機追查）、`animation`（`frameTicks`、`stepPixels{walk,motorbike,car,temporary}`、`diceAnimDelay`）、`items[{id,unknownAt0,unknownAt1,stock,points}]`、`setupOptions{startingFunds,dayLimit,netWorthTargetMultiple}`、`characters[{id,cashPercent,loanPercent}]`、`holidays[地圖索引][24 筆]{flags,kind,month,dayOrNth,weekday,event[7]}`。一律存原始值（0 代表「不限」、觸發數、百分比），換算由使用處處理。
+- `tables.json`：`version`（目前 3；v1 沒有借款比例與節日表、v2 沒有天數上限選項文字，shared 回 `unsupportedVersion`，需重新匯出）、`source`（檔名、大小、sha256，只供本機追查）、`animation`（`frameTicks`、`stepPixels{walk,motorbike,car,temporary}`、`diceAnimDelay`）、`items[{id,unknownAt0,unknownAt1,stock,points}]`、`setupOptions{startingFunds,dayLimit,netWorthTargetMultiple,dayLimitLabels}`（`dayLimitLabels` 是 Big5 解碼後的字串，shared 驗證 1–64 字）、`characters[{id,cashPercent,loanPercent}]`、`holidays[地圖索引][24 筆]{flags,kind,month,dayOrNth,weekday,event[7]}`。一律存原始值（0 代表「不限」、觸發數、百分比），換算由使用處處理。
 - 證據：上表各指令由主 session 對照反組譯核對；本機匯出值與逆向步驟 7 的錄影（速度 2 的幀長、步行與汽車的每幀位移）及 `local-assets/ghidra/notes.md` 已記的值一致。表的範圍內沒有絕對位址形式的寫入。
 - 解析器：`tools/extract/src/formats/pe.ts`、`tools/extract/src/exe-tables.ts`（單元測試用合成的假 PE）。
 - 待解問題：道具 +0、+1 的意義；擲骰動畫延遲值的單位（×10 ms，信心中）；其他版本的 `rich4.exe` 位址不同時目前只會報錯，不支援。

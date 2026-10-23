@@ -5,7 +5,18 @@
 
 import type { HolidayDateRule, HolidayRule } from './holidays';
 
-export const ORIGINAL_TABLES_VERSION = 2;
+export const ORIGINAL_TABLES_VERSION = 3;
+
+/**
+ * Option indices the original setup screen starts at when a game is begun from the title menu:
+ * the second starting-funds option (a constant in the code) and no day limit or target
+ * (docs/GAME_RULES.md §1 "原版設定畫面"). The option values themselves are table data.
+ */
+export const ORIGINAL_SETUP_DEFAULT_TIERS = {
+  startingFunds: 1,
+  dayLimit: 0,
+  netWorthTarget: 0,
+} as const;
 
 export interface OriginalItem {
   /** Item number, 1-based as in the player item slots. */
@@ -57,7 +68,13 @@ export interface OriginalTables {
     diceAnimDelay: number[];
   };
   items: OriginalItem[];
-  setupOptions: { startingFunds: number[]; dayLimit: number[]; netWorthTargetMultiple: number[] };
+  setupOptions: {
+    startingFunds: number[];
+    dayLimit: number[];
+    netWorthTargetMultiple: number[];
+    /** What the setup screen shows for each day-limit option, in place of the number. */
+    dayLimitLabels: string[];
+  };
   characters: OriginalCharacter[];
   /** One table of 24 entries per original map, by map index. */
   holidays: OriginalHolidayEntry[][];
@@ -153,6 +170,9 @@ const POSITIVE_I32: Range = [1, I32_MAX];
 const NON_NEGATIVE_I32: Range = [0, I32_MAX];
 const U32: Range = [0, U32_MAX];
 const PERCENT: Range = [0, 100];
+// Labels are a few characters in the local copy; the limit only keeps the setup screen sane.
+// tools/extract accepts at most 64 bytes, so an exported label always fits.
+const MAX_LABEL_LENGTH = 64;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -238,6 +258,28 @@ class Reader {
     return this.array(parent, key, path, length, (v, p) => this.checkInteger(v, p, range));
   }
 
+  /** Strings of 1..maxLength characters (code points). */
+  strings(
+    parent: Record<string, unknown>,
+    key: string,
+    path: string,
+    length: number,
+    maxLength: number,
+  ) {
+    return this.array(parent, key, path, length, (v, p) => {
+      if (typeof v !== 'string') {
+        this.errors.push({ kind: 'wrongType', path: p });
+        return undefined;
+      }
+      const chars = [...v].length;
+      if (chars < 1 || chars > maxLength) {
+        this.errors.push({ kind: 'outOfRange', path: p });
+        return undefined;
+      }
+      return v;
+    });
+  }
+
   /** An object whose integer fields are listed in `fields`; `id` must equal `expectedId`. */
   entry<K extends string>(
     value: unknown,
@@ -290,6 +332,15 @@ export function parseOriginalTables(json: unknown): ParseOriginalTablesResult {
   const startingFunds = option('startingFunds', POSITIVE_I32);
   const dayLimit = option('dayLimit', NON_NEGATIVE_I32);
   const netWorthTargetMultiple = option('netWorthTargetMultiple', NON_NEGATIVE_I32);
+  const dayLimitLabels =
+    setup &&
+    r.strings(
+      setup,
+      'dayLimitLabels',
+      'setupOptions.dayLimitLabels',
+      L.setupOptions,
+      MAX_LABEL_LENGTH,
+    );
 
   const characters = r.array(json, 'characters', 'characters', L.characters, (v, p, i) =>
     r.entry(v, p, i, { cashPercent: PERCENT, loanPercent: PERCENT }),
@@ -343,6 +394,7 @@ export function parseOriginalTables(json: unknown): ParseOriginalTablesResult {
     !startingFunds ||
     !dayLimit ||
     !netWorthTargetMultiple ||
+    !dayLimitLabels ||
     !characters ||
     !holidays
   ) {
@@ -353,7 +405,7 @@ export function parseOriginalTables(json: unknown): ParseOriginalTablesResult {
     tables: {
       animation: { frameTicks, stepPixels: { walk, motorbike, car, temporary }, diceAnimDelay },
       items,
-      setupOptions: { startingFunds, dayLimit, netWorthTargetMultiple },
+      setupOptions: { startingFunds, dayLimit, netWorthTargetMultiple, dayLimitLabels },
       characters,
       holidays,
     },

@@ -22,8 +22,25 @@ const SMALL_LAYOUT: ExeLayout = {
   netWorthTargetMultiple: { va: BASE + DATA_RVA + 0x48, count: 6, stride: 4 },
   items: { va: BASE + DATA_RVA + 0x60, count: 13, stride: 8 },
   characters: { va: BASE + DATA_RVA + 0xc8, count: 12, stride: 0x68 },
-  holidays: { va: BASE + DATA_RVA + 0x600, count: 8 * 24, stride: 12 },
+  dayLimitLabels: { va: BASE + DATA_RVA + 0x5e0, count: 6, stride: 4 },
+  holidays: { va: BASE + DATA_RVA + 0x700, count: 8 * 24, stride: 12 },
 };
+
+/** Where buildExe writes the label strings by default (between the pointers and the holidays). */
+const SMALL_LABEL_AREA = BASE + DATA_RVA + 0x600;
+
+// Invented two-character Big5 labels (byte pairs checked with TextDecoder('big5')).
+const BIG5 = { one: [0xa4, 0x40], two: [0xa4, 0x47], big: [0xa4, 0x6a], day: [0xa4, 0xe9] };
+const BIG5_MONTH = [0xa4, 0xeb];
+const BIG5_YEAR = [0xa6, 0x7e];
+const FAKE_LABELS: { bytes: number[]; text: string }[] = [
+  { bytes: [...BIG5.big, ...BIG5.day], text: '大日' },
+  { bytes: [...BIG5.one, ...BIG5.day], text: '一日' },
+  { bytes: [...BIG5.two, ...BIG5.day], text: '二日' },
+  { bytes: [...BIG5.one, ...BIG5_MONTH], text: '一月' },
+  { bytes: [...BIG5.two, ...BIG5_MONTH], text: '二月' },
+  { bytes: [...BIG5.one, ...BIG5_YEAR], text: '一年' },
+];
 
 interface FakeTables {
   frameTicks: number[];
@@ -32,6 +49,8 @@ interface FakeTables {
   startingFunds: number[];
   dayLimit: number[];
   netWorthTargetMultiple: number[];
+  /** Raw bytes of each day-limit label, without the terminating NUL. */
+  dayLimitLabels: number[][];
   items: { a0: number; a1: number; stock: number; points: number }[];
   cashPercent: number[];
   loanPercent: number[];
@@ -47,6 +66,7 @@ function fakeTables(): FakeTables {
     startingFunds: [111, 222, 333, 444, 555, 666],
     dayLimit: [0, 31, 62, 93, 124, 155],
     netWorthTargetMultiple: [0, 7, 6, 5, 4, 3],
+    dayLimitLabels: FAKE_LABELS.map((l) => l.bytes),
     items: Array.from({ length: 13 }, (_, i) => ({
       a0: i % 3,
       a1: i % 4,
@@ -70,12 +90,16 @@ interface BuildOptions {
   /** Reference this address instead of the table start (e.g. a field inside a record). */
   referenceAt?: Partial<Record<TableName, number>>;
   dataSize?: number;
+  /** Virtual address where the label strings are laid out, one after another. */
+  labelArea?: number;
+  /** Overrides the label pointer values (e.g. to point outside the data). */
+  labelPointers?: number[];
 }
 
 function buildExe(t: FakeTables, opts: BuildOptions = {}): Uint8Array {
   const layout = opts.layout ?? SMALL_LAYOUT;
   const dataVa = BASE + DATA_RVA;
-  const data = new Uint8Array(opts.dataSize ?? 0xf00);
+  const data = new Uint8Array(opts.dataSize ?? 0x1000);
   const view = new DataView(data.buffer);
   const at = (name: TableName, i: number) => layout[name].va - dataVa + i * layout[name].stride;
   t.frameTicks.forEach((v, i) => view.setUint8(at('frameTicks', i), v));
@@ -97,6 +121,12 @@ function buildExe(t: FakeTables, opts: BuildOptions = {}): Uint8Array {
   t.cashPercent.forEach((v, i) => view.setUint8(at('characters', i) + 0x19, v));
   t.loanPercent.forEach((v, i) => view.setUint8(at('characters', i) + 0x18, v));
   t.holidays.flat().forEach((bytes, i) => data.set(bytes, at('holidays', i)));
+  let labelVa = opts.labelArea ?? SMALL_LABEL_AREA;
+  t.dayLimitLabels.forEach((bytes, i) => {
+    view.setUint32(at('dayLimitLabels', i), opts.labelPointers?.[i] ?? labelVa, true);
+    data.set([...bytes, 0], labelVa - dataVa);
+    labelVa += bytes.length + 1;
+  });
 
   const names = Object.keys(layout) as TableName[];
   const refs = names
@@ -143,6 +173,7 @@ describe('extractTables', () => {
         startingFunds: t.startingFunds,
         dayLimit: t.dayLimit,
         netWorthTargetMultiple: t.netWorthTargetMultiple,
+        dayLimitLabels: FAKE_LABELS.map((l) => l.text),
       },
       characters: t.cashPercent.map((cashPercent, id) => ({
         id,
@@ -166,10 +197,40 @@ describe('extractTables', () => {
     const lo = Math.min(...Object.values(RICH4_LAYOUT).map((s) => s.va));
     const hi = Math.max(...Object.values(RICH4_LAYOUT).map((s) => s.va + s.count * s.stride));
     expect(lo).toBeGreaterThanOrEqual(BASE + DATA_RVA);
-    const exe = buildExe(fakeTables(), { layout: RICH4_LAYOUT, dataSize: hi - (BASE + DATA_RVA) });
+    const exe = buildExe(fakeTables(), {
+      layout: RICH4_LAYOUT,
+      dataSize: hi - (BASE + DATA_RVA) + 0x40,
+      labelArea: hi,
+    });
     const t = extractTables(exe);
     expect(t.animation.frameTicks).toEqual([9, 7, 3]);
     expect(t.characters.map((c) => c.cashPercent)).toEqual(fakeTables().cashPercent);
+    expect(t.setupOptions.dayLimitLabels).toEqual(FAKE_LABELS.map((l) => l.text));
+  });
+
+  it('places the day-limit label pointers right before the day-limit values', () => {
+    const { dayLimitLabels, dayLimit } = RICH4_LAYOUT;
+    expect(dayLimitLabels.va + dayLimitLabels.count * dayLimitLabels.stride).toBe(dayLimit.va);
+    expect(dayLimitLabels.count).toBe(dayLimit.count);
+  });
+
+  it.each([
+    ['outside the file-backed data', { labelPointers: [SMALL_LABEL_AREA, BASE + 0x9000] }, 1],
+    ['empty', { labelPointers: [SMALL_LABEL_AREA, BASE + DATA_RVA + 0x6f0] }, 1],
+  ])('rejects a day-limit label %s', (_, opts, option) => {
+    expectTablesError(
+      buildExe(fakeTables(), opts),
+      new RegExp(`^dayLimitLabels: option ${option} `),
+    );
+  });
+
+  it('rejects a day-limit label that is not valid Big5 or has no end within the limit', () => {
+    const lone = fakeTables();
+    lone.dayLimitLabels[2] = [0xa4]; // lead byte without its trail byte
+    expectTablesError(buildExe(lone), /^dayLimitLabels: option 2 is not valid Big5$/);
+    const long = fakeTables();
+    long.dayLimitLabels[3] = Array.from({ length: 80 }, () => 0x41);
+    expectTablesError(buildExe(long), /^dayLimitLabels: option 3 has no terminating NUL/);
   });
 
   it('accepts a code reference that points inside a table rather than at its start', () => {
@@ -205,10 +266,10 @@ describe('extractTables', () => {
   });
 
   it('rejects a table that runs past the end of its section', () => {
-    const exe = buildExe(fakeTables(), { dataSize: 0xf00 });
+    const exe = buildExe(fakeTables(), { dataSize: 0x1000 });
     const layout = {
       ...SMALL_LAYOUT,
-      characters: { ...SMALL_LAYOUT.characters, va: BASE + DATA_RVA + 0xef0 },
+      characters: { ...SMALL_LAYOUT.characters, va: BASE + DATA_RVA + 0xff0 },
     };
     expectTablesError(exe, /^characters: not inside/, layout);
   });

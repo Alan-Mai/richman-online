@@ -118,6 +118,7 @@ export {
 } from './rng';
 export {
   ORIGINAL_TABLE_LENGTHS,
+  ORIGINAL_SETUP_DEFAULT_TIERS,
   ORIGINAL_TABLES_VERSION,
   originalHolidays,
   parseOriginalTables,

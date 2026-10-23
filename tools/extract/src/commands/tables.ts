@@ -34,6 +34,7 @@ export async function tables({ gameDir, outDir }: CommandContext): Promise<void>
       `diceAnimDelay ${t.animation.diceAnimDelay.length}`,
       `items ${t.items.length}`,
       `setup options ${t.setupOptions.startingFunds.length} × 3`,
+      `day limit labels ${t.setupOptions.dayLimitLabels.length}`,
       `characters ${t.characters.length}`,
       `holidays ${t.holidays.length} × ${t.holidays[0]?.length ?? 0}`,
     ].join(', '),

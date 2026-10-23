@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ORIGINAL_SETUP_DEFAULT_TIERS,
   ORIGINAL_TABLES_VERSION,
   originalHolidays,
   parseOriginalTables,
@@ -34,6 +35,7 @@ function validJson() {
       startingFunds: [111, 222, 333, 444, 555, 666],
       dayLimit: [0, 31, 62, 93, 124, 155],
       netWorthTargetMultiple: [0, 7, 6, 5, 4, 3],
+      dayLimitLabels: ['none', 'short', 'medium', 'long', 'longer', 'longest'],
     },
     characters: Array.from({ length: 12 }, (_, i) => ({
       id: i,
@@ -92,9 +94,42 @@ describe('parseOriginalTables', () => {
     });
   });
 
-  it('rejects version 1 files, which have no borrowing share or holidays', () => {
-    expect(ORIGINAL_TABLES_VERSION).toBe(2);
+  it('rejects older files: v1 has no borrowing share or holidays, v2 no day-limit labels', () => {
+    expect(ORIGINAL_TABLES_VERSION).toBe(3);
     expect(errorsAfter((j) => (j.version = 1))).toEqual([{ kind: 'unsupportedVersion' }]);
+    expect(errorsAfter((j) => (j.version = 2))).toEqual([{ kind: 'unsupportedVersion' }]);
+  });
+
+  it('checks the day-limit labels: six non-empty strings of at most 64 characters', () => {
+    expect(
+      errorsAfter((j) => {
+        j.setupOptions.dayLimitLabels[0] = '';
+        put(j.setupOptions.dayLimitLabels, 1, 7);
+        j.setupOptions.dayLimitLabels[2] = 'x'.repeat(65);
+      }),
+    ).toEqual([
+      { kind: 'outOfRange', path: 'setupOptions.dayLimitLabels.0' },
+      { kind: 'wrongType', path: 'setupOptions.dayLimitLabels.1' },
+      { kind: 'outOfRange', path: 'setupOptions.dayLimitLabels.2' },
+    ]);
+    expect(errorsAfter((j) => j.setupOptions.dayLimitLabels.pop())).toEqual([
+      { kind: 'wrongLength', path: 'setupOptions.dayLimitLabels', expected: 6 },
+    ]);
+    expect(errorsAfter((j) => Reflect.deleteProperty(j.setupOptions, 'dayLimitLabels'))).toEqual([
+      { kind: 'missing', path: 'setupOptions.dayLimitLabels' },
+    ]);
+    const json = validJson();
+    // 64 characters counted as code points (one astral character counts once).
+    json.setupOptions.dayLimitLabels[3] = '\u{20000}' + 'y'.repeat(63);
+    expect(parseOriginalTables(json).ok).toBe(true);
+  });
+
+  it('defaults to the second starting-funds option and no limits, as the original does', () => {
+    expect(ORIGINAL_SETUP_DEFAULT_TIERS).toEqual({
+      startingFunds: 1,
+      dayLimit: 0,
+      netWorthTarget: 0,
+    });
   });
 
   it('checks the borrowing share and the holiday tables', () => {

@@ -5,7 +5,7 @@
 import { codeReferencesRange, readPe, readVa, type PeImage } from './formats/pe';
 
 // Bump when a field is renamed or changes meaning; packages/shared parseOriginalTables checks it.
-export const TABLES_JSON_VERSION = 2;
+export const TABLES_JSON_VERSION = 3;
 
 const HOLIDAY_MAPS = 8;
 const HOLIDAYS_PER_MAP = 24;
@@ -32,6 +32,7 @@ export type TableName =
   | 'startingFunds'
   | 'dayLimit'
   | 'netWorthTargetMultiple'
+  | 'dayLimitLabels'
   | 'characters'
   | 'holidays';
 
@@ -51,6 +52,9 @@ export const RICH4_LAYOUT: ExeLayout = {
   startingFunds: { va: 0x0046cb94, count: 6, stride: 4 },
   dayLimit: { va: 0x0046cbe8, count: 6, stride: 4 },
   netWorthTargetMultiple: { va: 0x0046cc00, count: 6, stride: 4 },
+  // Pointers to the text the setup screen shows for each day-limit option (it never formats the
+  // number), right before the day-limit values.
+  dayLimitLabels: { va: 0x0046cbd0, count: 6, stride: 4 },
   characters: { va: 0x0047e80c, count: 12, stride: 0x68 },
   // 24 entries per map, maps 0-7 one after another (map index × 0x120).
   holidays: { va: 0x0047ff4a, count: HOLIDAY_MAPS * HOLIDAYS_PER_MAP, stride: 12 },
@@ -66,7 +70,13 @@ export interface ExeTables {
     diceAnimDelay: number[];
   };
   items: { id: number; unknownAt0: number; unknownAt1: number; stock: number; points: number }[];
-  setupOptions: { startingFunds: number[]; dayLimit: number[]; netWorthTargetMultiple: number[] };
+  setupOptions: {
+    startingFunds: number[];
+    dayLimit: number[];
+    netWorthTargetMultiple: number[];
+    /** The setup screen's text for each day-limit option, decoded from Big5. */
+    dayLimitLabels: string[];
+  };
   /** `id` is the character template index (player +0x13). */
   characters: { id: number; cashPercent: number; loanPercent: number }[];
   /** Per map index, its 24 holiday entries, raw. */
@@ -97,6 +107,26 @@ function check(ok: boolean, message: string): void {
   if (!ok) throw new ExeTablesError(message);
 }
 
+// Longest label accepted, in bytes before the NUL; the local copy's are a few characters.
+const MAX_LABEL_BYTES = 64;
+const BIG5 = new TextDecoder('big5', { fatal: true });
+
+/** The NUL-terminated Big5 string at `va`, decoded. `what` names it in errors (never the text). */
+function big5String(bytes: Uint8Array, image: PeImage, va: number, what: string): string {
+  for (let length = 1; length <= MAX_LABEL_BYTES + 1; length++) {
+    const data = readVa(bytes, image, va, length);
+    if (!data) throw new ExeTablesError(`${what} is not inside a file-backed section`);
+    if (data[length - 1] !== 0) continue;
+    check(length > 1, `${what} is empty`);
+    try {
+      return BIG5.decode(data.subarray(0, length - 1));
+    } catch {
+      throw new ExeTablesError(`${what} is not valid Big5`);
+    }
+  }
+  throw new ExeTablesError(`${what} has no terminating NUL within ${MAX_LABEL_BYTES} bytes`);
+}
+
 /** Strict: throws ExeTablesError (or PeFormatError) unless every structural and rule check passes. */
 export function extractTables(bytes: Uint8Array, layout: ExeLayout = RICH4_LAYOUT): ExeTables {
   const image = readPe(bytes);
@@ -109,6 +139,9 @@ export function extractTables(bytes: Uint8Array, layout: ExeLayout = RICH4_LAYOU
   const startingFunds = i32s('startingFunds');
   const dayLimit = i32s('dayLimit');
   const netWorthTargetMultiple = i32s('netWorthTargetMultiple');
+  const dayLimitLabels = read('dayLimitLabels').map((r, i) =>
+    big5String(bytes, image, r.getUint32(0, true), `dayLimitLabels: option ${i}`),
+  );
 
   // Rule checks, each backed by GAME_RULES.md: the step frame count divides by the per-frame
   // distance; the price index divides by the starting funds; both win-condition option lists
@@ -131,7 +164,7 @@ export function extractTables(bytes: Uint8Array, layout: ExeLayout = RICH4_LAYOU
       stock: r.getUint8(6),
       points: r.getUint8(7),
     })),
-    setupOptions: { startingFunds, dayLimit, netWorthTargetMultiple },
+    setupOptions: { startingFunds, dayLimit, netWorthTargetMultiple, dayLimitLabels },
     characters: read('characters').map((r, i) => ({
       id: i,
       cashPercent: r.getUint8(0x19),
