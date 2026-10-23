@@ -198,9 +198,9 @@ describe('buildSetup', () => {
 
 // Invented option tables (not the original values); index 3 of the target list is a stray 0.
 const OPTIONS = {
-  startingFunds: [1000, 2000, 3000, 4000, 5000, 6000],
-  dayLimit: [0, 10, 20, 30, 40, 50],
-  netWorthTargetMultiple: [0, 2, 3, 0, 5, 6],
+  startingFunds: [1137, 2213, 3391, 4409, 5521, 6673],
+  dayLimit: [0, 13, 27, 41, 59, 73],
+  netWorthTargetMultiple: [0, 17, 19, 0, 23, 29],
   dayLimitLabels: ['a', 'b', 'c', 'd', 'e', 'f'],
 };
 
@@ -211,7 +211,7 @@ describe('buildSetup with the original option tables', () => {
     expect(defaultSetupForm().tiers).toEqual({ startingFunds: 1, dayLimit: 0, netWorthTarget: 0 });
     const result = tiered(form());
     expect(result.ok && result.setup.config).toMatchObject({
-      startingFunds: 2000,
+      startingFunds: 2213,
       dayLimit: null,
       netWorthTargetMultiple: null,
     });
@@ -220,9 +220,9 @@ describe('buildSetup with the original option tables', () => {
   it('takes each setting from the chosen option, a 0 option meaning no limit', () => {
     const result = tiered(form({ tiers: { startingFunds: 4, dayLimit: 2, netWorthTarget: 5 } }));
     expect(result.ok && result.setup.config).toMatchObject({
-      startingFunds: 5000,
-      dayLimit: 20,
-      netWorthTargetMultiple: 6,
+      startingFunds: 5521,
+      dayLimit: 27,
+      netWorthTargetMultiple: 29,
     });
     if (result.ok) expect(createGame(result.setup).ok).toBe(true);
     const stray = tiered(form({ tiers: { startingFunds: 0, dayLimit: 0, netWorthTarget: 3 } }));
@@ -247,17 +247,17 @@ describe('buildSetup with the original option tables', () => {
 describe('tierLabels', () => {
   it('shows starting funds as plain numbers and the target as an amount of the chosen funds', () => {
     expect(tierLabels(OPTIONS, 1)).toEqual({
-      startingFunds: ['1000', '2000', '3000', '4000', '5000', '6000'],
+      startingFunds: ['1137', '2213', '3391', '4409', '5521', '6673'],
       dayLimit: ['a', 'b', 'c', 'd', 'e', 'f'],
-      netWorthTarget: ['無', '4000', '6000', '無', '10000', '12000'],
+      netWorthTarget: ['無', '37621', '42047', '無', '50899', '64177'],
     });
     expect(tierLabels(OPTIONS, 5).netWorthTarget).toEqual([
       '無',
-      '12000',
-      '18000',
+      '113441',
+      '126787',
       '無',
-      '30000',
-      '36000',
+      '153479',
+      '193517',
     ]);
   });
 });

@@ -6,10 +6,10 @@
 
 ## 接續狀態
 
-- 目前批次：批次 1 的審查修正。批次 0（`5816c0b`）、0b（`42ef6a4`、`3c51d45`）、1（`46372cc`）已 commit；`reviewer batch 42ef6a4..46372cc` 第 1 次不通過（`3c51d45` 缺 REVIEW_QUEUE 條目），本 commit 補上。計畫已核准（2026-10-23）。
-- 下一個動作：另開 test commit 把 `setup-form.test.ts` 的假值換成較不規則的數字（審查建議 4），再重審 `42ef6a4..<head>`，之後批次 2
+- 目前批次：批次 1 的審查修正。批次 0（`5816c0b`）、0b（`42ef6a4`、`3c51d45`）、1（`46372cc`、修正 `db155fe` 與本 commit）已 commit；`reviewer batch 42ef6a4..46372cc` 第 1 次不通過，已修正。計畫已核准（2026-10-23）。
+- 下一個動作：重審 `42ef6a4..<head>`，之後批次 2
 - 未 commit 的工作：無
-- 待審筆數（REVIEW_QUEUE）：6
+- 待審筆數（REVIEW_QUEUE）：7
 
 ## 現況
 
