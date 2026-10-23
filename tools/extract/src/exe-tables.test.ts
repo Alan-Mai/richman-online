@@ -29,17 +29,17 @@ const SMALL_LAYOUT: ExeLayout = {
 /** Where buildExe writes the label strings by default (between the pointers and the holidays). */
 const SMALL_LABEL_AREA = BASE + DATA_RVA + 0x600;
 
-// Invented two-character Big5 labels (byte pairs checked with TextDecoder('big5')).
-const BIG5 = { one: [0xa4, 0x40], two: [0xa4, 0x47], big: [0xa4, 0x6a], day: [0xa4, 0xe9] };
-const BIG5_MONTH = [0xa4, 0xeb];
-const BIG5_YEAR = [0xa6, 0x7e];
+// Invented Big5 labels with no meaning (byte pairs checked with TextDecoder('big5')), mixed with
+// ASCII so both byte widths are covered.
+const BIG5 = { one: [0xa4, 0x40], two: [0xa4, 0x47], big: [0xa4, 0x6a], middle: [0xa4, 0xa4] };
+const ascii = (text: string) => [...text].map((c) => c.charCodeAt(0));
 const FAKE_LABELS: { bytes: number[]; text: string }[] = [
-  { bytes: [...BIG5.big, ...BIG5.day], text: '大日' },
-  { bytes: [...BIG5.one, ...BIG5.day], text: '一日' },
-  { bytes: [...BIG5.two, ...BIG5.day], text: '二日' },
-  { bytes: [...BIG5.one, ...BIG5_MONTH], text: '一月' },
-  { bytes: [...BIG5.two, ...BIG5_MONTH], text: '二月' },
-  { bytes: [...BIG5.one, ...BIG5_YEAR], text: '一年' },
+  { bytes: [...BIG5.big, ...BIG5.middle], text: '大中' },
+  { bytes: [...BIG5.middle, ...BIG5.big, ...BIG5.one], text: '中大一' },
+  { bytes: ascii('zq'), text: 'zq' },
+  { bytes: [...BIG5.two, ...ascii('x')], text: '二x' },
+  { bytes: [...BIG5.one, ...BIG5.two, ...BIG5.middle], text: '一二中' },
+  { bytes: [...ascii('k'), ...BIG5.big], text: 'k大' },
 ];
 
 interface FakeTables {
