@@ -6,10 +6,10 @@
 
 ## 接續狀態
 
-- 目前批次：批次 0（逆向查證）。計畫已核准（2026-10-23）；plan 審查第 1、3 次通過，第 2 次不通過後已修正。
-- 下一個動作：讀 `.claude/skills/asset-analyze/SKILL.md` 的 Ghidra 段落，開始批次 0
-- 未 commit 的工作：本計畫檔
-- 待審筆數（REVIEW_QUEUE）：0
+- 目前批次：批次 0 完成（待 commit 與 reviewer batch）。計畫已核准（2026-10-23）；plan 審查第 1、3 次通過，第 2 次不通過後已修正。
+- 下一個動作：commit 批次 0（GAME_RULES、ROADMAP、REVIEW_QUEUE、本檔），`reviewer batch`，之後批次 0b
+- 未 commit 的工作：批次 0 的文件
+- 待審筆數（REVIEW_QUEUE）：2
 
 ## 現況
 
@@ -21,16 +21,21 @@
 
 ## 設計
 
-1. **表單值分兩組保存**：`SetupForm` 新增 `tiers: { startingFunds: number | null; dayLimit: number; netWorthTarget: number }`（檔位索引 0–5），原本的三個字串欄位保留給未匯入時的自訂輸入。是否用檔位只由「有沒有匯入資料表」決定，畫面上沒有另外的切換開關；匯入、清除資料表時兩組各自保留，不互相覆蓋；`lastForm` 照舊帶到下一局。`tiers.startingFunds` 為 `null` 表示「還沒選過，用預設檔位」（見第 5 點）。
+1. **表單值分兩組保存**：`SetupForm` 新增 `tiers: { startingFunds: number; dayLimit: number; netWorthTarget: number }`（檔位索引 0–5），原本的三個字串欄位保留給未匯入時的自訂輸入。是否用檔位只由「有沒有匯入資料表」決定，畫面上沒有另外的切換開關；匯入、清除資料表時兩組各自保留，不互相覆蓋；`lastForm` 照舊帶到下一局。
 2. **檔位換成設定值**（`setup-form.ts`，純函式，可單元測試）：
    - `buildSetup` 的第三個參數由 `characters` 改成 `tables: { characters; setupOptions } | null`（或新增一個參數，實作時選較少改動者，記 REVIEW_QUEUE）。有 `setupOptions` 時三個設定只讀檔位、忽略自訂字串（字串不合法也不報錯）；沒有時照現在的自訂輸入驗證。
    - 原始值 0 → `null`（不限）；其他值原樣使用。不看檔位索引、只看值是否為 0：原版的結束判斷就是以「值 ≠ 0」決定是否檢查（`local-assets/ghidra/notes.md` 的 CheckDayLimitOrTargetEnd，0x0041d89e），所以 0 出現在哪一檔都等於不限；第 1 檔為 0 是原版結構（`GAME_RULES.md` 第 1 節）。起始資金的原始值由 `parseOriginalTables` 保證為正。
    - 檔位索引：`read()` 從 `<select>` 讀值，只會是 0–5；`buildSetup` 收到超出範圍或非整數的索引時視為呼叫端寫錯而 throw，不另設退路。
-3. **選項文字**（`setup-form.ts` 匯出 `tierLabel(kind, raw, …)`，i18n 在 `zh-TW.ts`）：玩家看得到的呈現屬規則（`GAME_RULES.md` 開頭），由批次 0 查原版怎麼顯示（「不限」的寫法、天數的單位、淨值目標顯示倍數還是乘上起始資金後的金額、起始資金的格式），照原版做。若淨值目標顯示金額，換起始資金檔位時要重算淨值目標的選項文字（`sync()` 處理）。批次 0 時限內查不到就停下，列給你決定；在你決定前不做批次 1 的文字部分，暫定提案是：索引值 0 →「不限」、天數「{n} 日」、淨值目標「起始資金的 {n} 倍」、起始資金千分位。數值只來自匯入的檔案，倉庫與測試不放原版數值（測試用自編的假值）。
+3. **選項文字**（`setup-form.ts` 匯出 `tierLabels(setupOptions, startingFundsTier)`，固定字串在 `zh-TW.ts`）：照批次 0 查到的原版呈現（`GAME_RULES.md` 第 1 節「原版設定畫面的…」）：
+   - 起始資金：十進位整數，無千分位。
+   - 淨值目標：金額＝目前選的起始資金值 × 倍數，十進位整數；倍數 0 顯示本專案自己措辭的固定字串「無」。換起始資金檔位時 `sync()` 重算淨值目標的選項文字。
+   - 天數上限：顯示 `tables.json` v3 的 `setupOptions.dayLimitLabels[檔位]`（批次 0b 由 `tools/extract` 從執行檔匯出的每檔文字，只在本機）。
+   - 數值與文字只來自匯入的檔案，倉庫與測試不放原版數值或字串（測試用自編的假值）。
 4. **畫面**（`setup-screen.ts`）：三個設定各建一個輸入框與一個 `<select>`（6 個選項，value 為檔位索引），由 `sync()` 依 `options.tables?.setupOptions()` 是否為 null 切換哪一個顯示（`hidden` 加在 label 上）。`TablesImport` 新增 `setupOptions()`，回傳 `setupOptions`（含批次 0b 時的預設索引）或 null。匯入時選項文字要換成新檔的值，所以 `sync()` 也重建三個 `<select>` 的選項、保留目前選的索引。起始資金移出「進階設定」，和天數上限、淨值目標並列，有無匯入都一樣（使用者決定，見下方「使用者的決定」；批次 2 記 REVIEW_QUEUE）。
 5. **預設檔位**：
    - 天數上限、淨值目標：`defaultSetupForm()` 為索引 0（第 1 檔，不限）；原版預設不限（`GAME_RULES.md` 第 1 節；notes.md 步驟 8 d），照結構寫。
-   - 起始資金：原版預設檔位目前未知。新局以一個檔位索引變數查選項表（notes.md 步驟 8 b，0x0040717e），由批次 0 查它的初始值。表單：`defaultSetupForm()` 的 `tiers.startingFunds` 為 `null`；`buildSetup` 與畫面把 `null` 解析成預設索引（批次 0b 匯出的值，或批次 0 結論下的索引 0）。玩家在選單選過後才變成數字，所以匯入（或換一個檔案匯入）不會蓋掉玩家已選的檔位，只有還沒選過時跟著預設走。
+   - 起始資金：原版從標題開新局時是索引 1（第 2 檔），是程式中的立即值（批次 0）。依 asset-analyze SKILL.md「規則中的單一常數只限程式碼裡的立即值」，可以寫進文件與程式：shared `tables.ts` 新增常數 `ORIGINAL_SETUP_DEFAULT_TIERS = { startingFunds: 1, dayLimit: 0, netWorthTarget: 0 }`，不經 `tables.json`（計畫差異，見「進度」）。`defaultSetupForm().tiers` 直接用這個常數；原本為了「預設來自匯入檔」而設計的 `null` 不再需要，`tiers` 三項都是數字。
+   - 沿用上一局：原版在遊戲中接續開新局時沿用上一局的設定；客戶端的 `lastForm` 已經在同一頁面內沿用上一局的表單，與原版一致。重新整理頁面後回到預設，也與原版「不存設定檔」一致。
 6. **資料表區塊的說明文字**：`setup.tables.none`／`setup.tables.imported` 加上「起始資金、天數上限、淨值目標使用原版檔位／自訂輸入」。
 7. **app.ts**：`setupOptions: () => tables?.data.setupOptions ?? null`。
 
@@ -50,15 +55,22 @@
   - 任一項時限內查不到 → 停下問你（autonomy.md「逆向超出時限」）；選項文字查不到時，列出暫定提案（設計第 3 點）請你決定。
 - 只改文件（`local-assets/` 不進版本控制）；commit：`docs(rules): 設定畫面的預設檔位與選項文字（逆向）`。
 
+### 批次 0b：`tables.json` v3 匯出天數上限的選項文字（`tools/extract` + `packages/shared`，測試先行）
+- 批次 0 的結論：天數上限的選項文字是執行檔內的字串指標表（6 筆，與數值表一一對應），屬執行檔資料表，比照其他表由 `tools/extract` 匯出。
+- `tools/extract/src/exe-tables.ts`：`RICH4_LAYOUT` 新增 `dayLimitLabels`（指標表 6 × u32）；檢查指標表有程式碼參照、每個指標落在有檔案內容的區段、字串在合理長度內以 NUL 結尾，以 Big5 嚴格解碼（`TextDecoder('big5', { fatal: true })`）成 UTF-8；失敗時錯誤訊息不印內容。`TABLES_JSON_VERSION` 升為 3。測試用合成的假 PE 與自編字串（`exe-tables.test.ts`）。
+- `packages/shared/src/tables.ts`：`ORIGINAL_TABLES_VERSION` 升為 3；`setupOptions.dayLimitLabels` 為 6 個非空字串（長度上限 32 字，超出回 `outOfRange`，非字串回 `wrongType`）；v2 檔回 `unsupportedVersion`（客戶端既有訊息提示重新匯出）。新增常數 `ORIGINAL_SETUP_DEFAULT_TIERS`（設計第 5 點）。測試先行（`tables.test.ts`）。
+- 同步：用到 `tables.json` 假資料的測試（`apps/client/src/assets/original-tables.test.ts`、`setup-screen.test.ts`、`tools/sim/src/simulate.test.ts`、`tools/extract/src/exe-tables.test.ts`）補欄位；`ASSET_FORMATS.md` 的 `tables.json` 版本號、欄位清單（:442）、各表一覽與匯出時的檢查（:419、:428 附近）；`pnpm -F extract cli tables` 的輸出摘要只印筆數。
+- 完成後在本機重新匯出 `local-assets/tables.json`（只看筆數），確認客戶端能讀。
+- commit：`feat(extract): tables.json v3 匯出天數上限的選項文字`（extract 與 shared 一起，因為版本號必須同步）。
+
 ### 批次 1：表單邏輯（`setup-form.ts` + 測試 + i18n）
 - 測試先行（`setup-form.test.ts`，自編假值的 `setupOptions`）：
   - 有檔位時：索引 0（原始值 0）→ `dayLimit`/`netWorthTargetMultiple` 為 `null`；選其他檔 → 該檔的原始值；起始資金取所選檔的值。
   - 有檔位時，自訂字串不合法也不產生 `dayLimit`／`netWorthTarget`／`startingFunds` 錯誤。
   - 索引 0 以外的檔原始值為 0 時也換成 `null`。
-  - `tiers.startingFunds` 為 `null` 時用預設索引。
   - 沒有檔位時，行為與現在相同（既有測試不改）。
-  - `tierLabel`：依批次 0 的結論（值 0、單位、淨值目標的顯示方式、起始資金格式）。
-  - `defaultSetupForm().tiers`：天數上限、淨值目標為 0，起始資金為 `null`。
+  - `tierLabels`：起始資金是無千分位的整數；淨值目標是「所選起始資金 × 倍數」的整數，倍數 0 時是固定字串，換起始資金檔位後跟著變；天數上限是 `dayLimitLabels` 的對應字串。
+  - `defaultSetupForm().tiers` 等於 `ORIGINAL_SETUP_DEFAULT_TIERS`（起始資金索引 1，其餘 0；期望值寫成常數）。
 - commit：`feat(client): 設定表單可依原版檔位產生天數上限、淨值目標與起始資金`
 
 ### 批次 2：設定畫面與接線（`setup-screen.ts`、`app.ts` + 測試）
@@ -66,7 +78,9 @@
   - 未匯入：顯示輸入框、不顯示檔位選單（既有測試照舊）。
   - 匯入後（`setupOptions()` 回傳假值、觸發 onChange）：三個設定顯示 6 檔的 `<select>`、輸入框隱藏；選索引 2 開局，`onStart` 收到的 setup 用該檔的值，`form.tiers` 記下索引。
   - 清除資料表後：選單隱藏、輸入框回來，原本輸入的字串仍在。
-  - 用含 `tiers` 的 `initial` 預填時，選單選中對應的檔位；起始資金為 `null` 時選中預設檔位。
+  - 用含 `tiers` 的 `initial` 預填時，選單選中對應的檔位；預設表單時起始資金選中索引 1。
+  - 起始資金在未匯入與匯入時都不在「進階設定」內，和天數上限、淨值目標並列（順序照原版：起始資金、天數上限、淨值目標）。
+  - 換起始資金檔位後，淨值目標選單的文字跟著變、選中的索引不變。
   - 依 `client.md`：測試前明確設定 `<select>` 的值，不依賴 happy-dom 預設選項。
 - 煙霧測試 `pnpm -F smoke shot -- --out <scratchpad>`（它不匯入資料表，只確認沒有破壞未匯入的畫面）；另在內建瀏覽器用 scratchpad 內自編的假 `tables.json` 匯入，截圖確認選單（假值，不是原版）。
 - commit：`feat(client): 匯入資料表後設定畫面改用原版檔位`
@@ -81,7 +95,7 @@
 
 ## 使用者的決定（2026-10-23 核准時）
 
-1. **起始資金的預設檔位**：照提案，批次 0 查到固定索引就由 `tools/extract` 匯出（`tables.json` v3）。使用者不記得原版預設檔位，完全依批次 0 的查證結果。
+1. **起始資金的預設檔位**：照提案，批次 0 查到固定索引就由 `tools/extract` 匯出（`tables.json` v3）。使用者不記得原版預設檔位，完全依批次 0 的查證結果。（批次 0 查到的是程式中的立即值，改為寫成常數，見「進度」的計畫差異；`tables.json` v3 仍然要做，用於天數上限的選項文字。）
 2. **起始資金的位置**：移出「進階設定」，和天數上限、淨值目標並列，有無匯入都一樣；記 REVIEW_QUEUE。
 
 ## 🎮 試玩（里程碑時）
@@ -93,6 +107,11 @@
 ## 進度
 
 - 2026-10-23 前置：hook 實測。`.claude/rules/_probe.md` 的 Write 成功；手動以相同輸入執行 `ask-rule-edits.mjs`，輸出 `permissionDecision: "ask"`，對 `docs/` 的路徑不輸出。使用者確認畫面上有跳出確認框（bypass permissions 模式下 ask 仍有效）。SessionStart 接續訊息在 session 開頭有出現。探測檔已刪、未 commit。曾依使用者要求寫了「bypass 模式下改為擋下」的修正，使用者看過 diff 後決定不採用、維持 ask，已用 `git restore` 還原（未 commit）。
+- 批次 0（2026-10-23，主 session 約 0.3 輪，未超出時限）：結果寫進 `GAME_RULES.md` 第 1 節「原版設定畫面的起始資金、天數上限、淨值目標」與 `notes.md` 步驟 11（關鍵位址：0x00406f06–0x00406f20 預設索引、0x00406f5c／0x00406f8f／0x00406fbd 沿用上一局、0x00401c8c–0x00401ca6 與 0x00401def 參數來源、0x00404651–0x004046c3 起始資金與淨值目標文字、0x00404778 天數上限字串表）。需要原版佐證的列入 ROADMAP 未解問題。和計畫的差異（記 REVIEW_QUEUE）：
+  - 預設檔位是立即值 → 寫成常數，不經 `tables.json`。
+  - 天數上限的選項文字是執行檔內的字串表 → 新增批次 0b，`tables.json` v3 匯出這張表。
+  - 設計第 1、5 點的 `tiers.startingFunds: number | null` 改成 `number`。
+  - 選項位置：原版三者都在主要區域、順序是起始資金、天數上限、淨值目標，與使用者決定的「移出進階設定、並列」一致。
 
 ## 試行回顧
 
