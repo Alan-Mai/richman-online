@@ -268,13 +268,15 @@ describe('formAfterGame', () => {
       dayLimit: 0,
       netWorthTarget: 0,
     });
-    // Several human seats: back to the title even when a human won.
+    // Several human seats: back to the title even when a human won (either of them).
     const hotSeat = played(['human', 'human', 'computer', 'computer']);
-    expect(formAfterGame(hotSeat, setupOf(hotSeat), ['p2']).tiers).toEqual({
-      startingFunds: 1,
-      dayLimit: 0,
-      netWorthTarget: 0,
-    });
+    for (const winner of ['p1', 'p2']) {
+      expect(formAfterGame(hotSeat, setupOf(hotSeat), [winner]).tiers).toEqual({
+        startingFunds: 1,
+        dayLimit: 0,
+        netWorthTarget: 0,
+      });
+    }
   });
 
   it('only resets the options, keeping the rest of the form', () => {
