@@ -8,10 +8,10 @@
 
 ## 接續狀態
 
-- 目前批次：全部完成（批次 3 為本 commit）。批次 0、0b、1、2 已通過 batch 審查。
-- 下一個動作：`reviewer batch 0c96873..<head>`，通過後交付里程碑、提醒使用者輸入 `/wrap-up`
+- 目前批次：全部完成，batch 審查全部通過（批次 3 `ac92150`；其建議的改名在本 commit）。
+- 下一個動作：交付里程碑、提醒使用者輸入 `/wrap-up`
 - 未 commit 的工作：無
-- 待審筆數（REVIEW_QUEUE）：10
+- 待審筆數（REVIEW_QUEUE）：11
 
 ## 現況
 
@@ -122,7 +122,7 @@
 - 批次 0b（`42ef6a4`，batch 審查通過）：大致照計畫，兩處不同：字串長度上限 64（extract 以 bytes、shared 以字數），計畫原寫 32，改成兩邊一致的 64，記在 REVIEW_QUEUE 第 2 筆的補充；`setup-screen.test.ts` 不用 `tables.json` 假資料，不需要補欄位。審查建議的修正另開 commit：測試的假字串換成沒有意義的組合（不用時間單位），ROADMAP 一處過時的「v2」。本機重新匯出 `local-assets/tables.json` 後 shared 驗證通過（6 段文字）。
 - 批次 1（`46372cc`）：照計畫。`buildSetup` 加第 4 個參數 `setupOptions`；`tierLabels(options, startingFundsTier)`；淨值目標的 0 文字是 i18n 的 `setup.tier.noTarget`。為了讓 commit 能編譯，`setup-screen.ts` 的 `read()` 暫時原樣帶回 `initial.tiers`，批次 2 換成選單的值。REVIEW_QUEUE 兩筆（參數形式、淨值目標乘積不模擬 32 位元溢位）。這行進度在批次 1 的 commit 漏掉，補在下一個 commit。batch 審查第 1 次不通過：`3c51d45` 處理審查建議卻沒記 REVIEW_QUEUE；補上該筆與 `read()` 過渡寫法的計畫差異。審查建議：淨值目標乘積的 32 位元溢位差異在里程碑列給使用者決定；測試假值改得較不規則（另開 test commit）。重審通過，建議：里程碑補 hash 時註明 `db155fe` 補記的兩筆。
 - 批次 2：照計畫。設定畫面三個設定各有自訂輸入框與檔位選單（`startingFundsTier` 等），`sync()` 依 `tables.setupOptions()` 切換並重建選項文字；`app.ts` 接上 `setupOptions`；說明文字更新。煙霧測試（未匯入）截圖：scratchpad `smoke/01-setup.png`、`03-later.png`，無頁面錯誤，起始資金已在交通工具之後、天數上限之前。另在內建瀏覽器（自開 5193 埠，用完已關）以自編的假 `tables.json` 匯入，窗格隱藏所以用 DOM 檢查：三個選單出現、文字照原版呈現、換起始資金後淨值目標金額跟著變；選第 6 檔起始資金（奇數）開局，人類現金與存款各為一半、餘 1 捨去。REVIEW_QUEUE 兩筆（位置與標籤、`lastForm` 與原版沿用條件的差異）。batch 審查（`8332385..0c96873`）通過。
-- 批次 3：`GAME_RULES.md` 第 1 節的「起始資金」「勝利條件」「單機設定畫面的勝負條件」三列照程式碼改寫；ROADMAP 勾選本項並改寫內文（REVIEW_QUEUE 一筆，勾選待里程碑確認）、「下一步」改指向「原版地圖轉成可玩 `Board`」、移除指向本檔的文字；本檔檔頭標「已完成」。`git grep SETUP_TIERS_PLAN` 只剩 REVIEW_QUEUE 的依據欄（本檔保留，引用仍有效）。
+- 批次 3：`GAME_RULES.md` 第 1 節的「起始資金」「勝利條件」「單機設定畫面的勝負條件」三列照程式碼改寫；ROADMAP 勾選本項並改寫內文（REVIEW_QUEUE 一筆，勾選待里程碑確認）、「下一步」改指向「原版地圖轉成可玩 `Board`」、移除指向本檔的文字；本檔檔頭標「已完成」。`git grep SETUP_TIERS_PLAN` 只剩 REVIEW_QUEUE 的依據欄（本檔保留，引用仍有效）。batch 審查通過；依建議把 GAME_RULES 那一列改名為「單機設定畫面的起始資金與勝負條件」（另開 commit，計畫檔內的舊名是歷史紀錄，不改）。
 
 ## 試行回顧
 
