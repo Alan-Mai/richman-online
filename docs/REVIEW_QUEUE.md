@@ -31,6 +31,18 @@ Claude 自行決定、需要使用者在里程碑時審查的判斷（規則見 
 - 補充（`feat(extract): tables.json v3 匯出天數上限的選項文字`）：匯出時每段文字限 64 bytes、shared 驗證 1–64 字，都是非原版的合理上限（本機副本每段 2–3 字）。
 - 依據：`notes.md` 步驟 11（0x00404778、0x004046a2、0x0046316e）；`GAME_RULES.md` 第 1 節「原版設定畫面的起始資金、天數上限、淨值目標」。
 
+### 2026-10-23 · test(extract): 天數上限選項文字的假字串改用無意義的組合
+- 類別：範圍外修正
+- 判斷：依批次 0b 的 batch 審查建議，把測試的假字串從「數字＋時間單位」的遞增寫法換成無意義的 Big5／ASCII 組合；同時把 ROADMAP 一處過時的「匯入 `tables.json` v2 時」改成「（v2 起）」。
+- 理由：原本的假字串有一段碰巧和本機的原版字串相同，整組寫法也像在模仿原版的結構；v2 檔現在會被拒絕，原句已過時。（審查另指出這個 commit 混了程式碼與文件，之後分開提交。）
+- 依據：批次 0b 的 batch 審查建議 1、2；`docs/ROADMAP.md:122`。
+
+### 2026-10-23 · feat(client): 設定表單可依原版檔位產生天數上限、淨值目標與起始資金
+- 類別：計畫差異
+- 判斷：批次 1 的範圍原本只有 `setup-form.ts`、測試與 i18n；為了讓 commit 能編譯，`setup-screen.ts` 的 `read()` 暫時原樣帶回 `initial.tiers`。
+- 理由：`SetupForm` 新增必填的 `tiers` 後，畫面不提供就無法通過 typecheck；過渡寫法，批次 2 換成選單的值。
+- 依據：`apps/client/src/ui/setup-screen.ts` 的 `read()`；計畫批次 1、2。
+
 ### 2026-10-23 · feat(client): 設定表單可依原版檔位產生天數上限、淨值目標與起始資金
 - 類別：實作細節
 - 判斷：`buildSetup` 新增第 4 個參數 `setupOptions`，不把第 3 個參數 `characters` 改成物件。

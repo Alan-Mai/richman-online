@@ -6,10 +6,10 @@
 
 ## 接續狀態
 
-- 目前批次：批次 1（本 commit 完成）。批次 0（`5816c0b`）、0b（`42ef6a4`，審查建議的修正 `3c51d45`）已 commit，batch 審查通過。計畫已核准（2026-10-23）。
-- 下一個動作：`reviewer batch 42ef6a4..<批次 1 head>`（含 `3c51d45` 的重審），之後批次 2
+- 目前批次：批次 1 的審查修正。批次 0（`5816c0b`）、0b（`42ef6a4`、`3c51d45`）、1（`46372cc`）已 commit；`reviewer batch 42ef6a4..46372cc` 第 1 次不通過（`3c51d45` 缺 REVIEW_QUEUE 條目），本 commit 補上。計畫已核准（2026-10-23）。
+- 下一個動作：另開 test commit 把 `setup-form.test.ts` 的假值換成較不規則的數字（審查建議 4），再重審 `42ef6a4..<head>`，之後批次 2
 - 未 commit 的工作：無
-- 待審筆數（REVIEW_QUEUE）：4
+- 待審筆數（REVIEW_QUEUE）：6
 
 ## 現況
 
@@ -114,6 +114,7 @@
   - 選項位置：原版三者都在主要區域、順序是起始資金、天數上限、淨值目標，與使用者決定的「移出進階設定、並列」一致。
   - batch 審查建議，留給後面的批次：ROADMAP 本項內文的「第 1 檔『不限』照結構寫」在批次 3 改寫（起始資金沒有不限、天數上限的第 1 檔顯示匯出的文字）；客戶端 `lastForm` 的沿用範圍和原版「接續開新局」的觸發條件是否相同，在批次 2 的 REVIEW_QUEUE 或試玩清單帶到。
 - 批次 0b（`42ef6a4`，batch 審查通過）：大致照計畫，兩處不同：字串長度上限 64（extract 以 bytes、shared 以字數），計畫原寫 32，改成兩邊一致的 64，記在 REVIEW_QUEUE 第 2 筆的補充；`setup-screen.test.ts` 不用 `tables.json` 假資料，不需要補欄位。審查建議的修正另開 commit：測試的假字串換成沒有意義的組合（不用時間單位），ROADMAP 一處過時的「v2」。本機重新匯出 `local-assets/tables.json` 後 shared 驗證通過（6 段文字）。
+- 批次 1（`46372cc`）：照計畫。`buildSetup` 加第 4 個參數 `setupOptions`；`tierLabels(options, startingFundsTier)`；淨值目標的 0 文字是 i18n 的 `setup.tier.noTarget`。為了讓 commit 能編譯，`setup-screen.ts` 的 `read()` 暫時原樣帶回 `initial.tiers`，批次 2 換成選單的值。REVIEW_QUEUE 兩筆（參數形式、淨值目標乘積不模擬 32 位元溢位）。這行進度在批次 1 的 commit 漏掉，補在下一個 commit。batch 審查第 1 次不通過：`3c51d45` 處理審查建議卻沒記 REVIEW_QUEUE；補上該筆與 `read()` 過渡寫法的計畫差異。審查建議：淨值目標乘積的 32 位元溢位差異在里程碑列給使用者決定；測試假值改得較不規則（另開 test commit）。
 
 ## 試行回顧
 
