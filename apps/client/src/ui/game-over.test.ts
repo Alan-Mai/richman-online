@@ -37,10 +37,13 @@ const ended: GameEvent = {
 function open(event: GameEvent = ended) {
   const root = document.createElement('div');
   root.hidden = true;
-  let again = 0;
-  const dialog = new GameOverDialog(root, { seed: 77, onAgain: () => again++ });
+  const calls: (readonly string[])[] = [];
+  const dialog = new GameOverDialog(root, {
+    seed: 77,
+    onAgain: (winners) => calls.push(winners),
+  });
   dialog.eventPlayed(event, model);
-  return { root, again: () => again };
+  return { root, again: () => calls.length, winners: () => calls.at(-1) };
 }
 
 /** The dialog's paragraphs in order (the title is a heading, not included). */
@@ -77,15 +80,17 @@ describe('GameOverDialog', () => {
   });
 
   it('goes straight back to setup when no human is left, without a dialog', () => {
-    const { root, again } = open({ ...ended, reason: 'noHumansLeft', winners: [] });
+    const { root, again, winners } = open({ ...ended, reason: 'noHumansLeft', winners: [] });
     expect(again()).toBe(1);
+    expect(winners()).toEqual([]);
     expect(root.hidden).toBe(true);
     expect(root.children).toHaveLength(0);
   });
 
-  it('goes back to setup on request', () => {
-    const { root, again } = open();
+  it('goes back to setup on request, telling who won (the next form depends on it)', () => {
+    const { root, again, winners } = open();
     root.querySelector('button')!.click();
     expect(again()).toBe(1);
+    expect(winners()).toEqual(['p2']);
   });
 });

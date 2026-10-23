@@ -11,6 +11,7 @@ import {
   buildSetup,
   defaultSetupForm,
   describeSetupError,
+  formAfterGame,
   previewCharacters,
   tierLabels,
   type SetupForm,
@@ -241,6 +242,45 @@ describe('buildSetup with the original option tables', () => {
     expect(() =>
       tiered(form({ tiers: { startingFunds: 1, dayLimit: 1.5, netWorthTarget: 0 } })),
     ).toThrow();
+  });
+});
+
+describe('formAfterGame', () => {
+  const chosen = { startingFunds: 4, dayLimit: 2, netWorthTarget: 5 };
+  const played = (controllers: SetupForm['controllers']) => form({ controllers, tiers: chosen });
+  const setupOf = (f: SetupForm) => ok(f);
+
+  it('keeps the options when the only human seat won, as the original goes on to the next game', () => {
+    const f = played(['human', 'computer', 'computer', 'computer']);
+    expect(formAfterGame(f, setupOf(f), ['p1']).tiers).toEqual(chosen);
+  });
+
+  it('goes back to the default options otherwise, as the original returns to the title', () => {
+    const solo = played(['human', 'computer', 'computer', 'computer']);
+    // A computer won, or the only human went bankrupt with no winner.
+    expect(formAfterGame(solo, setupOf(solo), ['p3']).tiers).toEqual({
+      startingFunds: 1,
+      dayLimit: 0,
+      netWorthTarget: 0,
+    });
+    expect(formAfterGame(solo, setupOf(solo), []).tiers).toEqual({
+      startingFunds: 1,
+      dayLimit: 0,
+      netWorthTarget: 0,
+    });
+    // Several human seats: back to the title even when a human won.
+    const hotSeat = played(['human', 'human', 'computer', 'computer']);
+    expect(formAfterGame(hotSeat, setupOf(hotSeat), ['p2']).tiers).toEqual({
+      startingFunds: 1,
+      dayLimit: 0,
+      netWorthTarget: 0,
+    });
+  });
+
+  it('only resets the options, keeping the rest of the form', () => {
+    const f = { ...played(['human', 'human']), names: ['甲', '乙', '丙', '丁'], dayLimit: '45' };
+    const after = formAfterGame(f, setupOf(f), ['p1']);
+    expect(after).toEqual({ ...f, tiers: { startingFunds: 1, dayLimit: 0, netWorthTarget: 0 } });
   });
 });
 

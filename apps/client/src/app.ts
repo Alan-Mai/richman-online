@@ -26,7 +26,7 @@ import { loadGameSpeed, saveGameSpeed } from './ui/game-speed-setting';
 import { Hud } from './ui/hud';
 import { describeMapFileError, renderPreviewChooser } from './ui/preview-chooser';
 import { PreviewPanel } from './ui/preview-panel';
-import { defaultSetupForm, type SetupForm } from './ui/setup-form';
+import { defaultSetupForm, formAfterGame, type SetupForm } from './ui/setup-form';
 import { renderSetupScreen } from './ui/setup-screen';
 
 /** What Enter does: the turn's main choice. */
@@ -61,7 +61,7 @@ function startGameSession(
   elements: AppElements,
   pacing: Pacing,
   characters: Readonly<Record<PlayerId, number>>,
-  onAgain: () => void,
+  onAgain: (winners: readonly PlayerId[]) => void,
 ): Session {
   const created = LocalGameHost.create(setup);
   if (!created.ok) {
@@ -158,6 +158,7 @@ function whenSized(element: HTMLElement, callback: () => void): void {
 
 export function startApp(elements: AppElements): void {
   let session: Session | null = null;
+  // Not stored anywhere: a reload starts from the default options, as the original does on start.
   let lastForm: SetupForm = defaultSetupForm();
   // The dev-server route only exists under `vite`; production builds rely on importing a folder.
   const devSource = import.meta.env.DEV ? devAssetSource() : null;
@@ -181,7 +182,10 @@ export function startApp(elements: AppElements): void {
         elements.overlay.replaceChildren();
         whenSized(elements.board, () => {
           const pacing = tables ? pacingFromTables(tables.data.animation) : PROJECT_PACING;
-          session = startGameSession(setup, elements, pacing, characters, showSetup);
+          session = startGameSession(setup, elements, pacing, characters, (winners) => {
+            lastForm = formAfterGame(lastForm, setup, winners);
+            showSetup();
+          });
         });
       },
       onPreview: () => showChooser(),

@@ -187,6 +187,22 @@ function customSettings(form: SetupForm, errors: SetupError[]) {
   return { dayLimit, netWorthTargetMultiple, startingFunds };
 }
 
+/**
+ * The form the setup screen opens with after a game. The original goes straight on to the next
+ * game, keeping the options, only when the single human seat won; otherwise it returns to the
+ * title, and the next game starts from the default options (docs/GAME_RULES.md §1). Only the
+ * options follow the original; the rest of the form is kept for convenience.
+ */
+export function formAfterGame(
+  form: SetupForm,
+  setup: GameSetup,
+  winners: readonly PlayerId[],
+): SetupForm {
+  const humans = setup.players.filter((p) => p.controller === 'human');
+  const soloHumanWon = humans.length === 1 && winners.some((id) => id === humans[0]?.id);
+  return soloHumanWon ? form : { ...form, tiers: { ...ORIGINAL_SETUP_DEFAULT_TIERS } };
+}
+
 export function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0]!;
 }
