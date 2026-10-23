@@ -175,6 +175,7 @@ describe('setup screen', () => {
           onPick: () => Promise.resolve([]),
           onClear: () => {},
           characters: () => (imported ? characters : null),
+          setupOptions: () => null,
         },
       });
       const tags = [...root.querySelectorAll<HTMLElement>('.setup-character')];
@@ -206,7 +207,13 @@ describe('setup screen', () => {
       renderSetupScreen(root, {
         initial: defaultSetupForm(),
         onStart: (s, f) => started.push([s, f]),
-        tables: { importedName, onPick, onClear: () => cleared++, characters: () => null },
+        tables: {
+          importedName,
+          onPick,
+          onClear: () => cleared++,
+          characters: () => null,
+          setupOptions: () => null,
+        },
       });
       const section = root.querySelector<HTMLElement>('.setup-tables')!;
       const picker = field<HTMLInputElement>('tables');
@@ -280,6 +287,132 @@ describe('setup screen', () => {
       answer = Promise.reject(new Error('unreadable'));
       await choose(ui.picker, new File(['x'], 'bad.json'));
       expect(ui.section.textContent).toContain('無法讀取這個檔案');
+    });
+  });
+
+  describe('original setup options', () => {
+    // Invented option tables, not the original values.
+    const OPTIONS = {
+      startingFunds: [1137, 2213, 3391, 4409, 5521, 6673],
+      dayLimit: [0, 13, 27, 41, 59, 73],
+      netWorthTargetMultiple: [0, 17, 19, 0, 23, 29],
+      dayLimitLabels: ['la', 'lb', 'lc', 'ld', 'le', 'lf'],
+    };
+
+    /** Renders with tables that can be imported (`imported`) and cleared through the section. */
+    function render(initial: SetupForm = defaultSetupForm(), imported = true) {
+      let current = imported;
+      renderSetupScreen(root, {
+        initial,
+        onStart: (s, f) => started.push([s, f]),
+        tables: {
+          importedName: imported ? 'tables.json' : null,
+          onPick: () => {
+            current = true;
+            return Promise.resolve([]);
+          },
+          onClear: () => (current = false),
+          characters: () => null,
+          setupOptions: () => (current ? OPTIONS : null),
+        },
+      });
+      const clear = [...root.querySelectorAll<HTMLButtonElement>('.setup-tables button')][1]!;
+      return { clear };
+    }
+
+    const visible = (name: string) => !field(name).closest('label')!.hidden;
+    const optionTexts = (name: string) =>
+      [...field<HTMLSelectElement>(name).options].map((o) => o.textContent);
+
+    it('offers the six original options instead of the custom fields once imported', () => {
+      render();
+      for (const name of ['startingFundsTier', 'dayLimitTier', 'netWorthTargetTier']) {
+        expect(visible(name)).toBe(true);
+      }
+      for (const name of ['startingFunds', 'dayLimit', 'netWorthTarget']) {
+        expect(visible(name)).toBe(false);
+      }
+      expect(optionTexts('startingFundsTier')).toEqual(OPTIONS.startingFunds.map(String));
+      expect(optionTexts('dayLimitTier')).toEqual(OPTIONS.dayLimitLabels);
+      // The default second starting-funds option, 2213, times each multiple.
+      expect(optionTexts('netWorthTargetTier')).toEqual([
+        '無',
+        '37621',
+        '42047',
+        '無',
+        '50899',
+        '64177',
+      ]);
+      expect(field<HTMLSelectElement>('startingFundsTier').value).toBe('1');
+      expect(field<HTMLSelectElement>('dayLimitTier').value).toBe('0');
+    });
+
+    it('starts the game with the chosen options and remembers them', () => {
+      render();
+      setValue('startingFundsTier', '4');
+      setValue('dayLimitTier', '2');
+      setValue('netWorthTargetTier', '5');
+      submit();
+      const [setup, form] = started[0]!;
+      expect(setup.config).toMatchObject({
+        startingFunds: 5521,
+        dayLimit: 27,
+        netWorthTargetMultiple: 29,
+      });
+      expect(form.tiers).toEqual({ startingFunds: 4, dayLimit: 2, netWorthTarget: 5 });
+    });
+
+    it('recomputes the target amounts when the starting funds change, keeping the choice', () => {
+      render();
+      setValue('netWorthTargetTier', '2');
+      setValue('startingFundsTier', '5');
+      expect(optionTexts('netWorthTargetTier')).toEqual([
+        '無',
+        '113441',
+        '126787',
+        '無',
+        '153479',
+        '193517',
+      ]);
+      expect(field<HTMLSelectElement>('netWorthTargetTier').value).toBe('2');
+    });
+
+    it('prefills the options from the given form', () => {
+      render({
+        ...defaultSetupForm(),
+        tiers: { startingFunds: 3, dayLimit: 4, netWorthTarget: 1 },
+      });
+      expect(field<HTMLSelectElement>('startingFundsTier').value).toBe('3');
+      expect(field<HTMLSelectElement>('dayLimitTier').value).toBe('4');
+      expect(field<HTMLSelectElement>('netWorthTargetTier').value).toBe('1');
+    });
+
+    it('goes back to the custom fields, as typed, when the tables are cleared', () => {
+      const { clear } = render({ ...defaultSetupForm(), dayLimit: '45' });
+      setValue('dayLimitTier', '3');
+      clear.click();
+      expect(visible('dayLimit')).toBe(true);
+      expect(visible('dayLimitTier')).toBe(false);
+      expect(field<HTMLInputElement>('dayLimit').value).toBe('45');
+      submit();
+      const [setup, form] = started[0]!;
+      expect(setup.config.dayLimit).toBe(45);
+      expect(form.tiers.dayLimit).toBe(3);
+    });
+
+    it('shows the starting funds with the day limit and target, outside the advanced settings', () => {
+      for (const imported of [false, true]) {
+        render(defaultSetupForm(), imported);
+        const suffix = imported ? 'Tier' : '';
+        const names = ['startingFunds', 'dayLimit', 'netWorthTarget'].map((n) => n + suffix);
+        const labels = names.map((n) => field(n).closest('label')!);
+        expect(labels.map((l) => l.closest('details'))).toEqual([null, null, null]);
+        const all = [...root.querySelectorAll('form > label')];
+        const at = labels.map((l) => all.indexOf(l));
+        // Each setting has its custom field and its option menu side by side, one of them hidden.
+        expect(at[1]).toBe(at[0]! + 2);
+        expect(at[2]).toBe(at[1]! + 2);
+      }
     });
   });
 

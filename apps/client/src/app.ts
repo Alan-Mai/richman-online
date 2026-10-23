@@ -197,6 +197,7 @@ export function startApp(elements: AppElements): void {
           tables = null;
         },
         characters: () => (tables === null ? null : profilesFromTables(tables.data)),
+        setupOptions: () => tables?.data.setupOptions ?? null,
       },
     });
     elements.overlay.querySelector('select')?.focus();

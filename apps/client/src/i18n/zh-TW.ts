@@ -53,9 +53,10 @@ export const zhTW = {
   'setup.character.atStart': '角色：開局時依種子抽選',
   'setup.vehicle': '起始交通工具（全體共用）',
   'setup.tables': '原版資料表（tables.json）',
-  'setup.tables.none': '未匯入：移動動畫使用自訂的幀長與每幀位移，電腦玩家使用暫定的現金比例。',
+  'setup.tables.none':
+    '未匯入：移動動畫使用自訂的幀長與每幀位移，電腦玩家使用暫定的現金比例，起始資金、天數上限與淨值目標可自訂輸入。',
   'setup.tables.imported':
-    '已匯入：{name}。移動動畫使用原版的幀長與每幀位移，電腦玩家依種子抽選原版角色；檔案只在這台電腦讀取，不會上傳。',
+    '已匯入：{name}。移動動畫使用原版的幀長與每幀位移，電腦玩家依種子抽選原版角色，起始資金、天數上限與淨值目標使用原版的選項；檔案只在這台電腦讀取，不會上傳。',
   'setup.tables.pick': '選擇 tables.json…',
   'setup.tables.error.read': '無法讀取這個檔案',
   'setup.tables.clear': '改回自訂值',
@@ -72,6 +73,8 @@ export const zhTW = {
   'setup.dayLimit': '天數上限（留空為不限）',
   'setup.netWorthTarget': '淨值目標：起始資金的幾倍（留空為無目標）',
   'setup.tier.noTarget': '無',
+  'setup.dayLimit.tiers': '天數上限',
+  'setup.netWorthTarget.tiers': '淨值目標',
   'setup.advanced': '進階設定',
   'setup.startingFunds': '起始資金',
   'setup.seed': '亂數種子（留空為隨機）',

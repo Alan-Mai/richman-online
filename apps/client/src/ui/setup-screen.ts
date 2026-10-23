@@ -17,8 +17,14 @@ import {
   isBoardChoice,
   previewCharacters,
   randomSeed,
+  tierLabels,
   type SetupForm,
+  type SetupOptions,
+  type SetupTiers,
 } from './setup-form';
+
+type TierKey = keyof SetupTiers;
+const TIER_KEYS: readonly TierKey[] = ['startingFunds', 'dayLimit', 'netWorthTarget'];
 
 function labelled(text: string, control: HTMLElement): HTMLLabelElement {
   const label = document.createElement('label');
@@ -70,6 +76,8 @@ export interface TablesImport {
   onClear(): void;
   /** The character profiles of the imported file, in its order; null without one. */
   characters(): readonly CharacterProfile[] | null;
+  /** The setup options of the imported file; null without one. */
+  setupOptions(): SetupOptions | null;
 }
 
 /**
@@ -215,19 +223,39 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
   }
   vehicle.value = initial.vehicle;
 
+  // Starting funds, day limit and net worth target: a custom field without imported tables, the
+  // original six options with them (docs/GAME_RULES.md §1 "原版設定畫面"), in the original order.
+  const funds = input('startingFunds', initial.startingFunds, { inputmode: 'numeric' });
   const dayLimit = input('dayLimit', initial.dayLimit, { inputmode: 'numeric' });
   const netWorthTarget = input('netWorthTarget', initial.netWorthTarget, { inputmode: 'numeric' });
+  const customFields: Record<TierKey, HTMLLabelElement> = {
+    startingFunds: labelled(t('setup.startingFunds'), funds),
+    dayLimit: labelled(t('setup.dayLimit'), dayLimit),
+    netWorthTarget: labelled(t('setup.netWorthTarget'), netWorthTarget),
+  };
+  let tiers: SetupTiers = { ...initial.tiers };
+  const tierSelects = Object.fromEntries(
+    TIER_KEYS.map((key) => {
+      const select = document.createElement('select');
+      select.name = `${key}Tier`;
+      select.addEventListener('change', () => {
+        tiers = { ...tiers, [key]: Number(select.value) };
+        sync();
+      });
+      return [key, select];
+    }),
+  ) as Record<TierKey, HTMLSelectElement>;
+  const tierFields: Record<TierKey, HTMLLabelElement> = {
+    startingFunds: labelled(t('setup.startingFunds'), tierSelects.startingFunds),
+    dayLimit: labelled(t('setup.dayLimit.tiers'), tierSelects.dayLimit),
+    netWorthTarget: labelled(t('setup.netWorthTarget.tiers'), tierSelects.netWorthTarget),
+  };
 
   const advanced = document.createElement('details');
   const summary = document.createElement('summary');
   summary.textContent = t('setup.advanced');
-  const funds = input('startingFunds', initial.startingFunds, { inputmode: 'numeric' });
   const seed = input('seed', initial.seed, { inputmode: 'numeric' });
-  advanced.append(
-    summary,
-    labelled(t('setup.startingFunds'), funds),
-    labelled(t('setup.seed'), seed),
-  );
+  advanced.append(summary, labelled(t('setup.seed'), seed));
 
   const errors = document.createElement('ul');
   errors.className = 'setup-errors';
@@ -250,13 +278,37 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     netWorthTarget: netWorthTarget.value,
     startingFunds: funds.value,
     seed: seed.value,
-    // The option menus come with the tables import on this screen; until then keep the given ones.
-    tiers: { ...initial.tiers },
+    tiers: { ...tiers },
   });
+
+  const syncTiers = () => {
+    const setupOptions = options.tables?.setupOptions() ?? null;
+    for (const key of TIER_KEYS) {
+      customFields[key].hidden = setupOptions !== null;
+      tierFields[key].hidden = setupOptions === null;
+    }
+    if (setupOptions === null) return;
+    // Rebuilt each time: another file may have been imported, and the target amounts follow the
+    // chosen starting funds.
+    const texts = tierLabels(setupOptions, tiers.startingFunds);
+    for (const key of TIER_KEYS) {
+      const select = tierSelects[key];
+      select.replaceChildren(
+        ...texts[key].map((text, i) => {
+          const option = document.createElement('option');
+          option.value = String(i);
+          option.textContent = text;
+          return option;
+        }),
+      );
+      select.value = String(tiers[key]);
+    }
+  };
 
   const sync = () => {
     const values = read();
     nameLabels.forEach((label, seat) => (label.hidden = seat >= values.playerCount));
+    syncTiers();
     const characters = options.tables?.characters() ?? null;
     const preview = characters === null ? null : previewCharacters(values, characters.length);
     characterTags.forEach((tag, seat) => {
@@ -274,7 +326,12 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const values = read();
-    const result = buildSetup(values, makeSeed, options.tables?.characters() ?? null);
+    const result = buildSetup(
+      values,
+      makeSeed,
+      options.tables?.characters() ?? null,
+      options.tables?.setupOptions() ?? null,
+    );
     if (!result.ok) {
       errors.replaceChildren(
         ...result.errors.map((e) => {
@@ -295,8 +352,7 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     labelled(t('setup.playerCount'), count),
     ...nameLabels,
     labelled(t('setup.vehicle'), vehicle),
-    labelled(t('setup.dayLimit'), dayLimit),
-    labelled(t('setup.netWorthTarget'), netWorthTarget),
+    ...TIER_KEYS.flatMap((key) => [customFields[key], tierFields[key]]),
     advanced,
     ...(options.tables ? [tablesSection(options.tables, sync)] : []),
     errors,
