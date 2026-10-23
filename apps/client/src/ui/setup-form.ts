@@ -189,9 +189,10 @@ function customSettings(form: SetupForm, errors: SetupError[]) {
 
 /**
  * The form the setup screen opens with after a game. The original goes straight on to the next
- * game, keeping the options, only when the single human seat won; otherwise it returns to the
- * title, and the next game starts from the default options (docs/GAME_RULES.md §1). Only the
- * options follow the original; the rest of the form is kept for convenience.
+ * game, keeping its settings, only when the single human seat won; otherwise it returns to the
+ * title, and the next game starts from the defaults (docs/GAME_RULES.md §1). The settings the
+ * original has (player count, starting vehicle, seats, the three options) follow that; the
+ * project-only fields (board, names, custom fields, seed) are kept (DECISIONS.md 2026-10-23).
  */
 export function formAfterGame(
   form: SetupForm,
@@ -200,7 +201,9 @@ export function formAfterGame(
 ): SetupForm {
   const humans = setup.players.filter((p) => p.controller === 'human');
   const soloHumanWon = humans.length === 1 && winners.some((id) => id === humans[0]?.id);
-  return soloHumanWon ? form : { ...form, tiers: { ...ORIGINAL_SETUP_DEFAULT_TIERS } };
+  if (soloHumanWon) return form;
+  const { playerCount, vehicle, controllers, tiers } = defaultSetupForm();
+  return { ...form, playerCount, vehicle, controllers, tiers };
 }
 
 export function randomSeed(): number {

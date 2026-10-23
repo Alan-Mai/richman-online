@@ -250,9 +250,13 @@ describe('formAfterGame', () => {
   const played = (controllers: SetupForm['controllers']) => form({ controllers, tiers: chosen });
   const setupOf = (f: SetupForm) => ok(f);
 
-  it('keeps the options when the only human seat won, as the original goes on to the next game', () => {
-    const f = played(['human', 'computer', 'computer', 'computer']);
-    expect(formAfterGame(f, setupOf(f), ['p1']).tiers).toEqual(chosen);
+  it('keeps the whole form when the only human seat won, as the original goes on to the next game', () => {
+    const f = {
+      ...played(['human', 'computer', 'computer']),
+      playerCount: 3,
+      vehicle: 'car' as const,
+    };
+    expect(formAfterGame(f, setupOf(f), ['p1'])).toEqual(f);
   });
 
   it('goes back to the default options otherwise, as the original returns to the title', () => {
@@ -279,10 +283,27 @@ describe('formAfterGame', () => {
     }
   });
 
-  it('only resets the options, keeping the rest of the form', () => {
-    const f = { ...played(['human', 'human']), names: ['甲', '乙', '丙', '丁'], dayLimit: '45' };
+  it('resets the original settings and keeps the project-only fields when going back', () => {
+    const f = {
+      ...played(['human', 'human', 'computer']),
+      playerCount: 3,
+      vehicle: 'motorbike' as const,
+      board: 'test-branch' as const,
+      names: ['甲', '乙', '丙', '丁'],
+      dayLimit: '45',
+      netWorthTarget: '6',
+      startingFunds: '3000',
+      seed: '7',
+    };
     const after = formAfterGame(f, setupOf(f), ['p1']);
-    expect(after).toEqual({ ...f, tiers: { startingFunds: 1, dayLimit: 0, netWorthTarget: 0 } });
+    // Player count, starting vehicle, seats and options: the original's defaults.
+    expect(after).toEqual({
+      ...f,
+      playerCount: 4,
+      vehicle: 'walk',
+      controllers: ['human', 'human', 'human', 'human'],
+      tiers: { startingFunds: 1, dayLimit: 0, netWorthTarget: 0 },
+    });
   });
 });
 
