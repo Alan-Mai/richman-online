@@ -56,7 +56,7 @@ RGB555、`SMP`、`SPR`（未壓縮）、FLC、`GND`、地圖資料、MKF 壓縮�
 **Phase 3 前置**（Phase 3 開始前完成）：
 - [x] 壓縮演算法（`ASSET_FORMATS.md` H3），以 `SPR` 的完整結構當已知明文，從 `jump.mkf` 子檔 9–44 下手。先對照 SDLPAL 文件描述的 YJ1 與常見 LZSS 變體（只看說明，不複製程式碼）；**設時限：這些候選都不符合就改用 Ghidra 分析 `rich4.exe` 的解壓函式，不繼續猜。**（已完成：LZ + 動態 Huffman，見 `ASSET_FORMATS.md`「MKF 壓縮」；462 個壓縮子檔全部通過驗證，`jump.mkf` 子檔 9–44 縮圖經使用者目視確認。）
 
-**下一步**：「匯入資料表後，設定畫面改用原版檔位」已實作完成，等使用者在里程碑試玩與確認勾選（新工作流程的試行；試行回顧在已完成的計畫檔末尾）。接著做「原版地圖轉成可玩 `Board`」（`/phase-check` 建議不要被前一項擋住）。（工作流程改造的 hook 實測已完成：規則檔修改的確認框在 bypass permissions 模式下也會跳出，SessionStart 接續訊息正常。）「銀行格與存提款」已完成（`DECISIONS.md` 2026-10-16「銀行格與存提款完成」）。
+**下一步**：做「原版地圖轉成可玩 `Board`」（見下方）。先讀 `docs/ASSET_FORMATS.md` 的地圖格式、`GAME_RULES.md` 第 4 節（格子種類碼）與「玩家起點」、`packages/shared` 的 `Board` 型別與 `validateBoard`、`pnpm -F extract cli map` 的匯出與客戶端唯讀預覽（`apps/client/src/assets/map-preview.ts`），提出計畫（含 `unsupported` 格子與轉檔警告、銀行格、節日表 `originalHolidays`），經 `reviewer plan` 後等我核准。「匯入資料表後，設定畫面改用原版檔位」已完成並經使用者試玩（新工作流程第一次試行，回顧在 `docs/SETUP_TIERS_PLAN.md` 末尾）。
 
 **未解問題**：
 - 壓縮子檔中沒有已知 magic 的 308 個（`Data.mkf` 302、`Panel.mkf` 6）格式未知，需另外分析（可用 `decompressMkf` 解壓後再看）。

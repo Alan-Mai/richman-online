@@ -8,8 +8,8 @@
 
 ## 接續狀態
 
-- 目前批次：`/wrap-up` 中。使用者決定交通工具等原版設定照原版重設（`78648bc`、`5e442aa`）；`reviewer batch a58bb5a..3afaa20` 重審通過；全範圍審查第 1 次不通過，本 commit 修正。
-- 下一個動作：重跑全範圍審查 `77bb54a^..HEAD`（規則②的條件），通過後寫入規則提案並完成 wrap-up 的 commit，提醒使用者輸入 `/pre-push`
+- 目前批次：全部完成。全範圍審查 `77bb54a^..e0cd6fd` 通過；`/wrap-up` 的規則提案已寫入（本 commit）。
+- 下一個動作：使用者輸入 `/pre-push` `77bb54a^..HEAD`（規則②的條件），通過後寫入規則提案並完成 wrap-up 的 commit，提醒使用者輸入 `/pre-push`
 - 未 commit 的工作：無
 - 待審筆數（REVIEW_QUEUE）：1（全範圍審查要求補記的措辭修正；先前使用者在 `/wrap-up` 把剩下的 10 筆全部視為接受；原版沒有的欄位怎麼處理照使用者指示記在 `DECISIONS.md` 2026-10-23，不進 REVIEW_QUEUE）
 
