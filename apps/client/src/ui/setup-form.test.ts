@@ -12,6 +12,7 @@ import {
   defaultSetupForm,
   describeSetupError,
   previewCharacters,
+  tierLabels,
   type SetupForm,
 } from './setup-form';
 
@@ -192,6 +193,72 @@ describe('buildSetup', () => {
         'seed',
       ]);
     }
+  });
+});
+
+// Invented option tables (not the original values); index 3 of the target list is a stray 0.
+const OPTIONS = {
+  startingFunds: [1000, 2000, 3000, 4000, 5000, 6000],
+  dayLimit: [0, 10, 20, 30, 40, 50],
+  netWorthTargetMultiple: [0, 2, 3, 0, 5, 6],
+  dayLimitLabels: ['a', 'b', 'c', 'd', 'e', 'f'],
+};
+
+describe('buildSetup with the original option tables', () => {
+  const tiered = (f: SetupForm) => buildSetup(f, fixedSeed, null, OPTIONS);
+
+  it('starts from the original default options: second starting funds, no limits', () => {
+    expect(defaultSetupForm().tiers).toEqual({ startingFunds: 1, dayLimit: 0, netWorthTarget: 0 });
+    const result = tiered(form());
+    expect(result.ok && result.setup.config).toMatchObject({
+      startingFunds: 2000,
+      dayLimit: null,
+      netWorthTargetMultiple: null,
+    });
+  });
+
+  it('takes each setting from the chosen option, a 0 option meaning no limit', () => {
+    const result = tiered(form({ tiers: { startingFunds: 4, dayLimit: 2, netWorthTarget: 5 } }));
+    expect(result.ok && result.setup.config).toMatchObject({
+      startingFunds: 5000,
+      dayLimit: 20,
+      netWorthTargetMultiple: 6,
+    });
+    if (result.ok) expect(createGame(result.setup).ok).toBe(true);
+    const stray = tiered(form({ tiers: { startingFunds: 0, dayLimit: 0, netWorthTarget: 3 } }));
+    expect(stray.ok && stray.setup.config.netWorthTargetMultiple).toBeNull();
+  });
+
+  it('ignores the custom fields, even invalid ones', () => {
+    const result = tiered(form({ dayLimit: 'x', netWorthTarget: '0', startingFunds: '' }));
+    expect(result.ok).toBe(true);
+  });
+
+  it('treats an option index outside 0-5 as a caller bug', () => {
+    expect(() =>
+      tiered(form({ tiers: { startingFunds: 6, dayLimit: 0, netWorthTarget: 0 } })),
+    ).toThrow();
+    expect(() =>
+      tiered(form({ tiers: { startingFunds: 1, dayLimit: 1.5, netWorthTarget: 0 } })),
+    ).toThrow();
+  });
+});
+
+describe('tierLabels', () => {
+  it('shows starting funds as plain numbers and the target as an amount of the chosen funds', () => {
+    expect(tierLabels(OPTIONS, 1)).toEqual({
+      startingFunds: ['1000', '2000', '3000', '4000', '5000', '6000'],
+      dayLimit: ['a', 'b', 'c', 'd', 'e', 'f'],
+      netWorthTarget: ['無', '4000', '6000', '無', '10000', '12000'],
+    });
+    expect(tierLabels(OPTIONS, 5).netWorthTarget).toEqual([
+      '無',
+      '12000',
+      '18000',
+      '無',
+      '30000',
+      '36000',
+    ]);
   });
 });
 

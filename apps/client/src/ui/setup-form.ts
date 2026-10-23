@@ -1,6 +1,7 @@
 // New-game form: turns what the players typed into a GameSetup, or a list of problems.
 import {
   DEFAULT_RULE_CONFIG,
+  ORIGINAL_SETUP_DEFAULT_TIERS,
   PROVISIONAL_COMPUTER_PROFILE,
   drawCharacters,
   TEST_BRANCH_BOARD,
@@ -9,6 +10,7 @@ import {
   type CharacterProfile,
   type Controller,
   type GameSetup,
+  type OriginalTables,
   type PlayerId,
   type PlayerSetup,
   type Vehicle,
@@ -46,6 +48,59 @@ export interface SetupForm {
   startingFunds: string;
   /** Empty means a random seed. */
   seed: string;
+  /**
+   * Option indices (0-5) into the imported tables' setup options; used instead of the three
+   * custom fields above while tables.json is imported, and kept apart from them.
+   */
+  tiers: SetupTiers;
+}
+
+export interface SetupTiers {
+  startingFunds: number;
+  dayLimit: number;
+  netWorthTarget: number;
+}
+
+export type SetupOptions = OriginalTables['setupOptions'];
+
+/** What the original setup screen shows for each option (docs/GAME_RULES.md §1). */
+export interface TierLabels {
+  startingFunds: string[];
+  dayLimit: string[];
+  netWorthTarget: string[];
+}
+
+/** The option value at `tier`; an index outside the six options is a caller bug. */
+function optionAt(values: readonly number[], tier: number): number {
+  const value = Number.isInteger(tier) ? values[tier] : undefined;
+  if (value === undefined) throw new Error(`setup option index ${tier} out of range`);
+  return value;
+}
+
+/** A raw option value of 0 means no limit, whichever option holds it (as the original checks). */
+const limitOf = (raw: number): number | null => (raw === 0 ? null : raw);
+
+/**
+ * Starting funds and target amounts are plain decimal numbers; the target shows the chosen funds
+ * times its multiple; the day limit shows the imported text for each option.
+ */
+export function tierLabels(options: SetupOptions, startingFundsTier: number): TierLabels {
+  const funds = optionAt(options.startingFunds, startingFundsTier);
+  return {
+    startingFunds: options.startingFunds.map(String),
+    dayLimit: [...options.dayLimitLabels],
+    netWorthTarget: options.netWorthTargetMultiple.map((m) =>
+      m === 0 ? t('setup.tier.noTarget') : String(funds * m),
+    ),
+  };
+}
+
+function tieredSettings(options: SetupOptions, tiers: SetupTiers) {
+  return {
+    startingFunds: optionAt(options.startingFunds, tiers.startingFunds),
+    dayLimit: limitOf(optionAt(options.dayLimit, tiers.dayLimit)),
+    netWorthTargetMultiple: limitOf(optionAt(options.netWorthTargetMultiple, tiers.netWorthTarget)),
+  };
 }
 
 export type SetupError =
@@ -101,6 +156,7 @@ export function defaultSetupForm(): SetupForm {
     netWorthTarget: '',
     startingFunds: String(DEFAULT_RULE_CONFIG.startingFunds),
     seed: '',
+    tiers: { ...ORIGINAL_SETUP_DEFAULT_TIERS },
   };
 }
 
@@ -118,6 +174,19 @@ function parseOptional(text: string, max: number): number | null | undefined {
   return parseWhole(text, 1, max) ?? undefined;
 }
 
+/** The three settings typed into the custom fields (non-original input ranges). */
+function customSettings(form: SetupForm, errors: SetupError[]) {
+  const dayLimit = parseOptional(form.dayLimit, 9999);
+  if (dayLimit === undefined) errors.push({ field: 'dayLimit', reason: 'invalid' });
+  const netWorthTargetMultiple = parseOptional(form.netWorthTarget, 999);
+  if (netWorthTargetMultiple === undefined) {
+    errors.push({ field: 'netWorthTarget', reason: 'invalid' });
+  }
+  const startingFunds = parseWhole(form.startingFunds, 1, 1_000_000_000);
+  if (startingFunds === null) errors.push({ field: 'startingFunds', reason: 'invalid' });
+  return { dayLimit, netWorthTargetMultiple, startingFunds };
+}
+
 export function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0]!;
 }
@@ -125,12 +194,14 @@ export function randomSeed(): number {
 /**
  * Blank names fall back to the default "玩家 n"; names are trimmed and cut to the limit. Computer
  * seats get different characters from `characters` (the imported tables.json) drawn by the seed,
- * or the provisional profile without it.
+ * or the provisional profile without it. With the imported setup options, starting funds, day
+ * limit and net worth target come from the chosen options and the custom fields are ignored.
  */
 export function buildSetup(
   form: SetupForm,
   makeSeed: () => number = randomSeed,
   characters: readonly CharacterProfile[] | null = null,
+  setupOptions: SetupOptions | null = null,
 ): BuildSetupResult {
   const errors: SetupError[] = [];
   const count = Math.min(
@@ -146,14 +217,8 @@ export function buildSetup(
     if (names.indexOf(name) !== seat) errors.push({ field: 'name', seat, reason: 'duplicate' });
   });
 
-  const dayLimit = parseOptional(form.dayLimit, 9999);
-  if (dayLimit === undefined) errors.push({ field: 'dayLimit', reason: 'invalid' });
-  const netWorthTargetMultiple = parseOptional(form.netWorthTarget, 999);
-  if (netWorthTargetMultiple === undefined) {
-    errors.push({ field: 'netWorthTarget', reason: 'invalid' });
-  }
-  const startingFunds = parseWhole(form.startingFunds, 1, 1_000_000_000);
-  if (startingFunds === null) errors.push({ field: 'startingFunds', reason: 'invalid' });
+  const { dayLimit, netWorthTargetMultiple, startingFunds } =
+    setupOptions === null ? customSettings(form, errors) : tieredSettings(setupOptions, form.tiers);
   const seed = form.seed.trim() === '' ? makeSeed() : parseWhole(form.seed, 0, UINT32_MAX);
   if (seed === null) errors.push({ field: 'seed', reason: 'invalid' });
 

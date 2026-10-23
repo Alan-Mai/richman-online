@@ -71,6 +71,7 @@ export const zhTW = {
   'vehicle.car': '汽車',
   'setup.dayLimit': '天數上限（留空為不限）',
   'setup.netWorthTarget': '淨值目標：起始資金的幾倍（留空為無目標）',
+  'setup.tier.noTarget': '無',
   'setup.advanced': '進階設定',
   'setup.startingFunds': '起始資金',
   'setup.seed': '亂數種子（留空為隨機）',

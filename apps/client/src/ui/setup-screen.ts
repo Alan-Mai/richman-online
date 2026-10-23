@@ -250,6 +250,8 @@ export function renderSetupScreen(root: HTMLElement, options: SetupScreenOptions
     netWorthTarget: netWorthTarget.value,
     startingFunds: funds.value,
     seed: seed.value,
+    // The option menus come with the tables import on this screen; until then keep the given ones.
+    tiers: { ...initial.tiers },
   });
 
   const sync = () => {
